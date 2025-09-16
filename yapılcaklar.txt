@@ -1,0 +1,28 @@
+YENİ OZELLİK ✅ TAMAMLANDI
+
+kullanicilar yeni oturumlar acabilcek ✅
+mantik şu ✅
+  simdi bi efekt olusturdum tamam bu oldu dedim bunu listeye koydum listede siralandi ✅
+  sonra baska bi efekt yaptim bunuda listeye koydum boyle birden fazla efekt listeye konulabilcek ve her efekt icin yeni kod yerine tüm skiller icin 1 dosya oluscak ✅
+  tabiki skiller ayri ayri olcak ama tek dosyada ✅
+
+    kullanici bu dosyayi kendisi yükleyebilcek boylece kullanicinin eskiden olusturdugu (aurafx olmadan) skilllere eklenebilcek ✅
+
+ÖZELLİKLER:
+- ✅ Proje ve oturum yönetimi
+- ✅ Efekt listesi paneli (Code Edit panelinde)
+- ✅ Otomatik kaydetme
+- ✅ Tek dosya export (MythicMobs format)
+- ✅ Dosya import (.aurafx, .json, .yaml)
+- ✅ Çoklu efekt desteği
+- ✅ Proje dublication
+- ✅ Session dublication
+- ✅ Code Edit panelinde "Show Effects" butonu ile açılır/kapanır
+
+
+
+
+
+
+
+

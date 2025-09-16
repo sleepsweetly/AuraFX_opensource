@@ -1,0 +1,4 @@
+# This is a placeholder for favicon.ico
+# You need to convert your icon.png to favicon.ico format
+# You can use online tools like favicon.io or realfavicongenerator.net
+# For now, the layout.tsx already references /icon.png as favicon 

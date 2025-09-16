@@ -1,0 +1,14 @@
+{
+    "installCommand": "npm install --legacy-peer-deps",
+    "headers": [
+        {
+            "source": "/extensions/(.*)",
+            "headers": [
+                {
+                    "key": "X-Robots-Tag",
+                    "value": "noindex, nofollow"
+                }
+            ]
+        }
+    ]
+}
