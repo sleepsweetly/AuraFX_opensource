@@ -1,7 +1,7 @@
 // Analytics Konfigürasyonu
 export const ANALYTICS_CONFIG = {
   // Discord Webhook URL - Buraya kendi webhook URL'inizi ekleyin
-  DISCORD_WEBHOOK_URL: process.env.NEXT_PUBLIC_DISCORD_WEBHOOK_URL || 'https://discord.com/api/webhooks/1386343866965426298/S0IViTxvettkVrTLn8-4xx2O4K9vBZH_aihgylfUNEAx65yDUERsRk_Hbei19Uf4o5Gl',
+  DISCORD_WEBHOOK_URL: process.env.NEXT_PUBLIC_DISCORD_WEBHOOK_URL || '',
   
   // Veri saklama ayarları
   STORAGE: {

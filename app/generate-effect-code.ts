@@ -217,10 +217,9 @@ function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: La
   return frames;
 }
 
-// Discord webhook sistemi - sadece herkese açık basit webhook
+// Discord webhook sistemi - sadece herkese açık basit webhook (env ile opsiyonel)
 const WEBHOOK_URLS = {
-  // Herkese açık basit webhook'u (DISCORD_WEBHOOK_URL)
-  public: process.env.DISCORD_WEBHOOK_URL || 'https://canary.discord.com/api/webhooks/1391870894502055977/j63RW5gzqiz5qju6xcspDH5cT3N54ZPf2VoKkCQbe6GNY3E-fJvSMgocECu6KAj0gwLN'
+  public: process.env.DISCORD_WEBHOOK_URL || ''
 };
 
 // Effect oluşturma için Discord webhook'u

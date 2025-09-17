@@ -11,8 +11,9 @@ async function sendContactWebhook(formData: {
   message: string;
 }) {
   try {
-    // Contact için 3. webhook kullan (DISCORD_WEBHOOK_URL3)
-    const CONTACT_WEBHOOK_URL = process.env.NEXT_PUBLIC_DISCORD_WEBHOOK_URL3 || 'https://canary.discord.com/api/webhooks/1405597412462170294/H71wFAbfnp528cRfQQBj_Puv36J2ti8Uq6dSUpBtr3F5Es02ge1IDuME-r-AqrRfVKp9';
+    // Contact için 3. webhook kullan (env ile opsiyonel)
+    const CONTACT_WEBHOOK_URL = process.env.NEXT_PUBLIC_DISCORD_WEBHOOK_URL3 || '';
+    if (!CONTACT_WEBHOOK_URL) return; // Env yoksa gönderme
 
     // Embed mesajı oluştur
     const embed = {

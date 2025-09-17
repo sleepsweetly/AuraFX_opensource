@@ -246,14 +246,20 @@ export function CodePanel({
     setIsSharing(true)
 
     try {
-      // İki ayrı webhook URL'i
-      const embedWebhookUrl =
-        process.env.NEXT_PUBLIC_DISCORD_EMBED_WEBHOOK_URL ||
-        "https://discord.com/api/webhooks/1416356622548074556/D3aeWWf8iEc-Rfkziw-tu-hwkwx4IK1kYc-pznNnvDDxgtfaY2BbaP1S91JpbUD9SlQc"
-      
-      const fileWebhookUrl =
-        process.env.NEXT_PUBLIC_DISCORD_FILE_WEBHOOK_URL ||
-        "https://discord.com/api/webhooks/1416360683603230760/CG0j5bqH8O5oQQM6yd8fefPNST6-SeZm5rfIMeDlTa2KfZ5iMawV25LXK3vwC9RHFIRk"
+      // İki ayrı webhook URL'i (env üzerinden opsiyonel)
+      const embedWebhookUrl = process.env.NEXT_PUBLIC_DISCORD_EMBED_WEBHOOK_URL
+      const fileWebhookUrl = process.env.NEXT_PUBLIC_DISCORD_FILE_WEBHOOK_URL
+
+      if (!embedWebhookUrl || !fileWebhookUrl) {
+        toast({
+          title: "Share disabled",
+          description: "Discord webhooks are not configured.",
+          duration: 2500,
+          variant: "destructive",
+        })
+        setIsSharing(false)
+        return
+      }
 
       const effectFileName = `${shareEffectName.replace(/[^a-zA-Z0-9]/g, "_")}_effect.yaml`
       const effectFile = new Blob([code], { type: "text/yaml" })
