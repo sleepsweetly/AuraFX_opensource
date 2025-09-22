@@ -84,7 +84,7 @@ export function ActionRecordingPanel({
   isRecording: _isRecording,
   onToggleRecording: _onToggleRecording,
 }: ActionRecordingPanelProps) {
-  const { records, clearRecords, startRecording, stopRecording, addElementDelay, toggleAddElementDelay, isRecording, optimizeIdleRepeat, toggleOptimizeIdleRepeat, optimizeCircleFrames, toggleOptimizeCircleFrames } =
+  const { records, clearRecords, startRecording, stopRecording, addElementDelay, toggleAddElementDelay, isRecording, optimizeIdleRepeat, toggleOptimizeIdleRepeat, optimizeCircleFrames, toggleOptimizeCircleFrames, debugFrameComments, toggleDebugFrameComments } =
     useActionRecordingStore()
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -315,6 +315,21 @@ export function ActionRecordingPanel({
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Compress circle elements per frame into a single particlering
+              </p>
+
+              <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                <Label htmlFor="opt-debug-frame" className="text-sm font-medium text-foreground">
+                  Debug comments in generated code
+                </Label>
+                <Switch
+                  id="opt-debug-frame"
+                  checked={debugFrameComments}
+                  onCheckedChange={toggleDebugFrameComments}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Adds frame index, source type, idle flag, delay and repeat info
               </p>
             </div>
           </motion.div>

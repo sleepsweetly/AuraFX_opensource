@@ -34,13 +34,13 @@ const CHANGELOG_DATA: ChangelogEntry[] = [
     version: "2.1.7",
     date: "2025-09-22",
     type: "minor",
-    title: "Idle Repeat Optimization, Optional Circle Compression, and Better Quick Settings",
-    description: "Smoother idle playback with repeat/repeati optimization and blocking delays, optional circle→particlering compression for Action Recording, global Quick Settings particle count default, and helpful debug output in generated code.",
+    title: "Idle Repeat Optimization (optional), Circle Compression (optional), and Better Quick Settings",
+    description: "Smoother idle playback with optional repeat/repeati optimization and blocking delays, optional circle→particlering compression for Action Recording, global Quick Settings particle count default, and optional debug output in generated code.",
     changes: [
       {
         type: "feature",
-        title: "Idle repeat optimization (repeat/repeati)",
-        description: "Idle frames now auto-compact using repeat and a reduced repeatInterval; total idle time is preserved with a single blocking delay to prevent other actions from running during idle."
+        title: "Idle repeat optimization (optional)",
+        description: "When enabled, idle frames compact using repeat with reduced repeatInterval; total idle time is preserved with a single blocking delay so other actions don't run during idle."
       },
       {
         type: "improvement",
@@ -49,8 +49,8 @@ const CHANGELOG_DATA: ChangelogEntry[] = [
       },
       {
         type: "feature",
-        title: "Debug comments in generated code",
-        description: "Each frame now includes a comment with frame index, source action type, idle flag, delay and compacted repeat count for easier analysis."
+        title: "Debug comments in generated code (optional)",
+        description: "When enabled, each frame includes a comment with frame index, source action type, idle flag, delay and compacted repeat count for easier analysis."
       },
       {
         type: "improvement",

@@ -62,6 +62,7 @@ interface ActionRecordingState {
   addElementDelay: boolean // Element eklerken delay ekleme ayarı
   optimizeIdleRepeat: boolean // Idle repeat/repeati optimizasyonu
   optimizeCircleFrames: boolean // Frame bazlı circle->particlering optimizasyonu
+  debugFrameComments: boolean // Kodda frame debug yorumları
   
   // Actions
   startRecording: () => void
@@ -97,6 +98,7 @@ interface ActionRecordingState {
   toggleAddElementDelay: () => void
   toggleOptimizeIdleRepeat: () => void
   toggleOptimizeCircleFrames: () => void
+  toggleDebugFrameComments: () => void
   
   // Utility
   calculateDelayTicks: (currentTime: number) => number
@@ -110,6 +112,7 @@ export const useActionRecordingStore = create<ActionRecordingState>((set, get) =
   addElementDelay: true, // Varsayılan olarak delay ekle
   optimizeIdleRepeat: true,
   optimizeCircleFrames: false,
+  debugFrameComments: false,
   
   startRecording: () => {
     set({ 
@@ -578,5 +581,9 @@ export const useActionRecordingStore = create<ActionRecordingState>((set, get) =
 
   toggleOptimizeCircleFrames: () => {
     set(state => ({ optimizeCircleFrames: !state.optimizeCircleFrames }))
+  },
+
+  toggleDebugFrameComments: () => {
+    set(state => ({ debugFrameComments: !state.debugFrameComments }))
   }
 }))
