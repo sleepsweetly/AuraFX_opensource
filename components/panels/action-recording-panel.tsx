@@ -84,7 +84,7 @@ export function ActionRecordingPanel({
   isRecording: _isRecording,
   onToggleRecording: _onToggleRecording,
 }: ActionRecordingPanelProps) {
-  const { records, clearRecords, startRecording, stopRecording, addElementDelay, toggleAddElementDelay, isRecording } =
+  const { records, clearRecords, startRecording, stopRecording, addElementDelay, toggleAddElementDelay, isRecording, optimizeIdleRepeat, toggleOptimizeIdleRepeat, optimizeCircleFrames, toggleOptimizeCircleFrames } =
     useActionRecordingStore()
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -216,7 +216,7 @@ export function ActionRecordingPanel({
           <p className="text-muted-foreground text-sm font-medium">
             {isRecording ? (
               <span className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                <span className="w-2 h-2 bg-destructive rounded-full animate-pulse inline-block" />
                 Recording in progress...
               </span>
             ) : (
@@ -285,6 +285,36 @@ export function ActionRecordingPanel({
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 When enabled, adds a 1-tick delay when recording element additions
+              </p>
+
+              <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                <Label htmlFor="opt-idle-repeat" className="text-sm font-medium text-foreground">
+                  Optimize idle repeat (lower repeati, higher repeat)
+                </Label>
+                <Switch
+                  id="opt-idle-repeat"
+                  checked={optimizeIdleRepeat}
+                  onCheckedChange={toggleOptimizeIdleRepeat}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Smoother idle playback and block other actions during idle
+              </p>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="opt-circle-frames" className="text-sm font-medium text-foreground">
+                  Optimize circle frames (particlering)
+                </Label>
+                <Switch
+                  id="opt-circle-frames"
+                  checked={optimizeCircleFrames}
+                  onCheckedChange={toggleOptimizeCircleFrames}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Compress circle elements per frame into a single particlering
               </p>
             </div>
           </motion.div>

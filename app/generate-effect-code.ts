@@ -102,8 +102,8 @@ function processActionAttributes(actionRecords: ActionRecord[], layers: Layer[])
 }
 
 // Action recording'leri animasyon frame'lerine dönüştür
-function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: Layer[]): Array<{ delay: number, elements: Array<{ id: string, x: number, z: number, yOffset: number }> }> {
-  const frames: Array<{ delay: number, elements: Array<{ id: string, x: number, z: number, yOffset: number }> }> = [];
+function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: Layer[]): Array<{ delay: number, elements: Array<{ id: string, x: number, z: number, yOffset: number }>, isIdle: boolean, sourceType: string }> {
+  const frames: Array<{ delay: number, elements: Array<{ id: string, x: number, z: number, yOffset: number }>, isIdle: boolean, sourceType: string }> = [];
   // Canlı pozisyon haritası: frame'ler arasında deltalara göre güncellenecek
   const livePositions: Record<string, { x: number, z: number, yOffset: number }> = {};
   layers.forEach(layer => {
@@ -146,7 +146,7 @@ function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: La
           frameElements.push({ id: pos.id, x: pos.x, z: pos.z, yOffset: pos.yOffset || 0 });
         });
         const frameDelay = index === 0 ? 0 : Math.max(1, record.delayTicks);
-        frames.push({ delay: frameDelay, elements: frameElements });
+        frames.push({ delay: frameDelay, elements: frameElements, isIdle: false, sourceType: record.type });
         lastFrameTime = record.timestamp;
       }
     } else if (record.type === 'move') {
@@ -169,19 +169,24 @@ function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: La
         });
         if (frameElements.length > 0) {
           const frameDelay = index === 0 ? 0 : Math.max(1, record.delayTicks);
-          frames.push({ delay: frameDelay, elements: frameElements });
+          frames.push({ delay: frameDelay, elements: frameElements, isIdle: false, sourceType: record.type });
           lastFrameTime = record.timestamp;
         }
       }
     } else if (record.type === 'element_add') {
-      // Element ekleme işlemi için frame oluşturma - elementler zaten mevcut
-      // Element add action'ları ayrı frame oluşturmaz, sadece log için
-      console.log('Element add action detected, skipping frame creation');
+      // Element ekleme: canlı pozisyonları güncelle ki sonraki idle'lar doğru konumu kullansın
+      const id = record.elementIds?.[0];
+      const pos = record.data?.position;
+      const yOffset = typeof record.data?.yOffset === 'number' ? record.data.yOffset : 0;
+      if (id && pos && typeof pos.x === 'number' && typeof pos.z === 'number') {
+        livePositions[id] = { x: pos.x, z: pos.z, yOffset };
+      }
+      // Ayrı frame oluşturma yok; log amaçlı
     } else if (record.type === 'idle') {
       // Idle action - son action'ın son pozisyonlarını kullan
       const frameElements: Array<{ id: string, x: number, z: number, yOffset: number }> = [];
       
-      if (record.data.lastPositions) {
+      if (record.data.lastPositions && record.data.lastPositions.length > 0) {
         // Son pozisyonları kullan
         record.data.lastPositions.forEach(pos => {
           frameElements.push({
@@ -191,25 +196,36 @@ function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: La
             yOffset: pos.yOffset
           });
         });
-      } else {
-        // Fallback: mevcut element pozisyonlarını kullan
+      } else if (record.elementIds && record.elementIds.length > 0) {
+        // Fallback: mevcut element pozisyonlarını tüm layer'larda ara
         record.elementIds.forEach(elementId => {
-          const element = layers[0]?.elements.find(el => el.id === elementId);
-          if (element) {
+          let found: Element | undefined;
+          for (const layer of layers) {
+            const el = layer.elements.find(e => e.id === elementId);
+            if (el) { found = el; break; }
+          }
+          if (found && (found as any).position) {
             frameElements.push({
               id: elementId,
-              x: element.position.x,
-              z: element.position.z,
-              yOffset: typeof element.yOffset === 'number' ? element.yOffset : 0
+              x: (found as any).position.x,
+              z: (found as any).position.z,
+              yOffset: typeof (found as any).yOffset === 'number' ? (found as any).yOffset : 0
             });
           }
+        });
+      } else {
+        // Son çare: canlı pozisyon haritasındaki tüm elementleri kullan
+        Object.entries(livePositions).forEach(([id, pos]) => {
+          frameElements.push({ id, x: pos.x, z: pos.z, yOffset: pos.yOffset });
         });
       }
       
       if (frameElements.length > 0) {
         frames.push({
           delay: record.delayTicks,
-          elements: frameElements
+          elements: frameElements,
+          isIdle: true,
+          sourceType: record.type
         });
       }
     }
@@ -324,7 +340,8 @@ const paramAliases: Record<string, string> = {
   useEyeLocation: 'uel',
   forwardOffset: 'sfo',
   sideOffset: 'sso',
-  repeatInterval: 'repeatI',
+  // repeatInterval için kısaltma: "repeati"
+  repeatInterval: 'repeati',
   targetInterval: 'targetI',
 };
 
@@ -332,7 +349,7 @@ function buildParams(params: Record<string, any>) {
   // Alias çakışmalarını önlemek için alias'ı aynı olanlardan sadece birini ekle
   const usedAliases = new Set<string>();
   return Object.entries(params)
-    .filter(([_, v]) => v !== 0 && v !== false && v !== undefined && v !== "" && v !== null)
+    .filter(([k, v]) => !(v === 0 && k !== 'repeatInterval') && v !== false && v !== undefined && v !== "" && v !== null)
     .filter(([k, _]) => {
       const alias = paramAliases[k] || k;
       if (usedAliases.has(alias)) return false;
@@ -555,52 +572,154 @@ export const generateEffectCode = async (
     // Action recording frame'lerini işle
     if (actionFrames.length > 0) {
       codeLines.push(`  # Action Recording Animation: ${actionFrames.length} frames`);
-      
-      actionFrames.forEach((frame, frameIndex) => {
+
+      // Aynı element ve pozisyonlara sahip ardışık idle frame'leri tek satıra sıkıştır
+      type CompactFrame = { delay: number, elements: Array<{ id: string, x: number, z: number, yOffset: number }>, repeatCount: number, isIdle: boolean, sourceType: string };
+      const compactFrames: CompactFrame[] = [];
+
+      const elementsEqual = (
+        a: Array<{ id: string, x: number, z: number, yOffset: number }>,
+        b: Array<{ id: string, x: number, z: number, yOffset: number }>
+      ) => {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+          const ea = a[i];
+          const eb = b[i];
+          if (ea.id !== eb.id) return false;
+          if (Math.abs(ea.x - eb.x) > 1e-6) return false;
+          if (Math.abs(ea.z - eb.z) > 1e-6) return false;
+          if (Math.abs((ea.yOffset || 0) - (eb.yOffset || 0)) > 1e-6) return false;
+        }
+        return true;
+      };
+
+      for (let i = 0; i < actionFrames.length; i++) {
+        const current = actionFrames[i];
+        // Başlangıç compact
+        if (compactFrames.length === 0) {
+          compactFrames.push({ delay: current.delay, elements: current.elements, repeatCount: 1, isIdle: current.isIdle, sourceType: current.sourceType });
+          continue;
+        }
+        const last = compactFrames[compactFrames.length - 1];
+        // Sadece idle olan ve tamamen aynı element dizisi + aynı delay ise tekrara uygundur
+        if (last.isIdle && current.isIdle && last.delay === current.delay && elementsEqual(last.elements, current.elements)) {
+          last.repeatCount += 1;
+        } else {
+          compactFrames.push({ delay: current.delay, elements: current.elements, repeatCount: 1, isIdle: current.isIdle, sourceType: current.sourceType });
+        }
+      }
+
+      // Compact frame'leri kullanarak kod üret
+      compactFrames.forEach((frame, frameIndex) => {
+        // Debug: frame bilgisi
+        codeLines.push(`  # frame=${frameIndex + 1} type=${frame.sourceType} idle=${frame.isIdle ? 'yes' : 'no'} delay=${frame.delay} repeatx=${frame.repeatCount}`);
+
         // Frame delay ekle (ilk frame hariç)
-        if (frameIndex > 0 && frame.delay > 0) {
-          codeLines.push(`  - delay ${frame.delay}`);
+        // Idle frame'lerde başlangıç delay'ini eklemeyip bloklayıcı toplam delay ile telafi ediyoruz
+        if (!(frame as any).isIdle) {
+          if (frameIndex > 0 && frame.delay > 0) {
+            codeLines.push(`  - delay ${frame.delay}`);
+          }
         }
         
-        // Frame elementlerini işle
+        // Frame elementlerini layer'a göre grupla ve optimize et
+        const layerIdToItems: Record<string, { layer: Layer, items: Array<{ fe: { id: string, x: number, z: number, yOffset: number }, el: Element }> }> = {};
         frame.elements.forEach(frameElement => {
-          // Element'in hangi layer'a ait olduğunu bul
-          let elementLayer: Layer | null = null;
-          let actualElement: Element | null = null;
-          
-          layers.forEach(layer => {
+          for (const layer of layers) {
             const foundElement = layer.elements.find(el => el.id === frameElement.id);
             if (foundElement) {
-              elementLayer = layer;
-              actualElement = foundElement;
+              const key = layer.id;
+              if (!layerIdToItems[key]) layerIdToItems[key] = { layer, items: [] };
+              layerIdToItems[key].items.push({ fe: frameElement, el: foundElement });
+              break;
             }
-          });
-          
-          if (elementLayer && actualElement) {
-            const x = frameElement.x;
-            const z = frameElement.z;
-            const y = frameElement.yOffset + ((elementLayer as any).yOffset ?? 0) + (settings.yOffset ?? 0);
-            const actEl = actualElement as Element;
-            const color = liveColors[actEl.id] || (actEl as any).color || (elementLayer as any).color;
-            const repeat = liveRepeats[actEl.id] || (actEl as any).elementCount || (elementLayer as any).repeat;
-            
-            // Effect line oluştur
-            const effectLine = generateEffectLine(
-              (elementLayer as any).effectType || "particles",
-              (elementLayer as any).particle,
-              color,
-              (elementLayer as any).alpha,
-              repeat,
-              (elementLayer as any).repeatInterval,
-              x,
-              z,
-              y,
-              (elementLayer as any).targeter,
-              (elementLayer as any).effectParams
-            );
-            codeLines.push(effectLine);
           }
         });
+
+        Object.values(layerIdToItems).forEach(group => {
+          const elementLayer = group.layer as any;
+          const items = group.items;
+          if (items.length === 0) return;
+
+          // Idle için tekrar mekanizmasını uygula, diğer durumları değiştirme (grup bazlı)
+          let repeat = 1;
+          let repeatIntervalOverride = elementLayer.repeatInterval;
+          if ((frame as any).isIdle && (settings?.optimizeIdleRepeat ?? true)) {
+            const frameRepeat = Math.max(1, frame.repeatCount);
+            const originalInterval = Math.max(0, frame.delay || 0);
+            if (originalInterval === 0) {
+              repeat = frameRepeat;
+              repeatIntervalOverride = 0;
+            } else {
+              const targetInterval = Math.max(1, Math.floor(originalInterval / 2));
+              const totalIdleTicks = frameRepeat * originalInterval;
+              const adjustedRepeat = Math.max(1, Math.round(totalIdleTicks / targetInterval));
+              repeat = adjustedRepeat;
+              repeatIntervalOverride = targetInterval;
+            }
+          }
+
+          // Renkleri ve türleri topla
+          const colors = items.map(({ el }) => (liveColors[el.id] || (el as any).color || elementLayer.color));
+          const typesOk = items.every(({ el }) => (el as any).type === 'circle');
+          const allSameColor = colors.every(c => c === colors[0]);
+
+          const allowCircleOpt = (settings?.optimizeCircleFrames ?? true);
+          if (allowCircleOpt && typesOk && allSameColor && items.length > 2) {
+            // particlering optimizasyonu
+            const center = {
+              x: items.reduce((sum, { fe }) => sum + fe.x, 0) / items.length,
+              z: items.reduce((sum, { fe }) => sum + fe.z, 0) / items.length,
+            };
+            let radius = items.reduce((sum, { fe }) => sum + Math.hypot(fe.x - center.x, fe.z - center.z), 0) / items.length;
+            const y = (items[0].fe.yOffset || 0) + (elementLayer.yOffset ?? 0) + (settings.yOffset ?? 0);
+            const effectLine = generateEffectLine(
+              "particlering",
+              elementLayer.particle,
+              colors[0],
+              elementLayer.alpha,
+              repeat,
+              repeatIntervalOverride,
+              center.x,
+              center.z,
+              y,
+              elementLayer.targeter,
+              { ...(elementLayer.effectParams || {}), ringPoints: items.length, ringRadius: radius }
+            );
+            codeLines.push(effectLine);
+          } else {
+            // Fallback: her element için satır
+            items.forEach(({ fe, el }) => {
+              const x = fe.x;
+              const z = fe.z;
+              const y = fe.yOffset + (elementLayer.yOffset ?? 0) + (settings.yOffset ?? 0);
+              const color = liveColors[el.id] || (el as any).color || elementLayer.color;
+              const effectLine = generateEffectLine(
+                elementLayer.effectType || "particles",
+                elementLayer.particle,
+                color,
+                elementLayer.alpha,
+                repeat,
+                repeatIntervalOverride,
+                x,
+                z,
+                y,
+                elementLayer.targeter,
+                elementLayer.effectParams
+              );
+              codeLines.push(effectLine);
+            });
+          }
+        });
+
+        // Idle sırasında diğer action'ların gerçekleşmemesi için toplam idle süresi kadar bekleme ekle
+        if ((frame as any).isIdle) {
+          const originalInterval = Math.max(0, frame.delay || 0);
+          const totalIdleTicks = (frame.repeatCount || 1) * originalInterval;
+          if (totalIdleTicks > 0) {
+            codeLines.push(`  - delay ${totalIdleTicks}`);
+          }
+        }
       });
     } else {
       codeLines.push(`  # No transform frames recorded - add elements and perform actions to see animation`);

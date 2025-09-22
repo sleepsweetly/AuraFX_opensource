@@ -60,6 +60,8 @@ interface ActionRecordingState {
   lastActionTime: number | null
   lastElementPositions: Record<string, { x: number, z: number, yOffset: number }> // Son element pozisyonları
   addElementDelay: boolean // Element eklerken delay ekleme ayarı
+  optimizeIdleRepeat: boolean // Idle repeat/repeati optimizasyonu
+  optimizeCircleFrames: boolean // Frame bazlı circle->particlering optimizasyonu
   
   // Actions
   startRecording: () => void
@@ -93,6 +95,8 @@ interface ActionRecordingState {
   
   // Settings
   toggleAddElementDelay: () => void
+  toggleOptimizeIdleRepeat: () => void
+  toggleOptimizeCircleFrames: () => void
   
   // Utility
   calculateDelayTicks: (currentTime: number) => number
@@ -104,6 +108,8 @@ export const useActionRecordingStore = create<ActionRecordingState>((set, get) =
   lastActionTime: null,
   lastElementPositions: {},
   addElementDelay: true, // Varsayılan olarak delay ekle
+  optimizeIdleRepeat: true,
+  optimizeCircleFrames: false,
   
   startRecording: () => {
     set({ 
@@ -133,11 +139,11 @@ export const useActionRecordingStore = create<ActionRecordingState>((set, get) =
   
   calculateDelayTicks: (currentTime: number) => {
     const { lastActionTime } = get()
-    if (!lastActionTime) return 1
+    if (!lastActionTime) return 0
     
     const timeDiffMs = currentTime - lastActionTime
     // Convert milliseconds to ticks: 1 second = 20 ticks, so 1 tick = 50ms
-    return Math.max(1, Math.round(timeDiffMs / 50))
+    return Math.max(0, Math.round(timeDiffMs / 50))
   },
   
   recordRotate: (elementIds: string[], angle: number, center: { x: number, y: number }) => {
@@ -210,9 +216,21 @@ export const useActionRecordingStore = create<ActionRecordingState>((set, get) =
       delayTicks
     }
     
+    // Son pozisyonları delta'ya göre güncelle ki idle her zaman son konumu alsın
+    const updatedPositions = { ...get().lastElementPositions }
+    elementIds.forEach(id => {
+      const prev = updatedPositions[id] || { x: 0, z: 0, yOffset: 0 }
+      updatedPositions[id] = {
+        x: prev.x + (deltaX || 0),
+        z: prev.z + (deltaZ || 0),
+        yOffset: prev.yOffset + (deltaYOffset || 0)
+      }
+    })
+    
     set(state => ({
       records: [...state.records, record],
-      lastActionTime: currentTime
+      lastActionTime: currentTime,
+      lastElementPositions: updatedPositions
     }))
   },
   
@@ -552,5 +570,13 @@ export const useActionRecordingStore = create<ActionRecordingState>((set, get) =
     set(state => ({
       addElementDelay: !state.addElementDelay
     }))
+  },
+
+  toggleOptimizeIdleRepeat: () => {
+    set(state => ({ optimizeIdleRepeat: !state.optimizeIdleRepeat }))
+  },
+
+  toggleOptimizeCircleFrames: () => {
+    set(state => ({ optimizeCircleFrames: !state.optimizeCircleFrames }))
   }
 }))

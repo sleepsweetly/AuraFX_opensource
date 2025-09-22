@@ -2913,10 +2913,10 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
                               }
                             }
                           }
-                        } else {
-                          onSettingsChange?.({ ...settings, particleCount: value })
-                          // Global ayar değişimi için kayıt gerekirse buraya eklenebilir
                         }
+                        // Her durumda global default'u da güncelle: sonraki eklenecek şekiller bunu kullanacak
+                        onSettingsChange?.({ ...settings, particleCount: value })
+                        // Global ayar değişimi için kayıt gerekirse buraya eklenebilir
                       }}
                       min={getCurrentMinCount()}
                       max={100}

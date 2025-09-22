@@ -910,7 +910,7 @@ export default function EffectEditor() {
   // Changelog otomatik gösterim kontrolü
   useEffect(() => {
     const lastSeenVersion = localStorage.getItem('aurafx-last-seen-version');
-    const currentVersion = '2.1.6'; // Her deploy'da bu versiyonu güncelleyin
+    const currentVersion = '2.1.7'; // Her deploy'da bu versiyonu güncelleyin
     
     if (lastSeenVersion !== currentVersion) {
       setShowChangelog(true);

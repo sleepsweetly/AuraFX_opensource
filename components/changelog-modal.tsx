@@ -30,6 +30,63 @@ interface ChangelogModalProps {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    id: "v2.1.7",
+    version: "2.1.7",
+    date: "2025-09-22",
+    type: "minor",
+    title: "Idle Repeat Optimization, Optional Circle Compression, and Better Quick Settings",
+    description: "Smoother idle playback with repeat/repeati optimization and blocking delays, optional circle→particlering compression for Action Recording, global Quick Settings particle count default, and helpful debug output in generated code.",
+    changes: [
+      {
+        type: "feature",
+        title: "Idle repeat optimization (repeat/repeati)",
+        description: "Idle frames now auto-compact using repeat and a reduced repeatInterval; total idle time is preserved with a single blocking delay to prevent other actions from running during idle."
+      },
+      {
+        type: "improvement",
+        title: "Accurate idle positions",
+        description: "Idle frames always use the latest positions across actions and layers; improved fallbacks when positions are missing."
+      },
+      {
+        type: "feature",
+        title: "Debug comments in generated code",
+        description: "Each frame now includes a comment with frame index, source action type, idle flag, delay and compacted repeat count for easier analysis."
+      },
+      {
+        type: "improvement",
+        title: "Quick Settings: particle count as global default",
+        description: "Adjusting Particle Count also updates the global default so newly created shapes use the same value."
+      },
+      {
+        type: "feature",
+        title: "Action Recording settings toggles",
+        description: "Added toggles in Action Recording panel: Optimize idle repeat (ON by default) and Optimize circle frames (OFF by default)."
+      },
+      {
+        type: "feature",
+        title: "Circle frame compression (optional)",
+        description: "When enabled, frames with only circle points of the same color are emitted as a single particlering instead of many per-point lines, dramatically reducing code."
+      },
+      {
+        type: "bugfix",
+        title: "HTML nesting fix in Action Recording header",
+        description: "Resolved a hydration warning by replacing a div inside a p with a span."
+      },
+      {
+        type: "bugfix",
+        title: "Idle delay double-count prevention",
+        description: "Removed per-frame idle delay and replaced with a single blocking delay equal to the full idle duration."
+      }
+    ],
+    highlights: [
+      "Smoother idle via repeat/repeati + blocking delay",
+      "Optional circle→particlering compression",
+      "Global Particle Count default for new shapes",
+      "Frame-level debug comments",
+      "New recording settings toggles"
+    ]
+  },
+  {
     id: "v2.1.6",
     version: "2.1.6",
     date: "2025-09-16",
