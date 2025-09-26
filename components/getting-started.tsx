@@ -158,9 +158,10 @@ interface ModernTutorialProps {
   onCodePanelOpened?: () => void;
   onPreviewPanelOpened?: () => void;
   onLayerAdded?: () => void;
+  onFinish?: () => void;
 }
 
-export default function ModernTutorial({ openPanels = [], togglePanel, lastShapeCreated, codePanelOpened, previewPanelOpened, layerAdded }: ModernTutorialProps) {
+export default function ModernTutorial({ openPanels = [], togglePanel, lastShapeCreated, codePanelOpened, previewPanelOpened, layerAdded, onFinish }: ModernTutorialProps) {
   const [showWelcome, setShowWelcome] = useState(true)
   const [showTutorial, setShowTutorial] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
@@ -311,6 +312,7 @@ export default function ModernTutorial({ openPanels = [], togglePanel, lastShape
     } else {
       // Discord adımında sadece tutorialı kapat
       setShowTutorial(false);
+      onFinish?.();
     }
   }
 
@@ -331,6 +333,7 @@ export default function ModernTutorial({ openPanels = [], togglePanel, lastShape
   const skipTutorial = () => {
     setShowWelcome(false)
     setShowTutorial(false)
+    onFinish?.()
   }
 
   // 1. Spotlight ve border için kullanılacak alanı belirle

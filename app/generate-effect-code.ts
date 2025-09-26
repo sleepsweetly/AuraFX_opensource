@@ -491,7 +491,12 @@ export const generateEffectCode = async (
   chainSequence: string[] = [],
   chainItems: Array<{ type: 'element' | 'delay', id: string, elementId?: string, elementIds?: string[], delay?: number }> = [],
   canvasImage: string | null = null,
-  actionRecords: ActionRecord[] = []
+  actionRecords: ActionRecord[] = [],
+  actionRecordingSettings?: {
+    optimizeCircleFrames?: boolean;
+    optimizeIdleRepeat?: boolean;
+    debugFrameComments?: boolean;
+  }
 ) => {
   const totalElements = layers.reduce((sum, l) => sum + l.elements.length, 0);
 
@@ -612,7 +617,7 @@ export const generateEffectCode = async (
       // Compact frame'leri kullanarak kod üret
       compactFrames.forEach((frame, frameIndex) => {
         // Debug: frame bilgisi (opsiyonel)
-        if ((settings?.debugFrameComments ?? false)) {
+        if ((actionRecordingSettings?.debugFrameComments ?? false)) {
           codeLines.push(`  # frame=${frameIndex + 1} type=${frame.sourceType} idle=${frame.isIdle ? 'yes' : 'no'} delay=${frame.delay} repeatx=${frame.repeatCount}`);
         }
 
@@ -646,7 +651,7 @@ export const generateEffectCode = async (
           // Idle için tekrar mekanizmasını uygula, diğer durumları değiştirme (grup bazlı)
           let repeat = 1;
           let repeatIntervalOverride = elementLayer.repeatInterval;
-          if ((frame as any).isIdle && (settings?.optimizeIdleRepeat ?? true)) {
+          if ((frame as any).isIdle && (actionRecordingSettings?.optimizeIdleRepeat ?? true)) {
             const frameRepeat = Math.max(1, frame.repeatCount);
             const originalInterval = Math.max(0, frame.delay || 0);
             if (originalInterval === 0) {
@@ -666,7 +671,7 @@ export const generateEffectCode = async (
           const typesOk = items.every(({ el }) => (el as any).type === 'circle');
           const allSameColor = colors.every(c => c === colors[0]);
 
-          const allowCircleOpt = (settings?.optimizeCircleFrames ?? true);
+          const allowCircleOpt = (actionRecordingSettings?.optimizeCircleFrames ?? false);
           if (allowCircleOpt && typesOk && allSameColor && items.length > 2) {
             // particlering optimizasyonu
             const center = {

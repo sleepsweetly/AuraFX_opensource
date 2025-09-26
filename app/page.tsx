@@ -272,13 +272,13 @@ const generateCodeFromElements = async (
   // Action Recording varsa önce onu işle
   if (actionRecords.length > 0) {
     code += `  # Action Recording Sequence\n`;
-    
+
     actionRecords.forEach((record, index) => {
       // Delay ekle
       if (record.delayTicks > 1) {
         code += `  - delay:${record.delayTicks}\n`;
       }
-      
+
       // Action'a göre kod üret
       switch (record.type) {
         case 'rotate':
@@ -298,7 +298,7 @@ const generateCodeFromElements = async (
           break;
       }
     });
-    
+
     code += `\n`;
   }
 
@@ -911,15 +911,20 @@ export default function EffectEditor() {
   useEffect(() => {
     const lastSeenVersion = localStorage.getItem('aurafx-last-seen-version');
     const currentVersion = '2.1.7'; // Her deploy'da bu versiyonu güncelleyin
-    
+
     if (lastSeenVersion !== currentVersion) {
       setShowChangelog(true);
       localStorage.setItem('aurafx-last-seen-version', currentVersion);
     }
   }, []);
-  
+
   // Action Recording Store
-  const { records: actionRecords } = useActionRecordingStore();
+  const {
+    records: actionRecords,
+    optimizeCircleFrames,
+    optimizeIdleRepeat,
+    debugFrameComments
+  } = useActionRecordingStore();
 
   // Duyuru toast'ları için özel state
   const [announcementToasts, setAnnouncementToasts] = useState<Array<{
@@ -1580,7 +1585,12 @@ export default function EffectEditor() {
         chainSequence,
         chainItems,
         canvasImage, // Canvas fotoğrafını gönder
-        actionRecords // Action Recording'ı gönder
+        actionRecords, // Action Recording'ı gönder
+        {
+          optimizeCircleFrames,
+          optimizeIdleRepeat,
+          debugFrameComments
+        }
       );
       setGeneratedCode(code);
     } catch (e) {
@@ -2134,9 +2144,9 @@ export default function EffectEditor() {
         const dz = el.position.z - center.z;
         return sum + Math.sqrt(dx * dx + dz * dz);
       }, 0) / groupElements.length || 1;
-      const angles = [ -Math.PI / 2, (-Math.PI / 2) + (2 * Math.PI / 3), (-Math.PI / 2) + (4 * Math.PI / 3) ];
+      const angles = [-Math.PI / 2, (-Math.PI / 2) + (2 * Math.PI / 3), (-Math.PI / 2) + (4 * Math.PI / 3)];
       const vertices = angles.map(a => ({ x: center.x + Math.cos(a) * avgRadius, z: center.z + Math.sin(a) * avgRadius }))
-      const points: Array<{x:number;z:number}> = [
+      const points: Array<{ x: number; z: number }> = [
         { x: vertices[0].x, z: vertices[0].z },
         { x: vertices[1].x, z: vertices[1].z },
         { x: vertices[2].x, z: vertices[2].z },
@@ -2510,7 +2520,7 @@ export default function EffectEditor() {
             >
               <ActionRecordingPanel
                 isRecording={false}
-                onToggleRecording={() => {}}
+                onToggleRecording={() => { }}
               />
             </DraggablePanel>
           );
@@ -2764,24 +2774,19 @@ export default function EffectEditor() {
 
   const [showGettingStarted, setShowGettingStarted] = useState(false);
   const [isTutorialActive, setIsTutorialActive] = useState(false);
-  
-  
 
-  useEffect(() => {
-    const tutorialDone = localStorage.getItem("tutorialDone");
-    if (!tutorialDone) {
-      setTimeout(() => {
-        setShowGettingStarted(true);
-        setIsTutorialActive(true);
-        console.log("GettingStarted açılıyor!");
-      }, 300); // 300ms gecikme ile overlay açılır
-    }
-  }, []);
+
+
+  // Tutorial artık otomatik açılmıyor, sadece buton ile açılacak
 
   const handleTutorialFinish = () => {
-    localStorage.setItem("tutorialDone", "true");
     setShowGettingStarted(false);
     setIsTutorialActive(false);
+  };
+
+  const handleTutorialOpen = () => {
+    setShowGettingStarted(true);
+    setIsTutorialActive(true);
   };
 
   return (
@@ -2966,6 +2971,8 @@ export default function EffectEditor() {
               onExportElements={exportElementsTo3DEditor}
               modes={modes as unknown as Record<string, boolean>}
               isTutorialActive={isTutorialActive}
+              onChangelogOpen={() => setShowChangelog(true)}
+              onTutorialOpen={handleTutorialOpen}
             />
             <div className="flex-1 relative flex flex-col">
               <Canvas
@@ -3004,17 +3011,21 @@ export default function EffectEditor() {
 
       </div>
       {showGettingStarted && (
-        <GettingStarted openPanels={openPanels} togglePanel={togglePanel} />
+        <GettingStarted
+          openPanels={openPanels}
+          togglePanel={togglePanel}
+          onFinish={handleTutorialFinish}
+        />
       )}
-      
-      
+
+
 
       {/* Changelog Modal */}
       <ChangelogModal
         isOpen={showChangelog}
         onClose={() => setShowChangelog(false)}
       />
-      
+
     </>
   )
 }

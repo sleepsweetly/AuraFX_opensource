@@ -12,7 +12,9 @@ import {
   BookOpen,
   Zap,
   Link2,
-  Video
+  Video,
+  Sparkles,
+  HelpCircle
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -29,6 +31,8 @@ interface SidebarProps {
   setScale?: (fn: (prev: number) => number) => void
   isTutorialActive?: boolean
   modes?: Record<string, boolean>
+  onChangelogOpen?: () => void
+  onTutorialOpen?: () => void
 }
 
 
@@ -44,16 +48,6 @@ export function Sidebar(props: SidebarProps) {
 
   // 3D butonuna tıklanınca modalı aç
   const handle3DButtonClick = () => {
-    // Eğer tutorial bitmediyse toast göster ve açma
-    if (!localStorage.getItem('tutorialDone')) {
-      toast({
-        title: 'Complete Tutorial First',
-        description: 'Please complete the tutorial before using the 3D Editor.',
-        variant: 'default',
-        duration: 4000,
-      });
-      return;
-    }
     // Varsayılan olarak ilk katmanı seç
     if (props.layers && props.layers.length > 0) {
       setSelectedLayerIds([props.layers[0].id]);
@@ -110,7 +104,7 @@ export function Sidebar(props: SidebarProps) {
   if (props.modes?.chainMode) {
     conditionalPanels.push({ id: "chain", icon: Link2, label: "Chain Sequence" });
   }
-  
+
   // Action Recording panel'i sadece action recording mode açıkken ekle
   if (props.modes?.actionRecordingMode) {
     conditionalPanels.push({ id: "action-recording", icon: Video, label: "Action Recording" });
@@ -121,7 +115,8 @@ export function Sidebar(props: SidebarProps) {
     { id: "code-edit", icon: Code2, label: "Code Edit" },
     { id: "3d", icon: Box, label: "3D Editor", onClick: handle3DButtonClick },
     { id: "help", icon: BookOpen, label: "Help & Wiki", onClick: () => window.open('/wiki', '_blank') },
-    // Announcements artık toast olarak gösteriliyor
+    { id: "tutorial", icon: HelpCircle, label: "Tutorial", onClick: props.onTutorialOpen },
+    { id: "changelog", icon: Sparkles, label: "What's New", onClick: props.onChangelogOpen },
   ];
 
   const allPanels = [...basePanels, ...conditionalPanels, ...bottomPanels];
@@ -146,18 +141,7 @@ export function Sidebar(props: SidebarProps) {
         duration: 0.4
       }}
     >
-      {/* Background image with filter */}
-      <div 
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: 'url(/sidebar.png)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          filter: 'brightness(0.4)',
-          zIndex: 0
-        }}
-      />
+
 
 
       {/* Content - tek sütun halinde tüm butonlar */}
@@ -353,7 +337,7 @@ function SidebarButton({
             : "text-white/60 hover:bg-white/5 hover:text-white"
           } ${panel.disabled ? 'opacity-50 pointer-events-none' : ''}`}
         style={{
-          textShadow: isActive 
+          textShadow: isActive
             ? '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4), 0 0 30px rgba(255,255,255,0.2)'
             : '0 0 5px rgba(0,0,0,0.8), 0 0 10px rgba(0,0,0,0.6)',
           zIndex: 999999999
