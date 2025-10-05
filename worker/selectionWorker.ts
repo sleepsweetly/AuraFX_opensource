@@ -17,7 +17,7 @@ interface SelectionBox {
 interface SelectionRequest {
   elements: ElementData[];
   selectionBox: SelectionBox;
-  viewMode: 'top' | 'side';
+  viewMode: 'top' | 'side' | 'diagonal' | 'isometric' | 'front';
   offset: { x: number; y: number };
   scale: number;
   canvasWidth: number;

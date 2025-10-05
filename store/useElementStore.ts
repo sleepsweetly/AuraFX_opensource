@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import type { Element } from "../types"
-import { autoGroupCirclesOnElements } from "../components/import-panel"
+import { autoGroupCirclesOnElements } from "../components/panels/import-panel"
 
 interface ElementStore {
   elements: Element[]

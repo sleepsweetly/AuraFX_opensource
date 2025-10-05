@@ -615,7 +615,7 @@ function performSampling({ method, gray, maxElements, targetSize, alphaAt, color
 
 // Modern Tooltip component
 const Tooltip = ({ text }: { text: string }) => (
-  <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black/90 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+  <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
     {text}
   </span>
 )
@@ -623,7 +623,7 @@ const Tooltip = ({ text }: { text: string }) => (
 // Modern Info icon with tooltip
 const InfoIcon = ({ desc }: { desc: string }) => (
   <div className="group relative">
-    <Info className="w-4 h-4 text-white/40 hover:text-white/60 transition-colors cursor-help" />
+    <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors cursor-help" />
     <Tooltip text={desc} />
   </div>
 )
@@ -825,29 +825,29 @@ function adjustColorForFrame(color: string, frameIndex: number): string {
 // Renk normalizasyonu - benzer renkleri birleştir
 function normalizeColor(color: string, threshold: number = 30): string {
   if (!color.startsWith('#')) return color;
-  
+
   const hex = color.slice(1);
   const r = parseInt(hex.substr(0, 2), 16);
   const g = parseInt(hex.substr(2, 2), 16);
   const b = parseInt(hex.substr(4, 2), 16);
-  
+
   // Renkleri threshold'a göre yuvarla
   const normalizedR = Math.round(r / threshold) * threshold;
   const normalizedG = Math.round(g / threshold) * threshold;
   const normalizedB = Math.round(b / threshold) * threshold;
-  
+
   return `#${normalizedR.toString(16).padStart(2, '0')}${normalizedG.toString(16).padStart(2, '0')}${normalizedB.toString(16).padStart(2, '0')}`;
 }
 
 // Renk parlaklığı hesaplama
 function getColorBrightness(color: string): number {
   if (!color.startsWith('#')) return 0;
-  
+
   const hex = color.slice(1);
   const r = parseInt(hex.substr(0, 2), 16);
   const g = parseInt(hex.substr(2, 2), 16);
   const b = parseInt(hex.substr(4, 2), 16);
-  
+
   // Luminance hesaplama (0-255 arası)
   return (r * 0.299 + g * 0.587 + b * 0.114);
 }
@@ -859,7 +859,7 @@ function extractElementsFromFrame(imageData: ImageData, settings: any): any[] {
   const maxElements = settings.maxElements || 50000;
   const alphaThreshold = settings.alphaThreshold || 10;
   const frameIndex = settings.frameIndex || 0;
-  
+
   // Partikül yoğunluğu ayarı - çakışmayı önlemek için
   const particleDensity = settings.particleDensity || 2; // 1-5 arası, 2 = her 2 pikselde bir
   const colorSimilarityThreshold = settings.colorSimilarityThreshold || 30; // Benzer renkler için threshold
@@ -905,23 +905,23 @@ function extractElementsFromFrame(imageData: ImageData, settings: any): any[] {
 
         // Benzer renkleri birleştir - çakışmayı önle
         const normalizedColor = normalizeColor(color, colorSimilarityThreshold);
-        
+
         // Pozisyon anahtarı oluştur
         const positionKey = `${worldX.toFixed(2)},${worldZ.toFixed(2)}`;
-        
+
         // Aynı pozisyonda farklı renk varsa, daha parlak olanı seç
         const existingColor = positionMap.get(positionKey);
         if (existingColor && existingColor !== normalizedColor) {
           // Mevcut rengin parlaklığını hesapla
           const existingBrightness = getColorBrightness(existingColor);
           const newBrightness = getColorBrightness(normalizedColor);
-          
+
           // Daha parlak olanı seç
           if (newBrightness > existingBrightness) {
             positionMap.set(positionKey, normalizedColor);
             // Eski elementi kaldır ve yenisini ekle
-            const existingIndex = candidates.findIndex(c => 
-              Math.abs(c.position.x - worldX) < 0.1 && 
+            const existingIndex = candidates.findIndex(c =>
+              Math.abs(c.position.x - worldX) < 0.1 &&
               Math.abs(c.position.z - worldZ) < 0.1
             );
             if (existingIndex !== -1) {
@@ -937,7 +937,7 @@ function extractElementsFromFrame(imageData: ImageData, settings: any): any[] {
           }
           continue; // Aynı pozisyonda daha parlak renk yoksa atla
         }
-        
+
         // Pozisyon map'ine ekle
         positionMap.set(positionKey, normalizedColor);
 
@@ -1050,26 +1050,24 @@ export function autoGroupCirclesOnElements(elements: Array<any>, gridSize: numbe
 const ModernToggle = ({ checked, onChange }: { checked: boolean, onChange: (checked: boolean) => void }) => (
   <div
     onClick={() => onChange(!checked)}
-    className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${
-      checked 
-        ? 'bg-white shadow-[0_0_12px_0_rgba(255,255,255,0.3)]' 
-        : 'bg-white/20 hover:bg-white/30'
-    }`}
+    className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${checked
+      ? 'bg-white shadow-[0_0_12px_0_rgba(255,255,255,0.3)]'
+      : 'bg-white/20 hover:bg-white/30'
+      }`}
   >
     <div
-      className={`absolute top-0.5 w-5 h-5 bg-black rounded-full transition-all duration-300 shadow-lg ${
-        checked ? 'left-5' : 'left-0.5'
-      }`}
+      className={`absolute top-0.5 w-5 h-5 bg-black rounded-full transition-all duration-300 shadow-lg ${checked ? 'left-5' : 'left-0.5'
+        }`}
     />
   </div>
 )
 
 // Modern slider with gradient
-const ModernSlider = ({ 
-  value, 
-  onChange, 
-  min, 
-  max, 
+const ModernSlider = ({
+  value,
+  onChange,
+  min,
+  max,
   step = 1,
   className = ""
 }: {
@@ -1087,19 +1085,19 @@ const ModernSlider = ({
     step={step}
     value={value}
     onChange={e => onChange(Number(e.target.value))}
-    className={`w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer transition-all duration-200 hover:bg-white/20 ${className}`}
+    className={`w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer transition-all duration-200 hover:bg-gray-300 ${className}`}
     style={{
-      background: `linear-gradient(to right, white 0%, white ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.1) ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.1) 100%)`
+      background: `linear-gradient(to right, #000 0%, #000 ${((value - min) / (max - min)) * 100}%, #e5e7eb ${((value - min) / (max - min)) * 100}%, #e5e7eb 100%)`
     }}
   />
 )
 
 // Modern number input
-const ModernInput = ({ 
-  value, 
-  onChange, 
-  min, 
-  max, 
+const ModernInput = ({
+  value,
+  onChange,
+  min,
+  max,
   step = 1,
   className = ""
 }: {
@@ -1117,16 +1115,16 @@ const ModernInput = ({
     max={max}
     step={step}
     onChange={e => onChange(Number(e.target.value))}
-    className={`w-20 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm font-medium transition-all duration-200 focus:border-white/30 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 ${className}`}
+    className={`w-20 px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 text-sm font-medium transition-all duration-200 focus:border-black focus:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-black ${className}`}
   />
 )
 
 // Import section component (BAĞIMSIZ BİR COMPONENT OLARAK)
-const ImportSection = ({ 
-  title, 
-  icon: Icon, 
-  description, 
-  children, 
+const ImportSection = ({
+  title,
+  icon: Icon,
+  description,
+  children,
   onImport,
   importText = "Import"
 }: {
@@ -1140,41 +1138,56 @@ const ImportSection = ({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="w-full bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+    <div className="w-full bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
       {/* Section Header */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-4 flex items-center justify-between hover:bg-white/5 transition-colors duration-200 cursor-pointer"
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-            <Icon className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+            <Icon className="w-4 h-4 text-gray-600" />
           </div>
           <div className="text-left">
-            <h3 className="text-lg font-bold text-white">{title}</h3>
-            <p className="text-white/50 text-sm">{description}</p>
+            <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
+            <p className="text-xs text-gray-500">{description}</p>
           </div>
         </div>
-        <div className={`transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}>
-          <ChevronRight className="w-5 h-5 text-white/40" />
+        <div 
+          className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}
+        >
+          <ChevronRight className="w-4 h-4" />
         </div>
       </button>
 
       {/* Collapsible Content */}
-      {isOpen && (
-        <div className="px-4 pb-4 space-y-4">
-          {children}
-          
-          {/* Import Button */}
-          <button
-            onClick={onImport}
-            className="w-full py-3 px-4 bg-white text-black font-bold rounded-lg hover:bg-white/90 transition-all duration-200 flex items-center justify-center gap-2"
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            className="px-4 pb-4 space-y-3 border-t border-gray-100 bg-gray-50"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ 
+              duration: 0.3,
+              ease: "easeOut"
+            }}
           >
-            <Download className="w-4 h-5 text-white" />
-            {importText}
-          </button>
-        </div>
-      )}
+            <div>
+              {children}
+            </div>
+
+            {/* Import Button */}
+            <button
+              onClick={onImport}
+              className="w-full py-2 px-4 bg-black text-white font-medium rounded-lg hover:bg-gray-800 transition-all duration-200 flex items-center justify-center gap-2 text-sm"
+            >
+              <Download className="w-4 h-4" />
+              {importText}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1307,13 +1320,13 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
     const file = files[0];
     const fileName = file.name.toLowerCase();
-    
+
     // File type detection
     if (fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
       loadPngFile(file);
@@ -1591,31 +1604,27 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
   const objPerformance = settings.objPerformance ?? false;
 
   return (
-    <div 
-      className={`w-full max-w-2xl mx-auto p-6 space-y-6 transition-all duration-300 ${
-        isDragOver ? 'bg-white/5 border-2 border-dashed border-white/20 rounded-2xl' : ''
-      }`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
+    <div className="w-full max-w-md mx-auto h-full flex flex-col bg-white p-4 overflow-y-auto">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center space-y-2"
+      <div className="flex-shrink-0 mb-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-800 to-gray-600 flex items-center justify-center shadow-md">
+            <FileStack className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-gray-900 text-sm">Import Files</h3>
+            <p className="text-xs text-gray-500">Convert various file formats to editable elements</p>
+          </div>
+        </div>
+      </div>
+
+      <div
+        className={`flex-1 space-y-4 ${isDragOver ? 'bg-gray-100 border-2 border-dashed border-gray-400 rounded-xl p-4' : ''
+          }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
-        <motion.div
-          className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4"
-          whileHover={{ scale: 1.05, rotate: 5 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        >
-          <Download className="w-8 h-8 text-white" />
-        </motion.div>
-        <h1 className="text-2xl font-bold text-white">Import Files</h1>
-        <p className="text-white/50 text-sm">Convert various file formats to editable elements</p>
-      </motion.div>
 
       {/* Import Sections */}
       <div className="space-y-4">
@@ -1631,11 +1640,11 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
             {/* PNG Size */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                   PNG Size
                   <InfoIcon desc="The resolution to process the PNG. Higher values preserve more detail." />
                 </Label>
-                <span className="text-white/60 text-xs font-mono bg-white/10 px-2 py-1 rounded border border-white/20">
+                <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
                   {pngSize}px
                 </span>
               </div>
@@ -1661,11 +1670,11 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
             {/* Max Elements */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                   Max Elements
                   <InfoIcon desc="Maximum number of points to generate from the image." />
                 </Label>
-                <span className="text-white/60 text-xs font-mono bg-white/10 px-2 py-1 rounded border border-white/20">
+                <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
                   {maxElements.toLocaleString()}
                 </span>
               </div>
@@ -1690,7 +1699,7 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
 
             {/* Image Color Mode */}
             <div className="flex items-center justify-between">
-              <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+              <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                 <Palette className="w-4 h-4" />
                 Preserve Image Colors
                 <InfoIcon desc="Use original image colors instead of default color." />
@@ -1704,7 +1713,7 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
             {/* Advanced Settings */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                   <Settings2 className="w-4 h-4" />
                   Advanced Settings
                   <InfoIcon desc="Enable advanced PNG processing options." />
@@ -1717,17 +1726,17 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
                   }}
                 />
               </div>
-              
+
               {showAdvanced && (
-                <div className="p-4 bg-white/5 rounded-lg border border-white/10 space-y-4">
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
                   {/* Sampling Method */}
                   <div className="space-y-2">
-                    <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                    <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                       Sampling Method
                       <InfoIcon desc="How to extract points from the image (Skeleton, Contour, Pixel, Legacy)." />
                     </Label>
                     <select
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:border-white/20 focus:outline-none"
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-900 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
                       value={settings.samplingMethod || 'legacy'}
                       onChange={e => onSettingsChange({ ...settings, samplingMethod: e.target.value })}
                     >
@@ -1741,7 +1750,7 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
 
                   {/* Morphological Kernel Size */}
                   <div className="space-y-2">
-                    <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                    <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                       Morphological Kernel Size
                       <InfoIcon desc="Helps connect broken lines or remove noise." />
                     </Label>
@@ -1756,7 +1765,7 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
 
                   {/* Min Path Length */}
                   <div className="space-y-2">
-                    <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                    <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                       Min Path Length
                       <InfoIcon desc="Ignore very short paths (noise)." />
                     </Label>
@@ -1786,11 +1795,11 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
             {/* Scale */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                   Scale
                   <InfoIcon desc="Scale factor for the imported OBJ model." />
                 </Label>
-                <span className="text-white/60 text-xs font-mono bg-white/10 px-2 py-1 rounded border border-white/20">
+                <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
                   {objScale}x
                 </span>
               </div>
@@ -1815,7 +1824,7 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
 
             {/* Performance Mode */}
             <div className="flex items-center justify-between">
-              <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+              <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                 <Settings2 className="w-4 h-4" />
                 Optimize Performance
                 <InfoIcon desc="Reduce element count for better performance." />
@@ -1838,11 +1847,11 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
         >
           <div className="space-y-4">
             {/* Frame Processing Info */}
-            <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-              <div className="text-blue-400 text-sm font-medium mb-2">
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="text-blue-700 text-sm font-medium mb-2">
                 🎬 Advanced GIF Processing
               </div>
-              <div className="text-white/60 text-xs space-y-1">
+              <div className="text-gray-600 text-xs space-y-1">
                 <div>• All frames from GIF are automatically extracted</div>
                 <div>• Each frame becomes a separate layer</div>
                 <div>• Frame order and timing information preserved</div>
@@ -1853,7 +1862,7 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
 
             {/* Frame Delay */}
             <div className="space-y-2">
-              <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+              <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                 Frame Delay (ticks)
                 <InfoIcon desc="Delay between frames in Minecraft ticks (20 ticks = 1 second)." />
               </Label>
@@ -1869,11 +1878,11 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
             {/* Particle Density */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                   Particle Density
                   <InfoIcon desc="Controls how close particles are to each other." />
                 </Label>
-                <span className="text-white/60 text-xs font-mono bg-white/10 px-2 py-1 rounded border border-white/20">
+                <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
                   {settings.gifScaleFactor || 25}
                 </span>
               </div>
@@ -1899,11 +1908,11 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
             {/* Particle Spacing - Çakışma Önleme */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                   Particle Spacing
                   <InfoIcon desc="Higher values prevent particle overlap (1=every pixel, 3=every 3rd pixel)." />
                 </Label>
-                <span className="text-white/60 text-xs font-mono bg-white/10 px-2 py-1 rounded border border-white/20">
+                <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
                   {settings.particleDensity || 2}
                 </span>
               </div>
@@ -1929,11 +1938,11 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
             {/* Color Similarity Threshold */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                   Color Similarity
                   <InfoIcon desc="Higher values group similar colors together (prevents color overlap)." />
                 </Label>
-                <span className="text-white/60 text-xs font-mono bg-white/10 px-2 py-1 rounded border border-white/20">
+                <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
                   {settings.colorSimilarityThreshold || 30}
                 </span>
               </div>
@@ -1959,11 +1968,11 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
             {/* Total Max Elements */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                   Total Max Elements
                   <InfoIcon desc="Total maximum number of elements. Automatically divided by frame count." />
                 </Label>
-                <span className="text-white/60 text-xs font-mono bg-white/10 px-2 py-1 rounded border border-white/20">
+                <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
                   {maxElements.toLocaleString()}
                 </span>
               </div>
@@ -1988,7 +1997,7 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
 
             {/* Preserve Colors */}
             <div className="flex items-center justify-between">
-              <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+              <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                 <Palette className="w-4 h-4" />
                 Preserve Frame Colors
                 <InfoIcon desc="Use original GIF colors for each frame." />
@@ -2002,11 +2011,11 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
             {/* Alpha Threshold */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-white/80 text-sm font-medium flex items-center gap-2">
+                <Label className="text-gray-700 text-sm font-medium flex items-center gap-2">
                   Alpha Threshold
                   <InfoIcon desc="Minimum transparency level to include pixels (0-255)." />
                 </Label>
-                <span className="text-white/60 text-xs font-mono bg-white/10 px-2 py-1 rounded border border-white/20">
+                <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
                   {settings.alphaThreshold || 10}
                 </span>
               </div>
@@ -2039,44 +2048,36 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
           onImport={() => handleFileUpload("yaml")}
           importText="Import YAML"
         >
-          <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-            <div className="text-white/80 text-sm font-medium mb-2">
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="text-gray-700 text-sm font-medium mb-2">
               Supported Formats:
             </div>
-            <div className="text-white/60 text-xs space-y-1">
-              <div>• e:p&#123;...&#125; @Origin&#123;...&#125;</div>
-              <div>• effect:particles&#123;...&#125; @Origin&#123;...&#125;</div>
-              <div>• effect:&#123;...&#125; @Origin&#123;...&#125;</div>
+            <div className="text-gray-600 text-xs space-y-1">
+              <div>• e:p{`{...}`} @Origin{`{...}`}</div>
+              <div>• effect:particles{`{...}`} @Origin{`{...}`}</div>
+              <div>• effect:{`{...}`} @Origin{`{...}`}</div>
             </div>
           </div>
         </ImportSection>
       </div>
 
       {/* Quick Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="text-center"
-      >
-        <p className="text-white/40 text-sm">
+      <div className="text-center">
+        <p className="text-gray-500 text-sm">
           Drag and drop files directly onto the canvas for instant import
         </p>
         {isDragOver && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mt-4 p-4 bg-white/10 rounded-lg border border-white/20"
-          >
-            <p className="text-white/80 text-sm font-medium">
+          <div className="mt-4 p-4 bg-gray-100 rounded-lg border border-gray-300">
+            <p className="text-gray-700 text-sm font-medium">
               📁 Drop file here
             </p>
-            <p className="text-white/60 text-xs mt-1">
+            <p className="text-gray-500 text-xs mt-1">
               PNG, OBJ, GIF, YAML files supported
             </p>
-          </motion.div>
+          </div>
         )}
-      </motion.div>
+      </div>
+      </div>
     </div>
   );
 } 

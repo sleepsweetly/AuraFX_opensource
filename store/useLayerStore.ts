@@ -4,6 +4,7 @@ import type { Layer, Element } from "../types";
 interface LayerStore {
   layers: Layer[];
   setLayers: (layers: Layer[]) => void;
+  addLayer: (layer: Layer) => void;
   addElementsToLayer: (layerId: string, elements: Element[], clearExisting?: boolean) => void;
   currentLayerId: string | null;
   setCurrentLayerId: (id: string) => void;
@@ -28,6 +29,10 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   setCurrentLayerId: (id) => set({ currentLayerId: id }),
   setPerformanceMode: (enabled) => set({ performanceMode: enabled }),
   setCopiedLayer: (layer) => set({ copiedLayer: layer }),
+  addLayer: (layer) => set((state) => ({
+    layers: [...state.layers, layer],
+    currentLayerId: state.currentLayerId || layer.id
+  })),
   addElementsToLayer: (layerId, elements, clearExisting = false) =>
     set((state) => ({
       layers: state.layers.map((layer) =>

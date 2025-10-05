@@ -1,15 +1,13 @@
-import { useState, useRef } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EffectType } from "@/app/page"
 import type { Layer } from "@/types"
-import { ColorPicker } from "@/components/ui/color-picker"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ParticleSelectModal } from "@/components/particle-select-modal"
 import { TargeterSelectModal } from "@/components/targeter-select-modal"
-import { Sparkles, Target, Layers, Palette, Settings2, ChevronDown, ChevronRight, ChevronLeft, Circle, Square, Zap, Wind, Cloud, CircleDot, Tornado } from "lucide-react"
+import { ColorPicker } from "@/components/ui/color-picker"
+import { Sparkles, Target, Layers, Palette, Settings2, ChevronDown, ChevronRight, Circle, Zap, Wind, CircleDot, Tornado } from "lucide-react"
 
 interface ElementSettingsPanelProps {
   layers: Layer[]
@@ -21,14 +19,14 @@ interface ElementSettingsPanelProps {
 }
 
 const EFFECT_TYPE_ICONS: Record<string, any> = {
-  particles: <Sparkles className="w-5 h-5" />, // default
-  particlelinehelix: <Wind className="w-5 h-5" />, // helix
-  particleorbital: <CircleDot className="w-5 h-5" />, // orbital
-  particlering: <Circle className="w-5 h-5" />, // ring
-  particleline: <ChevronRight className="w-5 h-5" />, // line
-  particlelinering: <Circle className="w-5 h-5" />, // line ring
-  particlesphere: <Circle className="w-5 h-5" />, // sphere
-  particletornado: <Tornado className="w-5 h-5" />, // tornado
+  particles: <Sparkles className="w-4 h-4" />,
+  particlelinehelix: <Wind className="w-4 h-4" />,
+  particleorbital: <CircleDot className="w-4 h-4" />,
+  particlering: <Circle className="w-4 h-4" />,
+  particleline: <ChevronRight className="w-4 h-4" />,
+  particlelinering: <Circle className="w-4 h-4" />,
+  particlesphere: <Circle className="w-4 h-4" />,
+  particletornado: <Tornado className="w-4 h-4" />,
 }
 
 export function ElementSettingsPanel({
@@ -37,17 +35,18 @@ export function ElementSettingsPanel({
   onUpdateLayer,
   modes,
   onShowCode,
-  updateSelectedElementsParticle,
 }: ElementSettingsPanelProps) {
-  const [selectedLayerId, setSelectedLayerId] = useState(currentLayer?.id || "")
-  const colorInputRef = useRef<HTMLInputElement>(null)
-  const [showColorPicker, setShowColorPicker] = useState(false)
   const [showParticleSelect, setShowParticleSelect] = useState(false)
   const [showTargeterSelect, setShowTargeterSelect] = useState(false)
 
-  const selectedLayer = layers.find((l) => l.id === selectedLayerId) || currentLayer
+  const selectedLayer = currentLayer
 
-  // Effect type seçimi
+  console.log('ElementSettingsPanel:', {
+    currentLayerId: currentLayer?.id,
+    selectedLayerName: selectedLayer?.name,
+    selectedLayerRepeat: selectedLayer?.repeat
+  })
+
   const effectTypes: EffectType[] = [
     "particles",
     "particlelinehelix",
@@ -67,7 +66,7 @@ export function ElementSettingsPanel({
     return activeModes.length > 0 ? activeModes : []
   }
 
-  // EffectType'a göre effectParams alanlarını dinamik olarak gösteren fonksiyonu güncelliyorum.
+  // Effect type parametreleri
   const effectTypeParamsMap: Record<string, { key: string, label: string, type: string }[]> = {
     particles: [],
     particlelinehelix: [
@@ -142,7 +141,9 @@ export function ElementSettingsPanel({
   const renderEffectTypeParams = () => {
     if (!selectedLayer) return null
     const params = effectTypeParamsMap[selectedLayer.effectType] || []
+    console.log('Effect type:', selectedLayer.effectType, 'Params:', params)
     if (params.length === 0) return null
+
     return (
       <div className="space-y-3 mt-4">
         {params.map(param => {
@@ -150,23 +151,21 @@ export function ElementSettingsPanel({
             ? (selectedLayer.effectParams as any)[param.key]
             : '';
           return (
-            <div key={param.key} className="bg-white/3 border border-white/8 rounded-lg p-3 hover:border-white/15 transition-colors">
-              <Label className="text-white/70 text-sm font-medium block mb-2">{param.label}</Label>
+            <div key={param.key} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <Label className="text-gray-700 text-sm font-medium block mb-2">{param.label}</Label>
               {param.type === 'boolean' ? (
                 <div className="flex gap-2">
                   <button
                     onClick={() => onUpdateLayer(selectedLayer.id, { effectParams: { ...selectedLayer.effectParams, [param.key]: true } })}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                      value ? 'bg-white/20 text-white border border-white/30' : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10'
-                    }`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${value ? 'bg-black text-white border border-gray-300' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      }`}
                   >
                     True
                   </button>
                   <button
                     onClick={() => onUpdateLayer(selectedLayer.id, { effectParams: { ...selectedLayer.effectParams, [param.key]: false } })}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                      !value ? 'bg-white/20 text-white border border-white/30' : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10'
-                    }`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${!value ? 'bg-black text-white border border-gray-300' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      }`}
                   >
                     False
                   </button>
@@ -176,7 +175,7 @@ export function ElementSettingsPanel({
                   type={param.type === 'number' ? 'number' : 'text'}
                   value={value}
                   onChange={e => onUpdateLayer(selectedLayer.id, { effectParams: { ...selectedLayer.effectParams, [param.key]: param.type === 'number' ? parseFloat(e.target.value) : e.target.value } })}
-                  className="bg-white/5 border border-white/10 text-white h-9 text-sm focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20"
+                  className="bg-white border-gray-200 text-gray-900 h-9 text-sm"
                   placeholder={`Enter ${param.label.toLowerCase()}`}
                 />
               )}
@@ -188,24 +187,24 @@ export function ElementSettingsPanel({
   }
 
   return (
-    <section className="flex-1 h-full flex flex-col bg-[#000000] overflow-y-auto">
-      {/* Floating Header */}
-      <div className="sticky top-0 z-10 bg-[#000000]/95 backdrop-blur-sm border-b border-white/10">
-        <div className="flex items-center justify-between p-4">
+    <div className="flex-1 h-full flex flex-col overflow-y-auto">
+      {/* Header */}
+      <div className="pb-3 border-b border-gray-100 mb-6">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white/10 to-white/5 border border-white/20 flex items-center justify-center">
-              <Settings2 className="w-5 h-5 text-white/80" />
+            <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+              <Settings2 className="w-4 h-4 text-gray-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Element Config</h2>
-              <p className="text-white/50 text-sm">Customize your effects</p>
+              <h2 className="text-base font-semibold text-gray-900">Element Config</h2>
+              <p className="text-sm text-gray-500">Customize your effects</p>
             </div>
           </div>
-          
+
           {/* Active Modes Pills */}
           <div className="flex gap-2">
             {getActiveModes().map((mode) => (
-              <span key={mode} className="bg-gradient-to-r from-white/10 to-white/5 border border-white/20 text-white/80 px-3 py-1.5 rounded-full text-xs font-medium">
+              <span key={mode} className="bg-gray-100 border border-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs font-medium">
                 {mode}
               </span>
             ))}
@@ -214,94 +213,93 @@ export function ElementSettingsPanel({
       </div>
 
       {/* Content */}
-      <div className="p-4 space-y-6">
-        {/* Layer Selection Card */}
-        <div className="bg-white/3 border border-white/8 rounded-xl p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Layers className="w-5 h-5 text-white/60" />
-            <Label className="text-white/80 text-sm font-semibold">Active Layer</Label>
-          </div>
-          <div className="flex gap-3 items-center">
-            <select
-              value={selectedLayerId}
-              onChange={e => setSelectedLayerId(e.target.value)}
-              className="flex-1 bg-white/5 border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20"
-            >
-              {layers.map((layer) => (
-                <option key={layer.id} value={layer.id}>{layer.name}</option>
-              ))}
-            </select>
-            <div className="bg-gradient-to-r from-white/15 to-white/10 text-white text-sm rounded-lg px-3 py-2.5 font-semibold border border-white/20">
-              {selectedLayer?.name}
-            </div>
-          </div>
-        </div>
+      <div className="space-y-6">
+
 
         {/* Particle & Targeter Selection */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white/3 border border-white/8 rounded-xl p-4">
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
             <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-4 h-4 text-white/60" />
-              <Label className="text-white/80 text-sm font-semibold">Particle Type</Label>
+              <Sparkles className="w-4 h-4 text-gray-600" />
+              <Label className="text-gray-700 text-sm font-medium">Particle Type</Label>
             </div>
             <Button
               onClick={() => setShowParticleSelect(true)}
               variant="outline"
-              className="w-full justify-between border-white/15 text-white/80 hover:bg-white/10 hover:border-white/25 bg-white/5 h-11"
+              className="w-full justify-between border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300 bg-white h-10"
             >
               <span className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-white/60"></div>
+                <div className="w-2 h-2 rounded-full bg-gray-500"></div>
                 {selectedLayer?.particle || "reddust"}
               </span>
-              <ChevronDown className="w-4 h-4 text-white/50" />
+              <ChevronDown className="w-4 h-4 text-gray-400" />
             </Button>
           </div>
 
-          <div className="bg-white/3 border border-white/8 rounded-xl p-4">
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
             <div className="flex items-center gap-2 mb-3">
-              <Target className="w-4 h-4 text-white/60" />
-              <Label className="text-white/80 text-sm font-semibold">Targeter</Label>
+              <Target className="w-4 h-4 text-gray-600" />
+              <Label className="text-gray-700 text-sm font-medium">Targeter</Label>
             </div>
             <Button
               onClick={() => setShowTargeterSelect(true)}
               variant="outline"
-              className="w-full justify-between border-white/15 text-white/80 hover:bg-white/10 hover:border-white/25 bg-white/5 h-11"
+              className="w-full justify-between border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300 bg-white h-10"
             >
               <span className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-white/60"></div>
+                <div className="w-2 h-2 rounded-full bg-gray-500"></div>
                 {selectedLayer?.targeter || "Origin"}
               </span>
-              <ChevronDown className="w-4 h-4 text-white/50" />
+              <ChevronDown className="w-4 h-4 text-gray-400" />
             </Button>
           </div>
         </div>
 
+        {/* Color Selection */}
+        {selectedLayer && (
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <Palette className="w-4 h-4 text-gray-600" />
+              <Label className="text-gray-700 text-sm font-medium">Layer Color</Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <ColorPicker
+                value={selectedLayer.color}
+                onChange={(color) => {
+                  console.log('Updating layer color:', selectedLayer.id, color)
+                  onUpdateLayer(selectedLayer.id, { color })
+                }}
+                className="w-full"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Effect Type Selection */}
-        <div className="bg-white/3 border border-white/8 rounded-xl p-4">
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
           <div className="flex items-center gap-2 mb-4">
-            <Zap className="w-5 h-5 text-white/60" />
-            <Label className="text-white/80 text-sm font-semibold">Effect Type</Label>
+            <Zap className="w-4 h-4 text-gray-600" />
+            <Label className="text-gray-700 text-sm font-medium">Effect Type</Label>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {effectTypes.map(type => (
               <button
                 key={type}
-                onClick={() => selectedLayer && onUpdateLayer(selectedLayer.id, { effectType: type, effectParams: {} })}
-                className={`group relative rounded-xl border-2 p-3 transition-all duration-300 text-xs font-semibold overflow-hidden
-                  ${selectedLayer?.effectType === type 
-                    ? "border-white/50 bg-gradient-to-br from-white/15 to-white/8 text-white shadow-[0_0_20px_0_rgba(255,255,255,0.15)]" 
-                    : "border-white/10 bg-white/3 text-white/60 hover:border-white/25 hover:bg-white/8 hover:scale-105"}`}
+                onClick={() => {
+                  if (selectedLayer) {
+                    console.log('Setting effect type to:', type)
+                    onUpdateLayer(selectedLayer.id, { effectType: type, effectParams: {} })
+                  }
+                }}
+                className={`group relative rounded-lg border p-3 transition-all duration-200 text-xs font-medium
+                  ${selectedLayer?.effectType === type
+                    ? "border-black bg-black text-white"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"}`}
               >
-                {/* Hover effect */}
-                <div className={`absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
-                  selectedLayer?.effectType === type ? 'opacity-100' : ''
-                }`} />
-                
-                <div className="relative z-10 flex flex-col items-center gap-2">
-                  <div className={`p-2 rounded-lg transition-all duration-300 ${
-                    selectedLayer?.effectType === type ? 'bg-white/20' : 'bg-white/5 group-hover:bg-white/15'
-                  }`}>
-                    {EFFECT_TYPE_ICONS[type] || <Zap className="w-5 h-5" />}
+                <div className="flex flex-col items-center gap-2">
+                  <div className={`p-2 rounded-lg transition-all duration-200 ${selectedLayer?.effectType === type ? 'bg-white/20' : 'bg-gray-100'
+                    }`}>
+                    {EFFECT_TYPE_ICONS[type] || <Zap className="w-4 h-4" />}
                   </div>
                   <span className="text-center leading-tight">
                     {type === "particles"
@@ -314,31 +312,136 @@ export function ElementSettingsPanel({
           </div>
         </div>
 
-        {/* Effect Parameters */}
-        {renderEffectTypeParams() && (
-          <div className="bg-white/3 border border-white/8 rounded-xl p-4">
+        {/* Layer Properties */}
+        {selectedLayer && (
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
             <div className="flex items-center gap-2 mb-4">
-              <Palette className="w-5 h-5 text-white/60" />
-              <Label className="text-white/80 text-sm font-semibold">Effect Parameters</Label>
+              <Settings2 className="w-4 h-4 text-gray-600" />
+              <Label className="text-gray-700 text-sm font-medium">Layer Properties</Label>
             </div>
-            {renderEffectTypeParams()}
+            <div className="space-y-4">
+              {/* Repeat */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-gray-700 text-sm font-medium">Repeat</Label>
+                  <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
+                    {selectedLayer.repeat}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={selectedLayer.repeat}
+                  onChange={e => {
+                    console.log('Updating layer repeat:', selectedLayer.id, Number(e.target.value))
+                    onUpdateLayer(selectedLayer.id, { repeat: Number(e.target.value) })
+                  }}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>1</span>
+                  <span>10</span>
+                </div>
+              </div>
+
+              {/* Alpha */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-gray-700 text-sm font-medium">Amount</Label>
+                  <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
+                    {selectedLayer.alpha}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  value={selectedLayer.alpha}
+                  onChange={e => onUpdateLayer(selectedLayer.id, { alpha: Number(e.target.value) })}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>0</span>
+                  <span>1</span>
+                </div>
+              </div>
+
+              {/* Y Offset */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-gray-700 text-sm font-medium">Y Offset</Label>
+                  <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
+                    {selectedLayer.yOffset}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={-10}
+                  max={10}
+                  step={0.1}
+                  value={selectedLayer.yOffset}
+                  onChange={e => onUpdateLayer(selectedLayer.id, { yOffset: Number(e.target.value) })}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>-10</span>
+                  <span>10</span>
+                </div>
+              </div>
+
+              {/* Repeat Interval */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-gray-700 text-sm font-medium">Repeat Interval</Label>
+                  <span className="text-gray-700 text-xs font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
+                    {selectedLayer.repeatInterval || 1}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={20}
+                  step={1}
+                  value={selectedLayer.repeatInterval || 1}
+                  onChange={e => onUpdateLayer(selectedLayer.id, { repeatInterval: Number(e.target.value) })}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>1</span>
+                  <span>20</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Effect Parameters */}
+        {selectedLayer && (
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <Palette className="w-4 h-4 text-gray-600" />
+              <Label className="text-gray-700 text-sm font-medium">Effect Parameters</Label>
+            </div>
+            {renderEffectTypeParams() || (
+              <div className="text-center py-4 text-gray-500 text-sm">
+                {selectedLayer.effectType === 'particles'
+                  ? 'Basic particles effect has no additional parameters.'
+                  : 'Select an effect type to see parameters.'}
+              </div>
+            )}
           </div>
         )}
 
         {/* Generate Code Button */}
-        <div className="sticky bottom-4">
-          <Button 
-            onClick={onShowCode} 
-            className="w-full rounded-xl bg-gradient-to-r from-white/20 to-white/15 hover:from-white/25 hover:to-white/20 text-white font-bold py-4 border border-white/30 transition-all duration-300 transform hover:scale-[1.02] shadow-[0_8px_32px_0_rgba(255,255,255,0.15)]"
-            style={{ 
-              pointerEvents: 'auto',
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-              MozUserSelect: 'none',
-              msUserSelect: 'none'
-            }}
+        <div className="pt-4">
+          <Button
+            onClick={onShowCode}
+            className="w-full rounded-lg bg-black hover:bg-gray-800 text-white font-medium py-3 transition-all duration-200"
           >
-            <Zap className="w-5 h-5 mr-2" />
+            <Zap className="w-4 h-4 mr-2" />
             Generate Code
           </Button>
         </div>
@@ -367,6 +470,6 @@ export function ElementSettingsPanel({
           onClose={() => setShowTargeterSelect(false)}
         />
       )}
-    </section>
+    </div>
   )
 } 

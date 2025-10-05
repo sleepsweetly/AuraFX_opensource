@@ -60,10 +60,5 @@ export const siteConfig = {
     }
 };
 
-// Client-side'da Discord URL'ini initialize et
-if (typeof window !== 'undefined') {
-    getCachedDiscordUrl().then(url => {
-        siteConfig.discordInviteUrl = url;
-        siteConfig.social.discord = url;
-    });
-}
+// Client-side initialization kaldırıldı - hydration mismatch'i önlemek için
+// Her component kendi useEffect'inde dinamik URL'i alacak

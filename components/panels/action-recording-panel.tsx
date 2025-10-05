@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback, memo } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Play,
   Square,
@@ -65,51 +64,187 @@ const ACTION_LABELS = {
 }
 
 const ACTION_COLORS = {
-  rotate: "bg-chart-1/20 text-chart-1 border-chart-1/30",
-  scale: "bg-chart-2/20 text-chart-2 border-chart-2/30",
-  move: "bg-chart-3/20 text-chart-3 border-chart-3/30",
-  color: "bg-chart-4/20 text-chart-4 border-chart-4/30",
-  particle_count: "bg-chart-5/20 text-chart-5 border-chart-5/30",
-  select: "bg-accent/20 text-accent-foreground border-accent/30",
-  move_continuous: "bg-chart-3/30 text-chart-3 border-chart-3/40",
-  transform_update: "bg-primary/20 text-primary-foreground border-primary/30",
-  transform_end: "bg-destructive/20 text-destructive-foreground border-destructive/30",
-  select_single: "bg-chart-2/30 text-chart-2 border-chart-2/40",
-  select_box: "bg-chart-2/25 text-chart-2 border-chart-2/35",
-  element_add: "bg-chart-2/20 text-chart-2 border-chart-2/30",
-  idle: "bg-muted/40 text-muted-foreground border-muted-foreground/30",
+  rotate: "bg-gray-100 text-gray-700 border-gray-300",
+  scale: "bg-gray-100 text-gray-700 border-gray-300",
+  move: "bg-gray-100 text-gray-700 border-gray-300",
+  color: "bg-gray-100 text-gray-700 border-gray-300",
+  particle_count: "bg-gray-100 text-gray-700 border-gray-300",
+  select: "bg-gray-100 text-gray-700 border-gray-300",
+  move_continuous: "bg-gray-100 text-gray-700 border-gray-300",
+  transform_update: "bg-gray-100 text-gray-700 border-gray-300",
+  transform_end: "bg-gray-100 text-gray-700 border-gray-300",
+  select_single: "bg-gray-100 text-gray-700 border-gray-300",
+  select_box: "bg-gray-100 text-gray-700 border-gray-300",
+  element_add: "bg-gray-100 text-gray-700 border-gray-300",
+  idle: "bg-gray-50 text-gray-600 border-gray-200",
 }
+
+const ActionItem = memo(({ record, index }: { record: ActionRecord; index: number }) => {
+  const formatTime = useCallback((timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString()
+  }, [])
+
+  const formatDelay = useCallback((delayTicks: number) => {
+    const seconds = delayTicks / 20
+    return `${delayTicks}t (${seconds.toFixed(1)}s)`
+  }, [])
+
+  return (
+    <motion.div
+      className="flex items-center justify-between text-sm bg-white rounded-lg p-3 border border-gray-200 hover:border-gray-300 transition-colors"
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: Math.min(index * 0.02, 0.3) }}
+    >
+      <div className="flex items-center gap-3">
+        <span className="text-gray-500 w-7 font-mono text-xs font-semibold bg-gray-50 px-2 py-1 rounded border border-gray-200">
+          #{index + 1}
+        </span>
+        <span className="text-gray-900 font-medium text-xs">
+          {record.elementIds.length} element{record.elementIds.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 text-gray-600">
+        <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded border border-gray-200 font-medium">
+          {formatDelay(record.delayTicks)}
+        </span>
+        <span className="font-mono text-xs bg-gray-50 px-2 py-1 rounded border border-gray-200">
+          {formatTime(record.timestamp)}
+        </span>
+      </div>
+    </motion.div>
+  )
+})
+
+ActionItem.displayName = "ActionItem"
+
+const ActionGroup = memo(
+  ({
+    groupKey,
+    groupRecords,
+    isExpanded,
+    onToggle,
+    getActionDescription,
+  }: {
+    groupKey: string
+    groupRecords: ActionRecord[]
+    isExpanded: boolean
+    onToggle: (key: string) => void
+    getActionDescription: (record: ActionRecord) => string
+  }) => {
+    const firstRecord = groupRecords[0]
+    const Icon = ACTION_ICONS[firstRecord.type as keyof typeof ACTION_ICONS] || Clock
+    const colorClass =
+      ACTION_COLORS[firstRecord.type as keyof typeof ACTION_COLORS] || "bg-gray-50 text-gray-600 border-gray-200"
+    const shouldShowGroup = groupRecords.length > 3 || isExpanded
+
+    const formatTime = useCallback((timestamp: number) => {
+      return new Date(timestamp).toLocaleTimeString()
+    }, [])
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-all duration-150"
+      >
+        <div
+          className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => onToggle(groupKey)}
+        >
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+              <Icon className="w-5 h-5 text-gray-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className={`text-xs px-2.5 py-1 rounded-md border font-semibold ${colorClass}`}>
+                  {ACTION_LABELS[firstRecord.type as keyof typeof ACTION_LABELS] || firstRecord.type}
+                </span>
+                <span className="text-xs text-gray-500 font-semibold bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                  {groupRecords.length}
+                </span>
+              </div>
+              <p className="text-sm text-gray-900 font-medium truncate">{getActionDescription(firstRecord)}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <span className="text-xs text-gray-500 font-mono bg-gray-50 px-2.5 py-1 rounded border border-gray-200">
+              {formatTime(firstRecord.timestamp)}
+            </span>
+            {groupRecords.length > 3 && (
+              <motion.div
+                animate={{ rotate: isExpanded ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+                className="w-7 h-7 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center"
+              >
+                <ChevronDown className="w-4 h-4 text-gray-600" />
+              </motion.div>
+            )}
+          </div>
+        </div>
+
+        {shouldShowGroup && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-t border-gray-100 bg-gray-50"
+          >
+            <div className="p-4 space-y-2">
+              {groupRecords.slice(0, isExpanded ? groupRecords.length : 3).map((record, index) => (
+                <ActionItem key={record.id} record={record} index={index} />
+              ))}
+              {!isExpanded && groupRecords.length > 3 && (
+                <div className="text-sm text-gray-500 text-center pt-2 font-medium bg-white rounded-lg py-2.5 border border-gray-200">
+                  +{groupRecords.length - 3} more
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </motion.div>
+    )
+  },
+)
+
+ActionGroup.displayName = "ActionGroup"
 
 export function ActionRecordingPanel({
   isRecording: _isRecording,
   onToggleRecording: _onToggleRecording,
 }: ActionRecordingPanelProps) {
-  const { records, clearRecords, startRecording, stopRecording, addElementDelay, toggleAddElementDelay, isRecording, optimizeIdleRepeat, toggleOptimizeIdleRepeat, optimizeCircleFrames, toggleOptimizeCircleFrames, debugFrameComments, toggleDebugFrameComments } =
-    useActionRecordingStore()
+  const {
+    records,
+    clearRecords,
+    startRecording,
+    stopRecording,
+    addElementDelay,
+    toggleAddElementDelay,
+    isRecording,
+    optimizeIdleRepeat,
+    toggleOptimizeIdleRepeat,
+    optimizeCircleFrames,
+    toggleOptimizeCircleFrames,
+    debugFrameComments,
+    toggleDebugFrameComments,
+  } = useActionRecordingStore()
 
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
   const [showSettings, setShowSettings] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
-  const handleToggleRecording = () => {
+  const handleToggleRecording = useCallback(() => {
     if (isRecording) {
       stopRecording()
     } else {
       startRecording()
     }
-  }
+  }, [isRecording, startRecording, stopRecording])
 
-  const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString()
-  }
-
-  const formatDelay = (delayTicks: number) => {
-    const seconds = delayTicks / 20
-    return `${delayTicks}t (${seconds.toFixed(1)}s)`
-  }
-
-  const getActionDescription = (record: ActionRecord) => {
+  const getActionDescription = useCallback((record: ActionRecord) => {
     switch (record.type) {
       case "rotate":
         return `Rotate ${record.elementIds.length} element(s) by ${record.data.angle?.toFixed(1)}°`
@@ -140,31 +275,28 @@ export function ActionRecordingPanel({
       default:
         return `Unknown action on ${record.elementIds.length} element(s)`
     }
-  }
+  }, [])
 
-  // Filtreleme ve gruplama
   const filteredAndGroupedRecords = useMemo(() => {
     let filtered = records
 
-    // Arama filtresi
     if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase()
       filtered = filtered.filter(
         (record) =>
-          record.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          getActionDescription(record).toLowerCase().includes(searchTerm.toLowerCase()),
+          record.type.toLowerCase().includes(lowerSearch) ||
+          getActionDescription(record).toLowerCase().includes(lowerSearch),
       )
     }
 
-    // Tip filtresi
     if (filterType !== "all") {
       filtered = filtered.filter((record) => record.type === filterType)
     }
 
-    // Gruplama - aynı tip ve yakın zamanlı action'ları grupla
     const groups: { [key: string]: ActionRecord[] } = {}
 
     filtered.forEach((record) => {
-      const timeKey = Math.floor(record.timestamp / 5000) * 5000 // 5 saniye grupları
+      const timeKey = Math.floor(record.timestamp / 5000) * 5000
       const groupKey = `${record.type}-${timeKey}`
 
       if (!groups[groupKey]) {
@@ -174,49 +306,54 @@ export function ActionRecordingPanel({
     })
 
     return groups
-  }, [records, searchTerm, filterType])
+  }, [records, searchTerm, filterType, getActionDescription])
 
   const totalRecords = records.length
-  const filteredCount = Object.values(filteredAndGroupedRecords).flat().length
+  const filteredCount = useMemo(
+    () => Object.values(filteredAndGroupedRecords).flat().length,
+    [filteredAndGroupedRecords],
+  )
 
-  const toggleGroup = (groupKey: string) => {
-    const newExpanded = new Set(expandedGroups)
-    if (newExpanded.has(groupKey)) {
-      newExpanded.delete(groupKey)
-    } else {
-      newExpanded.add(groupKey)
-    }
-    setExpandedGroups(newExpanded)
-  }
+  const toggleGroup = useCallback((groupKey: string) => {
+    setExpandedGroups((prev) => {
+      const newExpanded = new Set(prev)
+      if (newExpanded.has(groupKey)) {
+        newExpanded.delete(groupKey)
+      } else {
+        newExpanded.add(groupKey)
+      }
+      return newExpanded
+    })
+  }, [])
 
-  const actionTypes = Array.from(new Set(records.map((r) => r.type)))
+  const actionTypes = useMemo(() => Array.from(new Set(records.map((r) => r.type))), [records])
 
   return (
     <motion.section
-      className="flex-1 h-full flex flex-col bg-background border-r border-border text-foreground overflow-hidden"
+      className="flex-1 h-full flex flex-col bg-white border-r border-gray-200 overflow-hidden"
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3 }}
     >
       <motion.div
-        className="flex items-center gap-4 px-6 py-4 border-b border-border bg-card/50 backdrop-blur-sm"
+        className="flex items-center gap-4 px-8 py-6 border-b border-gray-100 bg-white"
         initial={{ y: -10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1, duration: 0.3 }}
       >
         <motion.div
-          className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-sm"
+          className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20"
           whileHover={{ scale: 1.05, rotate: 5 }}
           transition={{ type: "spring", stiffness: 300, damping: 20 }}
         >
-          <Activity className="w-5 h-5 text-primary" />
+          <Activity className="w-6 h-6 text-white" />
         </motion.div>
         <div className="flex-1">
-          <h2 className="text-xl font-bold tracking-tight text-foreground font-sans">Action Recorder</h2>
-          <p className="text-muted-foreground text-sm font-medium">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900 font-sans">Action Recorder</h2>
+          <p className="text-gray-500 text-sm font-medium mt-0.5">
             {isRecording ? (
               <span className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-destructive rounded-full animate-pulse inline-block" />
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse inline-block" />
                 Recording in progress...
               </span>
             ) : (
@@ -224,13 +361,13 @@ export function ActionRecordingPanel({
             )}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <motion.button
             onClick={handleToggleRecording}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 shadow-sm ${
+            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 shadow-lg ${
               isRecording
-                ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-destructive/20"
-                : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/20"
+                ? "bg-gradient-to-br from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white shadow-red-500/30"
+                : "bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-blue-500/30"
             }`}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -242,23 +379,27 @@ export function ActionRecordingPanel({
           {records.length > 0 && (
             <motion.button
               onClick={clearRecords}
-              className="w-10 h-10 rounded-xl bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive border border-border hover:border-destructive/30 flex items-center justify-center transition-all duration-200 shadow-sm"
+              className="w-12 h-12 rounded-xl bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-red-600 border border-gray-200 hover:border-red-200 flex items-center justify-center transition-all duration-200"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Clear All Records"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-5 h-5" />
             </motion.button>
           )}
 
           <motion.button
             onClick={() => setShowSettings(!showSettings)}
-            className="w-10 h-10 rounded-xl bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border flex items-center justify-center transition-all duration-200 shadow-sm"
+            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 border ${
+              showSettings
+                ? "bg-blue-50 text-blue-600 border-blue-200"
+                : "bg-gray-50 hover:bg-gray-100 text-gray-600 border-gray-200"
+            }`}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             title="Settings"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-5 h-5" />
           </motion.button>
         </div>
       </motion.div>
@@ -269,87 +410,95 @@ export function ActionRecordingPanel({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="mx-6 mt-4 p-4 bg-card border border-border rounded-xl shadow-sm"
+            className="mx-8 mt-6 p-6 bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-2xl shadow-sm"
           >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="add-element-delay" className="text-sm font-medium text-foreground">
-                  Add element delay
-                </Label>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100">
+                <div className="flex-1">
+                  <Label htmlFor="add-element-delay" className="text-sm font-semibold text-gray-900">
+                    Add element delay
+                  </Label>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Adds a 1-tick delay when recording element additions
+                  </p>
+                </div>
                 <Switch
                   id="add-element-delay"
                   checked={addElementDelay}
                   onCheckedChange={toggleAddElementDelay}
-                  className="data-[state=checked]:bg-primary"
+                  className="data-[state=checked]:bg-blue-500"
                 />
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                When enabled, adds a 1-tick delay when recording element additions
-              </p>
 
-              <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                <Label htmlFor="opt-idle-repeat" className="text-sm font-medium text-foreground">
-                  Optimize idle repeat (lower repeati, higher repeat)
-                </Label>
+              <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100">
+                <div className="flex-1">
+                  <Label htmlFor="opt-idle-repeat" className="text-sm font-semibold text-gray-900">
+                    Optimize idle repeat
+                  </Label>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Smoother idle playback and block other actions during idle
+                  </p>
+                </div>
                 <Switch
                   id="opt-idle-repeat"
                   checked={optimizeIdleRepeat}
                   onCheckedChange={toggleOptimizeIdleRepeat}
-                  className="data-[state=checked]:bg-primary"
+                  className="data-[state=checked]:bg-blue-500"
                 />
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Smoother idle playback and block other actions during idle
-              </p>
 
-              <div className="flex items-center justify-between">
-                <Label htmlFor="opt-circle-frames" className="text-sm font-medium text-foreground">
-                  Optimize circle frames (particlering)
-                </Label>
+              <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100">
+                <div className="flex-1">
+                  <Label htmlFor="opt-circle-frames" className="text-sm font-semibold text-gray-900">
+                    Optimize circle frames
+                  </Label>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Compress circle elements per frame into a single particlering
+                  </p>
+                </div>
                 <Switch
                   id="opt-circle-frames"
                   checked={optimizeCircleFrames}
                   onCheckedChange={toggleOptimizeCircleFrames}
-                  className="data-[state=checked]:bg-primary"
+                  className="data-[state=checked]:bg-blue-500"
                 />
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Compress circle elements per frame into a single particlering
-              </p>
 
-              <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                <Label htmlFor="opt-debug-frame" className="text-sm font-medium text-foreground">
-                  Debug comments in generated code
-                </Label>
+              <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100">
+                <div className="flex-1">
+                  <Label htmlFor="opt-debug-frame" className="text-sm font-semibold text-gray-900">
+                    Debug comments in code
+                  </Label>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Adds frame index, source type, idle flag, delay and repeat info
+                  </p>
+                </div>
                 <Switch
                   id="opt-debug-frame"
                   checked={debugFrameComments}
                   onCheckedChange={toggleDebugFrameComments}
-                  className="data-[state=checked]:bg-primary"
+                  className="data-[state=checked]:bg-blue-500"
                 />
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Adds frame index, source type, idle flag, delay and repeat info
-              </p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="px-6 mt-6 flex gap-4">
+      <div className="px-8 mt-6 flex gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
             placeholder="Search actions..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-10 pl-10 text-sm bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 rounded-xl"
+            className="h-11 pl-11 text-sm bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl shadow-sm"
           />
         </div>
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="h-10 px-4 text-sm bg-background border border-border text-foreground rounded-xl focus:border-primary focus:ring-1 focus:ring-primary/20 min-w-[120px]"
+          className="h-11 px-4 text-sm bg-white border border-gray-200 text-gray-900 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 min-w-[140px] shadow-sm font-medium"
         >
           <option value="all">All Types</option>
           {actionTypes.map((type) => (
@@ -360,8 +509,7 @@ export function ActionRecordingPanel({
         </select>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col min-h-0 px-6 pt-6 pb-6">
+      <div className="flex-1 flex flex-col min-h-0 px-8 pt-6 pb-6">
         {records.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-center py-16">
             <motion.div
@@ -370,13 +518,13 @@ export function ActionRecordingPanel({
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
             >
-              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm">
-                <Activity className="w-10 h-10 text-primary" />
+              <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/30">
+                <Activity className="w-12 h-12 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-3 font-sans">
+              <h3 className="text-2xl font-bold text-gray-900 mb-3 font-sans">
                 {isRecording ? "Recording in progress..." : "No actions recorded yet"}
               </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className="text-sm text-gray-500 leading-relaxed">
                 {isRecording
                   ? "Perform actions on the canvas to see them recorded here"
                   : "Start recording to capture your actions and build automation sequences"}
@@ -386,25 +534,25 @@ export function ActionRecordingPanel({
         ) : (
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex items-center justify-between mb-6 text-sm">
-              <span className="text-muted-foreground font-medium">
+              <span className="text-gray-600 font-medium">
                 {filteredCount} of {totalRecords} actions
                 {searchTerm && ` matching "${searchTerm}"`}
               </span>
-              <div className="flex items-center gap-2 text-primary">
+              <div className="flex items-center gap-2 text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
                 <Zap className="w-4 h-4" />
-                <span className="font-medium">Live Updates</span>
+                <span className="font-semibold text-xs">Live Updates</span>
               </div>
             </div>
 
-            <ScrollArea className="flex-1">
-              <div className="space-y-4">
-                <AnimatePresence>
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-3">
+                <AnimatePresence mode="popLayout">
                   {Object.entries(filteredAndGroupedRecords).map(([groupKey, groupRecords]) => {
                     const firstRecord = groupRecords[0]
                     const Icon = ACTION_ICONS[firstRecord.type as keyof typeof ACTION_ICONS] || Clock
                     const colorClass =
                       ACTION_COLORS[firstRecord.type as keyof typeof ACTION_COLORS] ||
-                      "bg-muted/40 text-muted-foreground border-muted-foreground/30"
+                      "bg-slate-50 text-slate-600 border-slate-200"
                     const isExpanded = expandedGroups.has(groupKey)
                     const shouldShowGroup = groupRecords.length > 3 || isExpanded
 
@@ -414,81 +562,88 @@ export function ActionRecordingPanel({
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        className="bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 shadow-sm"
+                        className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg hover:border-gray-300 transition-all duration-200 shadow-sm"
                         whileHover={{ y: -2 }}
                       >
                         {/* Group Header */}
                         <div
-                          className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+                          className="flex items-center justify-between p-5 cursor-pointer hover:bg-gray-50 transition-colors"
                           onClick={() => toggleGroup(groupKey)}
                         >
                           <div className="flex items-center gap-4 flex-1 min-w-0">
                             <motion.div
-                              className="w-10 h-10 rounded-xl bg-muted/50 border border-border flex items-center justify-center shadow-sm"
+                              className="w-11 h-11 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 flex items-center justify-center shadow-sm"
                               whileHover={{ scale: 1.1, rotate: 5 }}
                               transition={{ type: "spring", stiffness: 300, damping: 20 }}
                             >
-                              <Icon className="w-5 h-5 text-foreground" />
+                              <Icon className="w-5 h-5 text-gray-700" />
                             </motion.div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-3 mb-2">
-                                <span className={`text-xs px-3 py-1 rounded-full border font-medium ${colorClass}`}>
+                                <span className={`text-xs px-3 py-1.5 rounded-lg border font-semibold ${colorClass}`}>
                                   {ACTION_LABELS[firstRecord.type as keyof typeof ACTION_LABELS] || firstRecord.type}
                                 </span>
-                                <span className="text-xs text-muted-foreground font-medium">
+                                <span className="text-xs text-gray-500 font-semibold bg-gray-50 px-2.5 py-1 rounded-md border border-gray-200">
                                   {groupRecords.length} action{groupRecords.length !== 1 ? "s" : ""}
                                 </span>
                               </div>
-                              <p className="text-sm text-foreground font-medium truncate leading-relaxed">
+                              <p className="text-sm text-gray-900 font-medium truncate leading-relaxed">
                                 {getActionDescription(firstRecord)}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-4 flex-shrink-0">
-                            <span className="text-sm text-muted-foreground font-mono">
-                              {formatTime(firstRecord.timestamp)}
+                            <span className="text-sm text-gray-500 font-mono bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                              {new Date(firstRecord.timestamp).toLocaleTimeString()}
                             </span>
                             {groupRecords.length > 3 && (
-                              <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              <motion.div
+                                animate={{ rotate: isExpanded ? 180 : 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center"
+                              >
+                                <ChevronDown className="w-4 h-4 text-gray-600" />
                               </motion.div>
                             )}
                           </div>
                         </div>
 
-                        {/* Group Details */}
                         {shouldShowGroup && (
                           <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: "auto", opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="border-t border-border bg-muted/20"
+                            className="border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white"
                           >
-                            <div className="p-4 space-y-3">
+                            <div className="p-5 space-y-2.5">
                               {groupRecords.slice(0, isExpanded ? groupRecords.length : 3).map((record, index) => (
                                 <motion.div
                                   key={record.id}
-                                  className="flex items-center justify-between text-sm bg-background/50 rounded-lg p-3 border border-border/50 shadow-sm"
+                                  className="flex items-center justify-between text-sm bg-white rounded-xl p-4 border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
                                   initial={{ opacity: 0, x: -10 }}
                                   animate={{ opacity: 1, x: 0 }}
                                   transition={{ delay: index * 0.05 }}
                                 >
                                   <div className="flex items-center gap-4">
-                                    <span className="text-muted-foreground w-8 font-mono text-xs font-medium">
+                                    <span className="text-gray-500 w-8 font-mono text-xs font-bold bg-gray-50 px-2 py-1 rounded-md border border-gray-200">
                                       #{index + 1}
                                     </span>
-                                    <span className="text-foreground font-medium">
+                                    <span className="text-gray-900 font-semibold">
                                       {record.elementIds.length} element{record.elementIds.length !== 1 ? "s" : ""}
                                     </span>
                                   </div>
-                                  <div className="flex items-center gap-6 text-muted-foreground">
-                                    <span className="font-mono text-xs">{formatDelay(record.delayTicks)}</span>
-                                    <span className="font-mono text-xs">{formatTime(record.timestamp)}</span>
+                                  <div className="flex items-center gap-3 text-gray-600">
+                                    <span className="font-mono text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md border border-blue-200 font-semibold">
+                                      {`${record.delayTicks}t (${(record.delayTicks / 20).toFixed(1)}s)`}
+                                    </span>
+                                    <span className="font-mono text-xs bg-gray-50 px-2.5 py-1 rounded-md border border-gray-200">
+                                      {new Date(record.timestamp).toLocaleTimeString()}
+                                    </span>
                                   </div>
                                 </motion.div>
                               ))}
                               {!isExpanded && groupRecords.length > 3 && (
-                                <div className="text-sm text-muted-foreground text-center pt-3 font-medium">
+                                <div className="text-sm text-gray-500 text-center pt-3 font-semibold bg-white rounded-xl py-3 border border-gray-200">
                                   +{groupRecords.length - 3} more actions
                                 </div>
                               )}
@@ -500,10 +655,32 @@ export function ActionRecordingPanel({
                   })}
                 </AnimatePresence>
               </div>
-            </ScrollArea>
+            </div>
           </div>
         )}
       </div>
+
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f3f4f6;
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #d1d5db;
+          border-radius: 4px;
+          transition: background 0.2s;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #9ca3af;
+        }
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #d1d5db #f3f4f6;
+        }
+      `}</style>
     </motion.section>
   )
 }

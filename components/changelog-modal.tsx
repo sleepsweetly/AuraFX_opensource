@@ -18,6 +18,21 @@ interface ChangelogModalProps {
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "3.0.0",
+    date: "December 15, 2025",
+    title: "Complete UI Redesign - Built from Scratch",
+    changes: [
+      "🎨 Complete UI redesign with modern white theme",
+      "🔧 All panels redesigned with consistent styling",
+      "📱 New compact header with floating design",
+      "⚡ Left toolbar with quick generate code button",
+      "🎯 Right sidebar with organized tabs",
+      "✨ New footer with social links",
+      "🎪 All modals redesigned with white theme",
+      "🚀 Smooth animations and transitions throughout"
+    ]
+  },
+  {
     version: "2.1.8",
     date: "September 26, 2025",
     title: "Action Recording Particle Optimization Fix",
@@ -145,27 +160,27 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"
+        className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
-          className="relative w-full max-w-2xl bg-black border border-white/20 rounded-xl overflow-hidden"
+          className="relative w-full max-w-2xl bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-white/10">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div>
-              <h2 className="text-xl font-bold text-white">What's New</h2>
-              <p className="text-white/60 text-sm">
+              <h2 className="text-xl font-bold text-gray-900">What's New</h2>
+              <p className="text-gray-500 text-sm">
                 {currentIndex + 1} / {CHANGELOG_DATA.length}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -181,11 +196,11 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
             >
               <div className="mb-4">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className="text-2xl font-bold text-white">{currentEntry.version}</span>
-                  <span className="text-white/40">•</span>
-                  <span className="text-white/60">{currentEntry.date}</span>
+                  <span className="text-2xl font-bold text-gray-900">{currentEntry.version}</span>
+                  <span className="text-gray-400">•</span>
+                  <span className="text-gray-600">{currentEntry.date}</span>
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-3">{currentEntry.title}</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">{currentEntry.title}</h3>
               </div>
 
               <div className="space-y-2">
@@ -195,10 +210,10 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="flex items-start gap-3 p-3 bg-white/5 rounded-lg"
+                    className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"
                   >
-                    <div className="w-1.5 h-1.5 bg-white/60 rounded-full mt-2 flex-shrink-0" />
-                    <span className="text-white/80 text-sm leading-relaxed">{change}</span>
+                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
+                    <span className="text-gray-700 text-sm leading-relaxed">{change}</span>
                   </motion.div>
                 ))}
               </div>
@@ -206,10 +221,10 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
           </div>
 
           {/* Navigation */}
-          <div className="flex items-center justify-between p-6 border-t border-white/10">
+          <div className="flex items-center justify-between p-6 border-t border-gray-200">
             <button
               onClick={goPrev}
-              className="flex items-center gap-2 px-4 py-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
               Previous
@@ -220,7 +235,7 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
                 <button
                   key={index}
                   onClick={() => setCurrentIndex(index)}
-                  className={`w-2 h-2 rounded-full transition-colors ${index === currentIndex ? 'bg-white' : 'bg-white/30'
+                  className={`w-2 h-2 rounded-full transition-colors ${index === currentIndex ? 'bg-gray-900' : 'bg-gray-300'
                     }`}
                 />
               ))}
@@ -228,7 +243,7 @@ export function ChangelogModal({ isOpen, onClose }: ChangelogModalProps) {
 
             <button
               onClick={goNext}
-              className="flex items-center gap-2 px-4 py-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             >
               Next
               <ChevronRight className="w-4 h-4" />

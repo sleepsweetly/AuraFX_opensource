@@ -4,7 +4,7 @@ import './globals.css'
 import { Toaster } from "@/components/ui/toaster"
 import Script from "next/script"
 import CookieConsentBanner from "@/components/cookie-banner"
-import Footer from "@/components/footer"
+
 import { GuestProvider } from "@/lib/guest-context"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
@@ -235,11 +235,10 @@ export default function RootLayout({
             <p>Join our community of Minecraft server administrators and plugin developers. AuraFX is continuously updated with new features and improvements based on user feedback. Our comprehensive wiki provides detailed tutorials, examples, and best practices for creating amazing particle effects.</p>
           </div>
           
-          <div className="min-h-screen flex flex-col">
-            <main className="flex-1">
+          <div className="min-h-screen">
+            <main className="min-h-screen">
               {children}
             </main>
-            <Footer />
           </div>
           <Toaster />
           <CookieConsentBanner />

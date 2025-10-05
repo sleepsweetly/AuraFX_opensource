@@ -6,10 +6,10 @@ import { Trash2, Settings, Palette, Hash, Grid3X3, Zap } from "lucide-react"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { Slider } from "@/components/ui/slider"
 import { ParticleSelectModal } from "@/components/particle-select-modal"
-import { AxisWidget } from "./axis-widget"
+
 import { motion, AnimatePresence } from "framer-motion"
-import { RotateCw, MoveDiagonal, ChevronLeft, ChevronRight } from "lucide-react"
-import { useSidebar } from "@/components/ui/sidebar"
+import { RotateCw, MoveDiagonal } from "lucide-react"
+
 import { Pencil, MousePointerClick, Eraser, Circle, Square, Slash, Triangle } from "lucide-react"
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
 
@@ -38,6 +38,12 @@ interface CanvasProps {
   onToggleGridCoordinates?: () => void;
   updateSelectedElementsParticle?: (particle: string) => void;
   onElementCountChange?: (count: number, groupId: string) => void;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  scale?: number;
+  viewMode?: "top" | "side" | "diagonal" | "isometric" | "front";
+  setViewMode?: (mode: "top" | "side" | "diagonal" | "isometric" | "front") => void;
+  isRecording?: boolean;
 }
 
 // Web Workers for optimization
@@ -52,18 +58,18 @@ if (typeof window !== 'undefined' && typeof Worker !== 'undefined') {
 }
 
 const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
-  { currentTool, setCurrentTool, layers, currentLayerId, settings, onSettingsChange, modes, onAddElement, onClearCanvas, onUpdateLayer, selectedElementIds, setSelectedElementIds, performanceMode = false, onShapeCreated, onStartBatchMode, onEndBatchMode, chainSequence = [], onChainSequenceChange, chainItems = [], optimize = false, showGridCoordinates = true, onToggleGridCoordinates, updateSelectedElementsParticle, onElementCountChange },
+  { currentTool, setCurrentTool, layers, currentLayerId, settings, onSettingsChange, modes, onAddElement, onClearCanvas, onUpdateLayer, selectedElementIds, setSelectedElementIds, performanceMode = false, onShapeCreated, onStartBatchMode, onEndBatchMode, chainSequence = [], onChainSequenceChange, chainItems = [], optimize = false, showGridCoordinates = true, onToggleGridCoordinates, updateSelectedElementsParticle, onElementCountChange, onZoomIn, onZoomOut, scale: externalScale, viewMode: externalViewMode, setViewMode: externalSetViewMode, isRecording = false },
   ref
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   useImperativeHandle(ref, () => canvasRef.current as HTMLCanvasElement)
-  
+
   // Action Recording Store
-  const { 
-    recordRotate, 
-    recordScale, 
-    recordMove, 
-    recordColorChange, 
+  const {
+    recordRotate,
+    recordScale,
+    recordMove,
+    recordColorChange,
     recordParticleCountChange,
     recordSelect,
     recordMoveContinuous,
@@ -115,7 +121,6 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   }
 
   const [isDrawing, setIsDrawing] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
   const [lastElementTime, setLastElementTime] = useState<number | null>(null)
   const [lastMoveRecordTime, setLastMoveRecordTime] = useState<number | null>(null)
   const [lastRotateRecordTime, setLastRotateRecordTime] = useState<number | null>(null)
@@ -129,13 +134,13 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   // Recording wrapper for onAddElement
   const addElementWithRecording = (element: Element | Element[]) => {
     const elements = Array.isArray(element) ? element : [element]
-    
+
     // Mirror mode aktifse simetrik elementleri de ekle
     if (settings.mirrorMode) {
       const mirroredElements = elements.map(el => {
         const mirroredElement = { ...el }
         mirroredElement.id = Date.now().toString() + '_mirror'
-        
+
         // View mode'a göre simetri uygula
         if (viewMode === 'side') {
           // Side view: X ekseni etrafında simetri
@@ -156,10 +161,10 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             x: -el.position.x
           }
         }
-        
+
         return mirroredElement
       })
-      
+
       // Hem orijinal hem de simetrik elementleri ekle
       onAddElement([...elements, ...mirroredElements])
     } else {
@@ -195,7 +200,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     if (modes.actionRecordingMode) {
       const currentTime = Date.now()
       const delayTicks = addElementDelay ? calculateDelayTicks(currentTime) : 0
-      
+
       // Her yeni element için action record oluştur
       elements.forEach(element => {
         // Eğer element zaten mevcutsa action kaydetme (recording başlarken tekrar eklenen elementler için)
@@ -224,7 +229,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     const checkForIdle = () => {
       const currentTime = Date.now()
       const lastAction = useActionRecordingStore.getState().lastActionTime
-      
+
       // Son action'dan 50ms geçtiyse sürekli idle action kaydet
       if (lastAction && currentTime - lastAction > 300) {
         // Idle action'ları için throttle (1ms) - çok sık
@@ -243,16 +248,17 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     // Her 1ms'de bir kontrol et ve idle action kaydet - çok sık
     const interval = setInterval(checkForIdle, 1)
-    
+
     return () => clearInterval(interval)
   }, [modes.actionRecordingMode, currentLayerId, layers, recordIdle, lastIdleRecordTime])
 
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [dragEnd, setDragEnd] = useState({ x: 0, y: 0 })
-  const [scale, setScale] = useState(1)
-  const [offset, setOffset] = useState({ x: 0, y: 0, z: 0 })
-  
+  const [internalScale, setInternalScale] = useState(1)
+  const scale = externalScale ?? internalScale
+  const [offset, setOffset] = useState({ x: -200, y: 0, z: 0 })
+
 
   const [rotation, setRotation] = useState({ x: 20, y: 0, z: 0 })
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
@@ -263,7 +269,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   const [rotateStart, setRotateStart] = useState<{ mouseX: number, mouseY: number, boxCenter: { x: number, y: number }, initialPositions: { id: string, x: number, z: number, yOffset: number }[], startAngle: number, startRadius: number, boxMinX: number, boxMinY: number, boxMaxX: number, boxMaxY: number } | null>(null)
   const [rotateBox, setRotateBox] = useState<{ cx: number, cy: number, minX: number, minY: number, maxX: number, maxY: number } | null>(null)
   const [isOrbiting, setIsOrbiting] = useState(false)
-  const [viewMode, setViewMode] = useState<'top' | 'side' | 'diagonal' | 'isometric' | 'front'>('top')
+  const [internalViewMode, setInternalViewMode] = useState<'top' | 'side' | 'diagonal' | 'isometric' | 'front'>('top')
+  const viewMode = externalViewMode ?? internalViewMode
+  const setViewMode = externalSetViewMode ?? setInternalViewMode
   const orbitLastPos = useRef<{ x: number, y: number } | null>(null)
   const isPanningRef = useRef<boolean>(false)
   const panLastPos = useRef<{ x: number, y: number } | null>(null)
@@ -295,8 +303,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
   const currentLayer = layers.find(layer => layer.id === currentLayerId) || null
 
-  const { state: sidebarState, toggleSidebar } = useSidebar ? useSidebar() : { state: "expanded", toggleSidebar: () => { } };
-  const isSidebarCollapsed = sidebarState === "collapsed";
+  // Sidebar artık yok, bu değişkenler kullanılmıyor
 
   // Sayfa yenilendiğinde veya kapatıldığında uyarı göster
   useEffect(() => {
@@ -426,61 +433,64 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     const centerY = canvas.height / 2 + offset.y;
 
     // Clear canvas - only clear dirty regions if possible
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw grid
-    ctx.strokeStyle = "#1a1a1a";
-    ctx.lineWidth = 1;
-    const gridSize = 20 * scale;
+    // Draw grid - only if enabled in settings
+    if (settings.showGrid === true) {
+      ctx.strokeStyle = "#f3f4f6";
+      ctx.lineWidth = 1;
+      const gridSize = 20 * scale;
 
-    // Dikey çizgiler için başlangıç noktasını merkeze göre hesapla
-    const startX = centerX % gridSize;
-    for (let x = startX; x < canvas.width; x += gridSize) {
+      // Dikey çizgiler için başlangıç noktasını merkeze göre hesapla
+      const startX = centerX % gridSize;
+      for (let x = startX; x < canvas.width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let x = startX - gridSize; x >= 0; x -= gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+
+      // Yatay çizgiler için başlangıç noktasını merkeze göre hesapla
+      const startY = centerY % gridSize;
+      for (let y = startY; y < canvas.height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      for (let y = startY - gridSize; y >= 0; y -= gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // Draw center lines
+      ctx.strokeStyle = "#e5e7eb";
+      ctx.lineWidth = 1;
+
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, canvas.height);
+      ctx.moveTo(0, centerY);
+      ctx.lineTo(canvas.width, centerY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(centerX, 0);
+      ctx.lineTo(centerX, canvas.height);
       ctx.stroke();
     }
-    for (let x = startX - gridSize; x >= 0; x -= gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, canvas.height);
-      ctx.stroke();
-    }
-
-    // Yatay çizgiler için başlangıç noktasını merkeze göre hesapla
-    const startY = centerY % gridSize;
-    for (let y = startY; y < canvas.height; y += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
-      ctx.stroke();
-    }
-    for (let y = startY - gridSize; y >= 0; y -= gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
-      ctx.stroke();
-    }
-
-    // Draw center lines
-    ctx.strokeStyle = "#404040";
-    ctx.lineWidth = 1;
-
-    ctx.beginPath();
-    ctx.moveTo(0, centerY);
-    ctx.lineTo(canvas.width, centerY);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(centerX, 0);
-    ctx.lineTo(centerX, canvas.height);
-    ctx.stroke();
 
     // Draw grid coordinates (Desmos style) - User toggleable
     if (showGridCoordinates) {
-      ctx.fillStyle = "#666666";
+      const gridSize = 20 * scale; // Grid koordinatları için gridSize tanımla
+      ctx.fillStyle = "#d1d5db";
       ctx.font = "11px -apple-system, system-ui, sans-serif";
       ctx.textAlign = "center";
 
@@ -521,7 +531,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
       // Origin (0,0) label - always show when coordinates are enabled
       ctx.textAlign = "left";
-      ctx.fillStyle = "#888888";
+      ctx.fillStyle = "#d1d5db";
       ctx.fillText("0", centerX + 4, centerY + 15);
 
       ctx.textAlign = "start"; // Reset text alignment
@@ -697,8 +707,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           const ringRadius = (6 + pulseIntensity * 4) * scale
           const ringAlpha = 0.4 + pulseIntensity * 0.3
 
-          ctx.strokeStyle = `rgba(255, 255, 255, ${ringAlpha})`
-          ctx.lineWidth = 1 * scale
+          ctx.strokeStyle = `rgba(59, 130, 246, ${ringAlpha})`
+          ctx.lineWidth = 2 * scale
           ctx.beginPath()
           ctx.arc(pos.x, pos.y, ringRadius, 0, 2 * Math.PI)
           ctx.stroke()
@@ -713,14 +723,14 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       // Apply snap to grid to both start and end points for overlay
       const { x: snapStartX, y: snapStartY } = snapToGrid(dragStart.x, dragStart.y)
       const { x: snapEndX, y: snapEndY } = snapToGrid(dragEnd.x, dragEnd.y)
-      
+
       const startX = snapStartX
       const startY = snapStartY
       const endX = snapEndX
       const endY = snapEndY
       const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2))
 
-      ctx.strokeStyle = "#ffffff"
+      ctx.strokeStyle = "#000000"
       ctx.lineWidth = 2
       ctx.setLineDash([5, 5])
 
@@ -836,7 +846,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         ctx.lineTo(endX, endY)
         ctx.stroke()
       } else if (currentTool === "triangle") {
-        const triAngles = [ -Math.PI / 2, (-Math.PI / 2) + (2 * Math.PI / 3), (-Math.PI / 2) + (4 * Math.PI / 3) ]
+        const triAngles = [-Math.PI / 2, (-Math.PI / 2) + (2 * Math.PI / 3), (-Math.PI / 2) + (4 * Math.PI / 3)]
         const verts = triAngles.map(a => ({ x: startX + Math.cos(a) * radius, y: startY + Math.sin(a) * radius }))
         ctx.beginPath()
         ctx.moveTo(verts[0].x, verts[0].y)
@@ -858,8 +868,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
       if (dx > 1 || dy > 1) { // Çok küçük bir minimum mesafe
         ctx.save();
-        ctx.strokeStyle = "#ffffff";
-        ctx.setLineDash([6, 6]);
+        ctx.strokeStyle = "#60a5fa";
+        ctx.setLineDash([]);
         ctx.lineWidth = 2;
         const x = Math.min(selectionBox.start.x, selectionBox.end.x);
         const y = Math.min(selectionBox.start.y, selectionBox.end.y);
@@ -924,7 +934,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       ctx.restore();
     }
 
-  }, [layers, performanceMode, modes, scale, offset, viewMode, currentLayer, dragStart, dragEnd, isDragging, currentTool, selectionBox, selectedElementIds, isRotating, isScaling, scaleStart, chainItems, animationTick, forceUpdate, mousePosition, showGridCoordinates]);
+  }, [layers, performanceMode, modes, scale, offset, viewMode, currentLayer, dragStart, dragEnd, isDragging, currentTool, selectionBox, selectedElementIds, isRotating, isScaling, scaleStart, chainItems, animationTick, forceUpdate, mousePosition, showGridCoordinates, settings]);
 
   // Chain Animation Web Worker - Kaldırıldı
   // useEffect(() => {
@@ -1243,7 +1253,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             z: el.position.z,
             yOffset: typeof el.yOffset === 'number' ? el.yOffset : (typeof el.position.y === 'number' ? el.position.y : 0)
           }))
-          
+
           setRotateStart({
             mouseX,
             mouseY,
@@ -1256,9 +1266,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             boxMaxX: maxX,
             boxMaxY: maxY
           })
-          
+
           // Action Recording: Rotate start - gereksiz, sadece update ve end yeterli
-          
+
           return
         }
       }
@@ -1410,13 +1420,13 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         setSelectionBox({ start: { x, y }, end: { x, y } })
         setSelectedElementIds([])
         setWorkerSelection(null) // Seçim iptalinde workerSelection'ı da temizle
-        
+
         // Action Recording: Clear selection - gereksiz, sadece UI durumu
       } else if (clickedOnSelected) {
         // Start dragging selected element
         setDraggingSelection(true)
         setDragOffset({ x, y })
-        
+
         // Action Recording: Move start
         if (modes.actionRecordingMode && selectedElementIds.length > 0 && currentLayer) {
           const initialPositions = selectedElementIds.map(id => {
@@ -1429,7 +1439,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
               yOffset: typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0)
             };
           });
-          
+
           // Action Recording: Move start - gereksiz, sadece update ve end yeterli
         }
       }
@@ -1549,7 +1559,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       );
       let scaleFactor = currDist / (startDist || 1);
       scaleFactor = Math.max(0.1, Math.min(5, scaleFactor)); // 0.1x - 5x arası sınırla
-      
+
       // Action Recording: Scale update (throttled)
       if (modes.actionRecordingMode && selectedElementIds.length > 0) {
         const currentTime = Date.now()
@@ -1567,8 +1577,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
                 yOffset: typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0)
               };
             });
-            
-            recordTransformUpdate(selectedElementIds, 'scale', currentPositions, undefined, 
+
+            recordTransformUpdate(selectedElementIds, 'scale', currentPositions, undefined,
               currentPositions.map(p => ({ id: p.id, scale: scaleFactor })));
             setLastScaleRecordTime(currentTime)
           }
@@ -1610,15 +1620,15 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
-      
+
       // Canvas koordinatlarına dönüştür (offset ve scale'i dikkate al)
       const canvasX = (mouseX - canvas.width / 2 - offset.x) / (10 * scale);
       const canvasY = (mouseY - canvas.height / 2 - offset.y) / (10 * scale);
-      
+
       // Box center'ı da canvas koordinatlarına dönüştür
       const boxCenterCanvasX = (rotateStart.boxCenter.x - canvas.width / 2 - offset.x) / (10 * scale);
       const boxCenterCanvasY = (rotateStart.boxCenter.y - canvas.height / 2 - offset.y) / (10 * scale);
-      
+
       const currAngle = Math.atan2(canvasY - boxCenterCanvasY, canvasX - boxCenterCanvasX);
       const deltaAngle = currAngle - rotateStart.startAngle;
 
@@ -1629,7 +1639,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       const scaleFactorCombined = mouseEvent.shiftKey && rotateStart.startRadius > 0
         ? Math.max(0.1, Math.min(5, currRadiusPx / rotateStart.startRadius))
         : 1
-      
+
       // Action Recording: Rotate update (throttled)
       if (modes.actionRecordingMode && selectedElementIds.length > 0) {
         const currentTime = Date.now()
@@ -1647,8 +1657,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
                 yOffset: typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0)
               };
             });
-            
-            recordTransformUpdate(selectedElementIds, 'rotate', currentPositions, 
+
+            recordTransformUpdate(selectedElementIds, 'rotate', currentPositions,
               currentPositions.map(p => ({ id: p.id, rotation: deltaAngle })), undefined);
             setLastRotateRecordTime(currentTime)
           }
@@ -1667,7 +1677,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           let dx = found.x - centerX;
           let dy = found.yOffset - centerY;
           // Apply optional scaling
-          dx *= scaleFactorCombined; 
+          dx *= scaleFactorCombined;
           dy *= scaleFactorCombined;
           // Z ekseni etrafında dönüş
           const cosA = Math.cos(deltaAngle);
@@ -1740,7 +1750,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       if (onUpdateLayer) {
         onUpdateLayer(currentLayer.id, { elements: updatedElements })
       }
-      
+
       // Action Recording: Sürekli move kayıt (throttled)
       if (modes.actionRecordingMode && selectedElementIds.length > 0) {
         const currentTime = Date.now()
@@ -1755,20 +1765,20 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
               yOffset: typeof element.yOffset === 'number' ? element.yOffset : 0
             }
           }).filter(Boolean) as { id: string, x: number, z: number, yOffset: number }[]
-          
+
           // Minimum hareket threshold'u (çok küçük hareketleri kaydetme)
           const minMovement = 0.01 // 0.01 birim minimum hareket
-          const hasSignificantMovement = positions.some(pos => 
+          const hasSignificantMovement = positions.some(pos =>
             Math.abs(pos.x) > minMovement || Math.abs(pos.z) > minMovement || Math.abs(pos.yOffset) > minMovement
           )
-          
+
           if (hasSignificantMovement) {
             recordMoveContinuous(selectedElementIds, positions)
             setLastMoveRecordTime(currentTime)
           }
         }
       }
-      
+
       setDragOffset({ x, y })
       return
     }
@@ -1869,7 +1879,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         // Önce selectionBox'ı temizle, sonra element'leri seç
         setSelectionBox(null)
         setSelectedElementIds(selected)
-        
+
         // Element seçildiğinde select tool'una geç
         if (selected.length > 0) {
           setCurrentTool("select")
@@ -2111,11 +2121,11 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     const worldCenter = canvasToWorld(snapCenterX, snapCenterY)
 
     // Equilateral triangle vertices
-    const angles = [ -Math.PI / 2, (-Math.PI / 2) + (2 * Math.PI / 3), (-Math.PI / 2) + (4 * Math.PI / 3) ]
+    const angles = [-Math.PI / 2, (-Math.PI / 2) + (2 * Math.PI / 3), (-Math.PI / 2) + (4 * Math.PI / 3)]
     const vertices = angles.map(a => ({ x: snapCenterX + Math.cos(a) * radius, y: snapCenterY + Math.sin(a) * radius }))
 
     // Corner points first
-    const points: Array<{x:number;y:number}> = [
+    const points: Array<{ x: number; y: number }> = [
       { x: vertices[0].x, y: vertices[0].y },
       { x: vertices[1].x, y: vertices[1].y },
       { x: vertices[2].x, y: vertices[2].y },
@@ -2223,7 +2233,16 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     e.nativeEvent.stopPropagation()
 
     const delta = e.deltaY > 0 ? 0.9 : 1.1
-    setScale((prev) => Math.max(0.1, Math.min(5, prev * delta)))
+    if (externalScale) {
+      // External scale kullanılıyorsa zoom fonksiyonlarını çağır
+      if (delta > 1 && onZoomIn) {
+        onZoomIn()
+      } else if (delta < 1 && onZoomOut) {
+        onZoomOut()
+      }
+    } else {
+      setInternalScale((prev) => Math.max(0.1, Math.min(5, prev * delta)))
+    }
   }
 
   // 2. 3D projeksiyon fonksiyonu
@@ -2349,7 +2368,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           setSelectedElementIds(selected)
         }
         setSelectionBox(null)
-        
+
         // Action Recording: Move end
         if (modes.actionRecordingMode && draggingSelection && selectedElementIds.length > 0 && currentLayer) {
           const finalPositions = selectedElementIds.map(id => {
@@ -2362,10 +2381,10 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
               yOffset: typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0)
             };
           });
-          
+
           recordTransformEnd(selectedElementIds, 'translate', finalPositions, undefined, undefined);
         }
-        
+
         setDraggingSelection(false)
         setDragOffset(null)
       }
@@ -2375,12 +2394,12 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         // Action Recording: Rotate işlemini kaydet
         if (modes.actionRecordingMode && rotateStart && selectedElementIds.length > 0 && mousePosition) {
           const currentAngle = Math.atan2(
-            mousePosition.y - rotateStart.boxCenter.y, 
+            mousePosition.y - rotateStart.boxCenter.y,
             mousePosition.x - rotateStart.boxCenter.x
           )
           const angleDiff = currentAngle - rotateStart.startAngle
           const angleDegrees = (angleDiff * 180) / Math.PI
-          
+
           // Final positions for transform end
           const finalPositions = selectedElementIds.map(id => {
             const element = currentLayer?.elements.find(el => el.id === id);
@@ -2392,11 +2411,11 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
               yOffset: typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0)
             };
           });
-          
-          recordTransformEnd(selectedElementIds, 'rotate', finalPositions, 
+
+          recordTransformEnd(selectedElementIds, 'rotate', finalPositions,
             finalPositions.map(p => ({ id: p.id, rotation: angleDiff })), undefined);
         }
-        
+
         setIsRotating(false)
         setRotateStart(null)
       }
@@ -2409,10 +2428,10 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   // Canvas'ta gösterilecek minimal şekil listesi
   const canvasShapesList = useMemo(() => {
     if (!currentLayer?.elements) return []
-    
+
     const allowedTypes = ["circle", "square", "triangle", "line"]
     const groups: Record<string, { id: string; name: string; elementIds: string[]; type: string; isFreeDraw?: boolean }> = {}
-    
+
     // Önce groupId olan şekilleri grupla
     for (const el of currentLayer.elements) {
       if (!el.groupId) continue
@@ -2428,7 +2447,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       }
       groups[el.groupId].elementIds.push(el.id)
     }
-    
+
     // Free draw elementlerini grupla (groupId olmayan, free draw tool ile çizilen)
     const freeDrawElements = currentLayer.elements.filter(el => !el.groupId && el.type === "free")
     if (freeDrawElements.length > 0) {
@@ -2441,7 +2460,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         isFreeDraw: true
       }
     }
-    
+
     return Object.values(groups)
   }, [currentLayer?.elements])
 
@@ -2466,7 +2485,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           const deltaY = currentMouseY - scaleStart.mouseY
           const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
           const scaleFactor = 1 + (distance / 100) // Basit scale hesaplama
-          
+
           // Final positions for transform end
           const finalPositions = selectedElementIds.map(id => {
             const element = currentLayer?.elements.find(el => el.id === id);
@@ -2478,11 +2497,11 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
               yOffset: typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0)
             };
           });
-          
-          recordTransformEnd(selectedElementIds, 'scale', finalPositions, undefined, 
+
+          recordTransformEnd(selectedElementIds, 'scale', finalPositions, undefined,
             finalPositions.map(p => ({ id: p.id, scale: scaleFactor })));
         }
-        
+
         setIsScaling(false)
         setScaleStart(null)
       }
@@ -2564,7 +2583,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     setIsRotating(true);
     const boxCenter = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
     const selectedEls = currentLayer.elements.filter(element => selectedElementIds.includes(element.id));
-    
+
     // Canvas koordinatlarına dönüştür
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -2575,7 +2594,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     const canvasY = (mouseY - canvas.height / 2 - offset.y) / (10 * scale);
     const boxCenterCanvasX = (boxCenter.x - canvas.width / 2 - offset.x) / (10 * scale);
     const boxCenterCanvasY = (boxCenter.y - canvas.height / 2 - offset.y) / (10 * scale);
-    
+
     const startAngle = Math.atan2(canvasY - boxCenterCanvasY, canvasX - boxCenterCanvasX);
     const startRadius = Math.sqrt(Math.pow(mouseX - boxCenter.x, 2) + Math.pow(mouseY - boxCenter.y, 2));
 
@@ -2626,7 +2645,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       boxMaxX: bounds.maxX,
       boxMaxY: bounds.maxY
     });
-    
+
     // Action Recording: Scale start - gereksiz, sadece update ve end yeterli
   };
 
@@ -2741,7 +2760,16 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       e.stopPropagation()
 
       const delta = e.deltaY > 0 ? 0.9 : 1.1
-      setScale((prev) => Math.max(0.1, Math.min(5, prev * delta)))
+      if (externalScale) {
+        // External scale kullanılıyorsa zoom fonksiyonlarını çağır
+        if (delta > 1 && onZoomIn) {
+          onZoomIn()
+        } else if (delta < 1 && onZoomOut) {
+          onZoomOut()
+        }
+      } else {
+        setInternalScale((prev) => Math.max(0.1, Math.min(5, prev * delta)))
+      }
     }
 
     canvas.addEventListener('wheel', handleWheelEvent, { passive: false })
@@ -2752,7 +2780,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   }, [modes.chainMode])
 
   return (
-    <div className="canvas-area relative w-full h-full bg-[#000000] overflow-hidden">
+    <div className="canvas-area relative w-full h-full bg-white overflow-hidden">
 
       <canvas
         ref={canvasRef}
@@ -2771,324 +2799,15 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
       {/* Controls */}
       <div className="absolute top-6 left-6 flex items-center gap-4" onMouseEnter={() => { isMouseOverUIRef.current = true }} onMouseLeave={() => { isMouseOverUIRef.current = false }}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentTool}
-            initial={{ opacity: 0, scale: 0.92, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: -8 }}
-            transition={{ duration: 0.22, ease: "easeInOut" }}
-            className="bg-[#000000] rounded-lg px-3 py-2 flex items-center gap-3"
-            style={{ minWidth: 120 }}
-          >
-            <span className={`px-2 py-1 rounded-md text-xs font-medium tracking-wide transition-colors duration-200 ${currentTool === "free" ? "bg-white/10 text-white border border-white/20" :
-              currentTool === "select" ? "bg-white/10 text-white border border-white/20" :
-                currentTool === "eraser" ? "bg-white/10 text-white border border-white/20" :
-                  "bg-white/10 text-white/80"
-              }`}>
-              {currentTool.charAt(0).toUpperCase() + currentTool.slice(1)}
-            </span>
-            <span className={`text-[11px] font-medium transition-colors duration-200 ${
-              currentTool === "free" || currentTool === "select" || currentTool === "eraser"
-                ? "text-white/90" 
-                : "text-white/60"
-            }`}>
-              {currentTool === "circle" || currentTool === "square" || currentTool === "triangle" || currentTool === "line"
-                ? `Drag to create (${settings.particleCount || 10} particles)`
-                : currentTool === "free"
-                  ? "Freehand drawing"
-                  : currentTool === "eraser"
-                    ? "Erase elements"
-                    : currentTool === "select"
-                      ? "Select & move"
-                      : ""}
-            </span>
-          </motion.div>
-        </AnimatePresence>
-        {/* Tool Buttons */}
-        <div className="flex items-center gap-1">
-          {[
-            { key: 'free', icon: <Pencil className="w-4 h-4" />, label: 'Free' },
-            { key: 'select', icon: <MousePointerClick className="w-4 h-4" />, label: 'Select' },
-            { key: 'eraser', icon: <Eraser className="w-4 h-4" />, label: 'Eraser' },
-            { key: 'circle', icon: <Circle className="w-4 h-4" />, label: 'Circle' },
-            { key: 'square', icon: <Square className="w-4 h-4" />, label: 'Square' },
-            { key: 'triangle', icon: <Triangle className="w-4 h-4" />, label: 'Triangle' },
-            { key: 'line', icon: <Slash className="w-4 h-4" />, label: 'Line' }
-          ].map(tool => (
-            <motion.button
-              key={tool.key}
-              onClick={() => setCurrentTool(tool.key as Tool)}
-              className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-200 ${currentTool === tool.key
-                ? 'bg-white/10 text-white border-white/20'
-                : 'bg-[#000000] text-white/60 hover:text-white border-white/10 hover:border-white/20'
-                }`}
-              title={tool.label}
-              type="button"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {tool.icon}
-            </motion.button>
-          ))}
-        </div>
 
-        {/* Quick Settings Dropdown */}
-        <div className="relative">
-          <motion.button
-            onClick={() => setShowQuickSettings(!showQuickSettings)}
-            className="flex items-center gap-2 bg-[#000000] border border-white/10 text-white/80 hover:text-white hover:border-white/20 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 focus:outline-none"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Settings className="w-4 h-4" />
-            <span className="hidden sm:inline">Quick Settings</span>
-          </motion.button>
 
-          <AnimatePresence>
-            {showQuickSettings && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                transition={{ duration: 0.15 }}
-                className="absolute top-12 left-0 bg-black border border-white/10 rounded-lg p-4 shadow-xl z-50 min-w-[280px]"
-                onMouseEnter={() => { isMouseOverUIRef.current = true }}
-                onMouseLeave={() => { isMouseOverUIRef.current = false; setShowQuickSettings(false) }}
-                onMouseDown={(e) => { e.stopPropagation() }}
-              >
-                <div className="space-y-3">
-                  {/* View Options */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Grid3X3 className="w-3 h-3 text-white/60" />
-                      <span className="text-xs font-medium text-white/80">Grid Coordinates</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (onToggleGridCoordinates) onToggleGridCoordinates();
-                        else onSettingsChange?.({ ...settings, showGridCoordinates: !showGridCoordinates })
-                      }}
-                      className={`px-2 py-1 text-xs rounded border transition-all ${showGridCoordinates ? 'bg-white/20 border-white/30 text-white' : 'bg-white/10 border-white/20 text-white/70 hover:text-white'}`}
-                    >
-                      {showGridCoordinates ? 'On' : 'Off'}
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Zap className="w-3 h-3 text-white/60" />
-                      <span className="text-xs font-medium text-white/80">Performance Mode</span>
-                    </div>
-                    <button
-                      onClick={() => onSettingsChange?.({ ...settings, performanceMode: !settings.performanceMode })}
-                      className={`px-2 py-1 text-xs rounded border transition-all ${settings.performanceMode ? 'bg-white/20 border-white/30 text-white' : 'bg-white/10 border-white/20 text-white/70 hover:text-white'}`}
-                    >
-                      {settings.performanceMode ? 'On' : 'Off'}
-                    </button>
-                  </div>
-                  {/* Particle Count */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Hash className="w-3 h-3 text-white/60" />
-                        <span className="text-xs font-medium text-white/80">Particle Count</span>
-                      </div>
-                      <span className="text-xs text-white/60">{sliderValue ?? getCurrentParticleCount()}</span>
-                    </div>
-                    <Slider
-                      value={[sliderValue ?? getCurrentParticleCount()]}
-                      onValueChange={([value]) => {
-                        setSliderValue(value)
-                      }}
-                      onValueCommit={([value]) => {
-                        if (selectedElementIds.length > 0 && onElementCountChange) {
-                          const currentLayer = layers.find(layer => layer.id === currentLayerId)
-                          if (currentLayer) {
-                            const selectedElement = currentLayer.elements.find(el => selectedElementIds.includes(el.id))
-                            if (selectedElement && selectedElement.groupId) {
-                              onElementCountChange(value, selectedElement.groupId)
-                              // Action Recording: Particle count change - commit anında kaydet
-                              if (modes.actionRecordingMode) {
-                                recordParticleCountChange(selectedElementIds, value)
-                              }
-                            }
-                          }
-                        }
-                        // Her durumda global default'u da güncelle: sonraki eklenecek şekiller bunu kullanacak
-                        onSettingsChange?.({ ...settings, particleCount: value })
-                        // Global ayar değişimi için kayıt gerekirse buraya eklenebilir
-                      }}
-                      min={getCurrentMinCount()}
-                      max={100}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
 
-                  {/* Color Picker */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Palette className="w-3 h-3 text-white/60" />
-                      <span className="text-xs font-medium text-white/80">Color</span>
-                    </div>
-                    <ColorPicker
-                      value={settings.color || "#ffffff"}
-                      onChange={(color) => {
-                        // Varsayılan çizim rengi
-                        onSettingsChange?.({ ...settings, color })
 
-                        // Seçili shape varsa doğrudan onların rengini güncelle
-                        if (selectedElementIds.length > 0 && onUpdateLayer && currentLayerId) {
-                          const layer = layers.find(l => l.id === currentLayerId)
-                          if (layer) {
-                            const updatedElements = layer.elements.map(el =>
-                              selectedElementIds.includes(el.id) ? { ...el, color } : el
-                            )
-                            onUpdateLayer(currentLayerId, { elements: updatedElements })
-                            // Action Recording: Color change - anında kaydet
-                            if (modes.actionRecordingMode) {
-                              recordColorChange(selectedElementIds, color)
-                            }
-                          }
-                        }
-                        
-                      }}
-                      className="w-auto"
-                      showAlpha={false}
-                    />
-                  </div>
 
-                  {/* Particle Type */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-white/80">Particle</span>
-                    <button
-                      onClick={() => setShowParticleModal(true)}
-                      className="bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-xs rounded px-2 py-1 transition-all"
-                    >
-                      {settings.particle || "reddust"}
-                    </button>
-                  </div>
 
-                  {/* Shapes List */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                        <span className="text-xs font-medium text-white/80">Shapes</span>
-                      </div>
-                      <span className="text-xs text-white/60">{canvasShapesList.length}</span>
-                    </div>
-                    
-                    {canvasShapesList.length === 0 ? (
-                      <div className="text-center py-2">
-                        <div className="text-xs text-white/40">No shapes</div>
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        {canvasShapesList.map((shape) => (
-                          <div
-                            key={shape.id}
-                            className="flex items-center justify-between p-2 rounded bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-200 cursor-pointer"
-                            onClick={() => {
-                              setSelectedElementIds(shape.elementIds)
-                              // Quick Settings açık kalsın
-                            }}
-                          >
-                            <span className="text-xs text-white/70 capitalize">{shape.name}</span>
-                            <span className="text-xs text-white/50">{shape.elementIds.length}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Clear Layer Button */}
-        <motion.button
-          onClick={onClearCanvas}
-          className="flex items-center gap-2 bg-[#000000] border border-white/10 text-white/80 hover:text-red-400 hover:border-red-500/50 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 focus:outline-none"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <svg xmlns='http://www.w3.org/2000/svg' className='w-4 h-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h2a2 2 0 012 2v2' /></svg>
-          <span className="hidden sm:inline">Clear Layer</span>
-        </motion.button>
-
-        {/* REC Button - Chain Mode Recording */}
-        {modes.chainMode && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            onClick={() => {
-              if (isRecording) {
-                // Stop recording
-                setIsRecording(false)
-                setLastElementTime(null)
-              } else {
-                // Start recording
-                setIsRecording(true)
-                setLastElementTime(null) // Reset timer
-                // Clear existing chain items when starting new recording
-                if (chainItems) {
-                  // Reset chain items
-                  const event = new CustomEvent('resetChainItems')
-                  window.dispatchEvent(event)
-                }
-              }
-            }}
-            className={`
-              flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium 
-              transition-all duration-200 focus:outline-none
-              ${isRecording
-                ? 'bg-red-600 border border-red-500 text-white hover:bg-red-700'
-                : 'bg-[#000000] border border-white/10 text-white/80 hover:text-blue-400 hover:border-blue-500/50'
-              }
-            `}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            {isRecording ? (
-              <>
-                <motion.div
-                  className="w-3 h-3 bg-white rounded-sm"
-                  animate={{ opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 0.8, repeat: Infinity }}
-                />
-                <span className="hidden sm:inline">STOP REC</span>
-              </>
-            ) : (
-              <>
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="hidden sm:inline">START REC</span>
-              </>
-            )}
-          </motion.button>
-        )}
       </div>
 
-      {/* Sidebar toggle butonu - sol, zoom butonlarının üstünde */}
-      <div className="absolute left-6 flex flex-col items-center" style={{ top: 'calc(50% - 25px)', zIndex: 100 }}>
-        <motion.button
-          onClick={toggleSidebar}
-          className="w-10 h-10 mb-3 flex items-center justify-center rounded-lg bg-[#000000] border border-white/10 text-white/80 hover:text-white hover:border-white/20 transition-all duration-200 focus:outline-none"
-          title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          {isSidebarCollapsed ? (
-            <ChevronRight className="w-5 h-5" />
-          ) : (
-            <ChevronLeft className="w-5 h-5" />
-          )}
-        </motion.button>
-      </div>
+
 
       {/* --- Modern overlay kutusu ve butonlar --- */}
       {selectionBounds && selectedElementIds.length > 0 && (
@@ -3105,9 +2824,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           {/* Modern overlay kutusu */}
           <div className="
             absolute inset-0
-            border-2 border-white
+            border-2 border-blue-400
             rounded-xl
-            bg-black/30
+            bg-blue-100/30
             shadow-[0_0_24px_0_rgba(255,255,255,0.10)]
             transition-all
             pointer-events-none
@@ -3118,9 +2837,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             className="
               absolute right-[-20px] top-[-20px]
               w-8 h-8
-              bg-[#000000] border border-white/20
+              bg-white border border-gray-200
               rounded-lg flex items-center justify-center
-              shadow-lg hover:scale-110 hover:shadow-white/40
+              shadow-lg hover:scale-110 hover:shadow-gray-400
               transition-all duration-200 pointer-events-auto
               backdrop-blur
             "
@@ -3130,7 +2849,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Trash2 className="w-4 h-4 text-white" />
+            <Trash2 className="w-4 h-4 text-black" />
           </motion.button>
 
           {/* Rotate Button - Sağ Alt */}
@@ -3138,9 +2857,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             className="
               absolute right-[-20px] bottom-[-20px]
               w-8 h-8
-              bg-[#000000] border border-white/20
+              bg-white border border-gray-200
               rounded-lg flex items-center justify-center
-              shadow-lg hover:scale-110 hover:shadow-white/40
+              shadow-lg hover:scale-110 hover:shadow-gray-400
               transition-all duration-200 pointer-events-auto
               backdrop-blur
             "
@@ -3150,7 +2869,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
-            <RotateCw className="w-4 h-4 text-white" />
+            <RotateCw className="w-4 h-4 text-black" />
           </motion.button>
 
           {/* Scale Button - Sol Alt */}
@@ -3158,9 +2877,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             className="
               absolute left-[-20px] bottom-[-20px]
               w-8 h-8
-              bg-[#000000] border border-white/20
+              bg-white border border-gray-200
               rounded-lg flex items-center justify-center
-              shadow-lg hover:scale-110 hover:shadow-white/40
+              shadow-lg hover:scale-110 hover:shadow-gray-400
               transition-all duration-200 pointer-events-auto
               backdrop-blur
             "
@@ -3170,7 +2889,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
-            <MoveDiagonal className="w-4 h-4 text-white" />
+            <MoveDiagonal className="w-4 h-4 text-black" />
           </motion.button>
         </div>
       )}
@@ -3186,37 +2905,6 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           onClose={() => setShowParticleModal(false)}
         />
       )}
-
-      {/* Controls */}
-      <div className="absolute top-6 right-6 z-30 flex flex-col items-end gap-2">
-        <AxisWidget viewMode={viewMode} setViewMode={setViewMode} />
-      </div>
-
-      {/* Modern Zoom Controls - Sol Alt Köşe */}
-      <div className="absolute bottom-6 left-6 z-30">
-        <div className="flex flex-col gap-2">
-          <motion.button
-            onClick={() => setScale(s => Math.min(5, s * 1.15))}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#000000] border border-white/10 text-white/80 hover:text-white hover:border-white/20 transition-all duration-200 focus:outline-none"
-            title="Zoom In"
-            style={{ userSelect: 'none' }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <span className="text-sm font-medium">+</span>
-          </motion.button>
-          <motion.button
-            onClick={() => setScale(s => Math.max(0.2, s / 1.15))}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#000000] border border-white/10 text-white/80 hover:text-white hover:border-white/20 transition-all duration-200 focus:outline-none"
-            title="Zoom Out"
-            style={{ userSelect: 'none' }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <span className="text-sm font-medium">−</span>
-          </motion.button>
-        </div>
-      </div>
 
 
     </div>

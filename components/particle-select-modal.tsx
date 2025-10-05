@@ -84,9 +84,9 @@ export function ParticleSelectModal({ currentParticle, onSelectParticle, onClose
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] bg-[#000000] border-zinc-800 z-[99999990]">
+      <DialogContent className="sm:max-w-[600px] bg-white border-gray-200 z-[99999990]">
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
+          <DialogTitle className="text-gray-900 flex items-center gap-2">
             <Heart className="w-5 h-5" />
             Particle Selection
           </DialogTitle>
@@ -94,23 +94,23 @@ export function ParticleSelectModal({ currentParticle, onSelectParticle, onClose
 
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search particles..."
-            className="pl-9 bg-[#000000] border-zinc-700 text-white h-9"
+            className="pl-9 bg-white border-gray-300 text-gray-900 h-9"
           />
         </div>
 
         {/* Loading/Error State */}
         {loading ? (
-          <div className="text-zinc-400 text-center py-4">Loading particles...</div>
+          <div className="text-gray-500 text-center py-4">Loading particles...</div>
         ) : error ? (
-          <div className="text-red-400 text-center py-4">{error}</div>
+          <div className="text-red-600 text-center py-4">{error}</div>
         ) : (
           <ScrollArea 
-            className="h-[200px] rounded-md border border-zinc-800 scroll-contain"
+            className="h-[200px] rounded-md border border-gray-200 scroll-contain"
             onWheel={(e) => e.stopPropagation()}
           >
             <div className="grid grid-cols-1 gap-2 p-2">
@@ -121,7 +121,7 @@ export function ParticleSelectModal({ currentParticle, onSelectParticle, onClose
                   className={`p-4 rounded-md cursor-pointer transition-colors min-h-[48px] flex items-center ${
                     particle === currentParticle
                       ? "bg-blue-600 text-white"
-                      : "bg-[#000000] hover:bg-zinc-700 text-zinc-200"
+                      : "bg-gray-50 hover:bg-gray-100 text-gray-900"
                   }`}
                   style={{ fontSize: '1.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                 >
@@ -147,7 +147,7 @@ export function ParticleSelectModal({ currentParticle, onSelectParticle, onClose
             <Plus className="w-4 h-4" />
             Add Custom Particle
           </Button>
-          <span className="text-zinc-400 text-sm">
+          <span className="text-gray-500 text-sm">
             {filteredParticles.length} particles found
           </span>
         </div>
@@ -156,20 +156,20 @@ export function ParticleSelectModal({ currentParticle, onSelectParticle, onClose
         {showAddDialog && (
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogContent 
-              className="sm:max-w-[425px] bg-[#000000] border-zinc-800"
+              className="sm:max-w-[425px] bg-white border-gray-200"
               style={{ zIndex: 99999999 }}
             >
               <DialogHeader>
-                <DialogTitle className="text-white">Add Custom Particle</DialogTitle>
+                <DialogTitle className="text-gray-900">Add Custom Particle</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <label className="text-sm text-zinc-400">Particle Name</label>
+                  <label className="text-sm text-gray-600">Particle Name</label>
                   <Input
                     value={newParticle}
                     onChange={(e) => setNewParticle(e.target.value)}
                     placeholder="Enter particle name..."
-                    className="bg-[#000000] border-zinc-700 text-white"
+                    className="bg-white border-gray-300 text-gray-900"
                     autoFocus
                   />
                 </div>

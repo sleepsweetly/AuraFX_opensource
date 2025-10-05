@@ -1,51 +1,37 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
 import {
   MousePointer,
   Move3D,
-  RotateCw,
-  Scale,
   Grid3X3,
   Axis3D,
-  Eye,
   Download,
   Upload,
-  Undo,
-  Redo,
-  Trash2,
-  Save,
-  FolderOpen,
   Zap,
   ZapOff,
   Send,
-  Code,
   Hexagon,
   Rotate3D,
   Maximize2,
   Play,
   Monitor,
   HelpCircle,
-  Plus,
-
 } from "lucide-react"
 import { use3DStore } from "../store/use3DStore"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useLayerStore } from "@/store/useLayerStore"
-import { Scene3DEditorVR } from "./Scene3DEditorVR"
 import { motion, AnimatePresence } from "framer-motion"
 
-export function TopToolbar({ 
-  vrMode, 
-  setVRMode, 
+export function TopToolbar({
+  vrMode,
+  setVRMode,
   onShowTutorial,
   useOptimizedRenderer,
   setUseOptimizedRenderer
-}: { 
-  vrMode: boolean, 
+}: {
+  vrMode: boolean,
   setVRMode: (v: boolean) => void,
   onShowTutorial?: () => void,
   useOptimizedRenderer?: boolean,
@@ -55,50 +41,24 @@ export function TopToolbar({
   const {
     currentTool,
     setCurrentTool,
-    transformMode,
-    setTransformMode,
     scene,
     updateScene,
-    camera,
-    updateCamera,
-    selectedVertices,
-    selectedShapes,
-    undo,
-    redo,
-    history,
-    historyIndex,
-    exportScene,
     exportToMythicMobs,
-    clearScene,
-    vertices,
-    shapes,
-    performanceMode,
-    setPerformanceMode,
-    vertexCount,
-    exportToMainSystem,
-
   } = use3DStore()
 
-  const canUndo = historyIndex > 0
-  const canRedo = historyIndex < history.length - 1
+
 
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([])
   const [showSendModal, setShowSendModal] = useState(false)
   const [simpleTransfer, setSimpleTransfer] = useState(false) // Sade geçiş seçeneği
 
-  const layers = useLayerStore((state) => state.layers)
-  const addElementsToLayer = useLayerStore((state) => state.addElementsToLayer)
+  const mainLayers = useLayerStore((state) => state.layers) // 2D editördeki katmanlar
 
-  const handleExportJSON = () => {
-    const data = exportScene()
-    const blob = new Blob([data], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "aurafx_scene.json"
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+  // 3D editördeki katmanları al
+  const threeDLayers = use3DStore((state) => state.layers)
+  const threeDShapes = use3DStore((state) => state.shapes)
+
+
 
   const handleExportMythicMobs = () => {
     const data = exportToMythicMobs()
@@ -135,24 +95,47 @@ export function TopToolbar({
     setShowSendModal(true);
   }
 
+
+
   const handleSendElements = () => {
-    const elements = exportToMainSystem();
-    
-    // Send to multiple layers
-    selectedLayerIds.forEach(layerId => {
-      if (simpleTransfer) {
-        // Sade geçiş: mevcut elementleri temizle ve sadece 3D elementlerini ekle
-        addElementsToLayer(layerId, elements, true); // true = clear existing
+    console.log('=== 3D->2D TRANSFER ===');
+
+    try {
+      // 3D store'dan elementleri export et
+      const { exportToMainSystem } = use3DStore.getState();
+      const elements = exportToMainSystem();
+
+      console.log('Exported elements:', elements);
+      console.log('Elements count:', elements.length);
+
+      if (elements.length > 0) {
+        // TransferUtils kullanarak veri sakla
+        const transferData = {
+          elements,
+          layers: [], // 3D'den layer yapısı gönderilmiyor
+          clearExisting: simpleTransfer,
+          timestamp: Date.now(),
+          layerNames: selectedLayerIds
+        };
+
+        // SessionStorage'a kaydet
+        sessionStorage.setItem('aurafx-3d-transfer', JSON.stringify(transferData));
+        console.log('Transfer data saved to sessionStorage');
+
+        // Ana sayfaya yönlendir
+        window.location.href = "/";
       } else {
-        // Normal geçiş: mevcut elementlerin üzerine ekle
-        addElementsToLayer(layerId, elements, false); // false = append to existing
+        console.log('No elements to transfer to 2D editor');
+        alert('No elements found to transfer to 2D editor');
       }
-    });
-    
+    } catch (error) {
+      console.error('Transfer failed:', error);
+      alert('Transfer failed: ' + error);
+    }
+
     setShowSendModal(false);
     setSelectedLayerIds([]);
     setSimpleTransfer(false);
-    router.push("/");
   }
 
   return (
@@ -161,13 +144,13 @@ export function TopToolbar({
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
       className="header-actions h-16 w-full flex items-center justify-between px-6 lg:px-8 select-none backdrop-blur-sm fixed top-0 left-0 right-0 z-50"
-      style={{ 
+      style={{
         backgroundColor: '#000000',
         borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
       }}
     >
       {/* Left Section - Logo & Branding */}
-      <motion.div 
+      <motion.div
         className="flex items-center gap-3 min-w-fit"
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -181,8 +164,8 @@ export function TopToolbar({
         >
           <Hexagon className="w-full h-full" />
         </motion.div>
-        
-        <motion.span 
+
+        <motion.span
           className="text-xl font-bold text-white tracking-tight cursor-pointer"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -191,8 +174,8 @@ export function TopToolbar({
         >
           AuraFX
         </motion.span>
-        
-        <motion.span 
+
+        <motion.span
           className="text-sm text-white/60 font-medium ml-1"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -203,7 +186,7 @@ export function TopToolbar({
       </motion.div>
 
       {/* Center Section - 3D Tools */}
-      <motion.div 
+      <motion.div
         className="flex items-center gap-2 mx-auto"
         initial={{ y: 10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -280,7 +263,7 @@ export function TopToolbar({
       </motion.div>
 
       {/* Right Section - Action Buttons */}
-      <motion.div 
+      <motion.div
         className="flex items-center gap-2 ml-auto"
         initial={{ x: 20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -293,11 +276,10 @@ export function TopToolbar({
               variant="ghost"
               size="icon"
               onClick={() => setUseOptimizedRenderer(!useOptimizedRenderer)}
-              className={`rounded-lg w-10 h-10 border transition-all duration-200 ${
-                useOptimizedRenderer
+              className={`rounded-lg w-10 h-10 border transition-all duration-200 ${useOptimizedRenderer
                   ? "bg-white/10 border-white/20 text-white hover:bg-white/15"
                   : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
-              }`}
+                }`}
               title={`Optimized Renderer: ${useOptimizedRenderer ? "ON" : "OFF"}`}
             >
               {useOptimizedRenderer ? <Zap className="h-4 w-4" /> : <ZapOff className="h-4 w-4" />}
@@ -336,11 +318,10 @@ export function TopToolbar({
             variant="outline"
             size="sm"
             onClick={() => setVRMode(!vrMode)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
-              vrMode 
-                ? "bg-white/10 border-white/20 text-white hover:bg-white/15" 
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${vrMode
+                ? "bg-white/10 border-white/20 text-white hover:bg-white/15"
                 : "border-white/10 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white hover:border-white/20"
-            }`}
+              }`}
             title={vrMode ? "Exit Play Mode" : "Enter Play Mode"}
           >
             {vrMode ? (
@@ -356,11 +337,11 @@ export function TopToolbar({
         <motion.button
           onClick={handleSendToMain}
           className="relative rounded-lg bg-white text-black px-6 py-2 text-sm font-semibold transition-all duration-200 hover:bg-white/90 overflow-hidden group"
-          whileHover={{ 
+          whileHover={{
             scale: 1.02,
             transition: { duration: 0.15 }
           }}
-          whileTap={{ 
+          whileTap={{
             scale: 0.98,
             transition: { duration: 0.1 }
           }}
@@ -379,11 +360,11 @@ export function TopToolbar({
         {/* Help Button */}
         {onShowTutorial && (
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={onShowTutorial} 
-              className="rounded-lg w-10 h-10 border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all duration-200 hover:border-white/20" 
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onShowTutorial}
+              className="rounded-lg w-10 h-10 border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all duration-200 hover:border-white/20"
               title="Show Tutorial"
             >
               <HelpCircle className="h-4 w-4" />
@@ -399,7 +380,7 @@ export function TopToolbar({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            style={{ 
+            style={{
               position: 'fixed',
               top: 0,
               left: 0,
@@ -418,26 +399,26 @@ export function TopToolbar({
               exit={{ scale: 0.95, y: 20, opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
               className="bg-[#111] rounded-2xl p-8 w-full max-w-md relative shadow-2xl border border-white/10 mx-4 my-auto"
-              style={{ 
+              style={{
                 maxHeight: '90vh',
                 overflowY: 'auto',
                 margin: 'auto'
               }}
             >
-              <button 
+              <button
                 onClick={() => {
                   setShowSendModal(false)
                   setSelectedLayerIds([])
                   setSimpleTransfer(false)
-                }} 
+                }}
                 className="absolute top-3 right-3 text-white text-2xl font-bold hover:opacity-70 transition-opacity"
               >
                 ×
               </button>
-              
+
               <h2 className="text-xl font-bold text-white mb-2">Send to 2D Editor</h2>
-              <p className="text-white/60 text-sm mb-4">Select target layer(s) for your 3D elements</p>
-              
+              <p className="text-white/60 text-sm mb-4">Your 3D layers will be exported to 2D editor</p>
+
               {/* Sade Geçiş Seçeneği */}
               <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
                 <label className="flex items-center gap-3 cursor-pointer">
@@ -450,47 +431,92 @@ export function TopToolbar({
                   <div className="flex-1">
                     <div className="text-white font-medium text-sm">Simple Transfer</div>
                     <div className="text-white/50 text-xs">
-                      {simpleTransfer 
-                        ? "Clear existing elements and add only 3D elements" 
+                      {simpleTransfer
+                        ? "Clear existing elements and add only 3D elements"
                         : "Add 3D elements to existing elements"}
                     </div>
                   </div>
                 </label>
               </div>
-              
-              <div className="space-y-2 mb-6 max-h-48 overflow-y-auto">
-                {layers.map(layer => (
-                  <label key={layer.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={selectedLayerIds.includes(layer.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedLayerIds(prev => [...prev, layer.id])
-                        } else {
-                          setSelectedLayerIds(prev => prev.filter(id => id !== layer.id))
-                        }
-                      }}
-                      className="w-4 h-4 text-white bg-white/10 border-white/20 rounded focus:ring-white focus:ring-2"
-                    />
-                    <div className="flex-1">
-                      <div className="text-white font-medium">{layer.name}</div>
-                      <div className="text-white/50 text-xs">{layer.elements?.length || 0} elements</div>
+
+              {/* 3D Layers to Export */}
+              <div className="mb-4">
+                <h3 className="text-white font-medium mb-2">3D Layers to Export:</h3>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {threeDShapes.filter(shape => shape.type === 'imported').map(shape => (
+                    <div key={shape.id} className="flex items-center gap-3 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <div className="flex-1">
+                        <div className="text-white font-medium text-sm">{shape.name || `Shape ${shape.id}`}</div>
+                        <div className="text-white/50 text-xs">{shape.vertices.length} elements</div>
+                      </div>
+                      <div
+                        className="w-3 h-3 rounded-full border border-white/20"
+                        style={{ backgroundColor: shape.color || '#ffffff' }}
+                      />
                     </div>
-                    <div 
-                      className="w-4 h-4 rounded-full border-2 border-white/20"
-                      style={{ backgroundColor: layer.color }}
-                    />
-                  </label>
-                ))}
+                  ))}
+                  {threeDLayers.filter(layer => layer.id !== 'default').map(layer => (
+                    <div key={layer.id} className="flex items-center gap-3 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                      <div className="flex-1">
+                        <div className="text-white font-medium text-sm">{layer.name}</div>
+                        <div className="text-white/50 text-xs">{layer.elements?.length || 0} elements</div>
+                      </div>
+                      <div
+                        className="w-3 h-3 rounded-full border border-white/20"
+                        style={{ backgroundColor: layer.color }}
+                      />
+                    </div>
+                  ))}
+                  {threeDShapes.filter(shape => shape.type === 'imported').length === 0 && threeDLayers.filter(layer => layer.id !== 'default').length === 0 && (
+                    <div className="text-white/50 text-sm p-2 text-center">
+                      No 3D layers to export
+                    </div>
+                  )}
+                </div>
               </div>
-              
+
+              {/* Target Selection for 2D */}
+              <div className="mb-4">
+                <h3 className="text-white font-medium mb-2">Target 2D Layers (Optional):</h3>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {mainLayers.map(layer => (
+                    <label key={layer.id} className="flex items-center gap-3 p-2 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedLayerIds.includes(layer.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedLayerIds(prev => [...prev, layer.id])
+                          } else {
+                            setSelectedLayerIds(prev => prev.filter(id => id !== layer.id))
+                          }
+                        }}
+                        className="w-4 h-4 text-white bg-white/10 border-white/20 rounded focus:ring-white focus:ring-2"
+                      />
+                      <div className="flex-1">
+                        <div className="text-white font-medium text-sm">{layer.name}</div>
+                        <div className="text-white/50 text-xs">{layer.elements?.length || 0} elements</div>
+                      </div>
+                      <div
+                        className="w-3 h-3 rounded-full border border-white/20"
+                        style={{ backgroundColor: layer.color }}
+                      />
+                    </label>
+                  ))}
+                </div>
+                <p className="text-white/40 text-xs mt-2">
+                  If no target layers selected, new layers will be created automatically
+                </p>
+              </div>
+
               {selectedLayerIds.length > 0 && (
                 <div className="text-sm text-white/70 mb-4">
-                  {selectedLayerIds.length} layer{selectedLayerIds.length > 1 ? 's' : ''} selected
+                  {selectedLayerIds.length} target layer{selectedLayerIds.length > 1 ? 's' : ''} selected
                 </div>
               )}
-              
+
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => {
@@ -504,10 +530,9 @@ export function TopToolbar({
                 </button>
                 <button
                   onClick={handleSendElements}
-                  disabled={selectedLayerIds.length === 0}
-                  className="px-4 py-2 rounded-lg bg-white text-black hover:bg-white/90 disabled:bg-white/20 disabled:text-white/40 disabled:cursor-not-allowed transition-colors font-medium"
+                  className="px-4 py-2 rounded-lg bg-white text-black hover:bg-white/90 transition-colors font-medium"
                 >
-                  Send to 2D ({selectedLayerIds.length})
+                  Export to 2D
                 </button>
               </div>
             </motion.div>

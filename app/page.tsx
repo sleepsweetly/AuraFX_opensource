@@ -2,29 +2,35 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Header } from "@/components/header"
-import { SidebarProvider } from "@/components/ui/sidebar"
-import { Sidebar } from "@/components/sidebar"
+import { Footer } from "@/components/footer"
+import { Transfer3DModal } from "@/components/3d-transfer-modal"
+import { LeftToolbar } from "@/components/left-toolbar"
+import { RightSidebar } from "@/components/right-sidebar"
+import { TopCenterToolbar } from "@/components/top-center-toolbar"
+import { LayersPanel } from "@/components/panels/layers-panel"
+import { BottomStatusBar } from "@/components/bottom-status-bar"
 import { Canvas } from "@/components/canvas"
-import { LayerPanel } from "@/components/layer-panel"
-import { ToolPanel } from "@/components/tool-panel"
 import { CodePanel } from "@/components/panels/code-panel"
-import { CodeEditPanel } from "@/components/panels/code-edit-panel"
 import { ModesPanel } from "@/components/panels/modes-panel"
 import { ChainPanel } from "@/components/panels/chain-panel"
-import { ImportPanel } from "@/components/import-panel"
+import { ImportPanel } from "@/components/panels/import-panel"
 import { ActionRecordingPanel } from "@/components/panels/action-recording-panel"
 import { ChangelogModal } from "@/components/changelog-modal"
-import { PerformanceOptimizer } from "@/components/performance-optimizer"
+import { PerformancePanel } from "@/components/panels/performance-panel"
 import { EffectListPanel } from "@/components/EffectListPanel"
 import type { Layer, Element, Tool, ActionRecord } from "@/types"
 import { Toaster } from "@/components/ui/toaster"
 import { v4 as uuidv4 } from "uuid"
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
 import { generateEffectCode } from "./generate-effect-code"
-import { ElementSettingsPanel } from "@/components/element-settings-panel"
+import { ElementSettingsPanel } from "@/components/panels/element-settings-panel"
 import { AnimatePresence, motion } from 'framer-motion'
 import { Rnd } from "react-rnd"
 import { useHistoryStore } from "@/lib/history-store"
+import { ParticleSelectModal } from "@/components/particle-select-modal"
+import { ColorPicker } from "@/components/ui/color-picker"
+import { Slider } from "@/components/ui/slider"
+import { Settings, Grid3X3, Zap, Hash, Palette, X, Sparkles } from "lucide-react"
 import { use3DStore } from "@/app/3d/store/use3DStore"
 import { useClipboardStore } from "@/store/useClipboardStore"
 import { useLayerStore } from "@/store/useLayerStore"
@@ -34,6 +40,7 @@ import type { OptimizationSettings } from "@/lib/effect-optimizer"
 import * as yaml from 'js-yaml'
 import dynamic from "next/dynamic"
 import { useEffectSessionStore } from "@/store/useEffectSessionStore"
+import { useTransferStore } from "@/store/useTransferStore"
 const GettingStarted = dynamic(() => import("@/components/getting-started"), { ssr: false })
 
 declare global {
@@ -916,6 +923,8 @@ export default function EffectEditor() {
       setShowChangelog(true);
       localStorage.setItem('aurafx-last-seen-version', currentVersion);
     }
+
+
   }, []);
 
   // Action Recording Store
@@ -998,6 +1007,8 @@ export default function EffectEditor() {
   const [expandedModes, setExpandedModes] = useState<string[]>([]);
   const [chainSequence, setChainSequence] = useState<string[]>([]);
   const [chainItems, setChainItems] = useState<Array<{ type: 'element' | 'delay', id: string, elementId?: string, elementIds?: string[], delay?: number }>>([]);
+  const [showQuickSettings, setShowQuickSettings] = useState(false);
+  const [showParticleModal, setShowParticleModal] = useState(false);
 
   // Synchronize selectedElementIds with selectedShapeIds
   useEffect(() => {
@@ -1050,7 +1061,7 @@ export default function EffectEditor() {
   const [settings, setSettings] = useState({
     particleCount: 10,
     shapeSize: 20,
-    color: "#ffffff",
+    color: "#000000",
     particle: "reddust",
     alpha: 1,
     repeat: 1,
@@ -1063,6 +1074,7 @@ export default function EffectEditor() {
     snapToGridMode: false,
     gridSize: 20,
     mirrorMode: false,
+    showGrid: true, // Grid görünürlüğü
     // PNG optimizasyon ayarları
     alphaThreshold: 100,
     colorTolerance: 30,
@@ -1112,13 +1124,14 @@ export default function EffectEditor() {
   const [performanceAnalysis, setPerformanceAnalysis] = useState(() => analyzeEffectLines(layers));
 
   // History snapshot'ı oluştur ve kaydet
-  const saveToHistory = useCallback(() => {
+  const saveToHistory = useCallback((action?: string) => {
     pushSnapshot({
       layers: [...layers],
       settings: { ...settings },
       modes: { ...modes },
       currentTool,
-      selectedShapeIds: [...selectedShapeIds]
+      selectedShapeIds: [...selectedShapeIds],
+      action
     })
   }, [layers, settings, modes, currentTool, selectedShapeIds, pushSnapshot])
 
@@ -1127,9 +1140,9 @@ export default function EffectEditor() {
   const [pendingHistorySnapshot, setPendingHistorySnapshot] = useState<any>(null)
 
   // Batch mode'da history'yi geciktir
-  const saveToHistoryBatch = useCallback((force = false) => {
+  const saveToHistoryBatch = useCallback((force = false, action?: string) => {
     if (force || !isBatchMode) {
-      saveToHistory()
+      saveToHistory(action)
       setPendingHistorySnapshot(null)
     } else {
       // Batch mode'da snapshot'ı sakla, mouse up'ta ekle
@@ -1138,7 +1151,8 @@ export default function EffectEditor() {
         settings: { ...settings },
         modes: { ...modes },
         currentTool,
-        selectedShapeIds: [...selectedShapeIds]
+        selectedShapeIds: [...selectedShapeIds],
+        action
       })
     }
   }, [isBatchMode, layers, settings, modes, currentTool, selectedShapeIds, saveToHistory])
@@ -1207,7 +1221,7 @@ export default function EffectEditor() {
         tickEnd: 40,
         tickDelay: 20,
         particle: "reddust",
-        color: "#ffffff",
+        color: "#000000",
         alpha: 1,
         shapeSize: 20,
         repeat: 1,
@@ -1259,25 +1273,31 @@ export default function EffectEditor() {
   const addPngElementsCallback = useCallback(
     (elements: Element[]) => {
       if (currentLayer) {
+        // History'ye kaydet
+        saveToHistoryBatch(true, `Imported ${elements.length} PNG element${elements.length !== 1 ? 's' : ''} to ${currentLayer.name}`);
+
         const newElements = [...currentLayer.elements, ...elements];
         const updatedLayers = layers.map((layer) => (layer.id === currentLayer.id ? { ...layer, elements: newElements } : layer));
         setLayers(updatedLayers);
         setCurrentLayer((prev) => (prev ? { ...prev, elements: newElements } : null));
       }
     },
-    [currentLayer, layers, setLayers],
+    [currentLayer, layers, setLayers, saveToHistoryBatch],
   );
 
   const addObjElementsCallback = useCallback(
     (elements: Element[]) => {
       if (currentLayer) {
+        // History'ye kaydet
+        saveToHistoryBatch(true, `Imported ${elements.length} OBJ element${elements.length !== 1 ? 's' : ''} to ${currentLayer.name}`);
+
         const newElements = [...currentLayer.elements, ...elements];
         const updatedLayers = layers.map((layer) => (layer.id === currentLayer.id ? { ...layer, elements: newElements } : layer));
         setLayers(updatedLayers);
         setCurrentLayer((prev) => (prev ? { ...prev, elements: newElements } : null));
       }
     },
-    [currentLayer, layers, setLayers],
+    [currentLayer, layers, setLayers, saveToHistoryBatch],
   );
 
   // GIF animasyon state'i
@@ -1360,6 +1380,9 @@ export default function EffectEditor() {
   const addGifElementsCallback = useCallback(
     (elements: Element[], frameCount: number) => {
       if (currentLayer) {
+        // History'ye kaydet
+        saveToHistoryBatch(true, `Imported GIF with ${frameCount} frames (${elements.length} elements)`);
+
         console.log(`🎬 GIF callback: ${elements.length} element, ${frameCount} frame alındı`);
 
         // GIF elementlerini frame'lere göre grupla
@@ -1421,7 +1444,7 @@ export default function EffectEditor() {
         });
       }
     },
-    [currentLayer, layers, setLayers, toast],
+    [currentLayer, layers, setLayers, toast, saveToHistoryBatch],
   );
 
   useEffect(() => {
@@ -1440,7 +1463,7 @@ export default function EffectEditor() {
 
   // Katman ekleme
   const addLayer = useCallback(() => {
-    saveToHistoryBatch();
+    saveToHistoryBatch(true, "Added new layer");
     const newLayer: Layer = {
       id: uuidv4(),
       name: `Layer ${layers.length + 1}`,
@@ -1465,7 +1488,7 @@ export default function EffectEditor() {
 
   const deleteLayer = useCallback(() => {
     if (!currentLayer || layers.length <= 1) return
-    saveToHistoryBatch(true);
+    saveToHistoryBatch(true, `Deleted layer "${currentLayer.name}"`);
     const newLayers = layers.filter((l) => l.id !== currentLayer.id)
     setLayers(newLayers)
     setCurrentLayer(newLayers[0] || null)
@@ -1476,7 +1499,8 @@ export default function EffectEditor() {
 
   const clearAllLayers = useCallback(() => {
     if (layers.length === 0) return
-    saveToHistoryBatch(true);
+    const totalElements = layers.reduce((total, layer) => total + layer.elements.length, 0)
+    saveToHistoryBatch(true, `Cleared all ${totalElements} elements from ${layers.length} layers`);
     // Tüm layer'lardaki elementleri temizle, layer'ları koru
     const clearedLayers = layers.map(layer => ({ ...layer, elements: [] }))
     setLayers(clearedLayers)
@@ -1496,8 +1520,7 @@ export default function EffectEditor() {
   }, [])
 
   const updateLayer = useCallback((layerId: string, updates: Partial<Layer>) => {
-    // Layer güncelleme işlemi için her zaman history'ye kaydet
-    saveToHistoryBatch(true);
+    // Layer güncelleme işlemi - history kaydı yapma, çünkü genellikle başka işlemlerin parçası
     const newLayers = layers.map((layer) =>
       layer.id === layerId ? { ...layer, ...updates } : layer
     );
@@ -1511,16 +1534,41 @@ export default function EffectEditor() {
 
   const handleAddElement = useCallback((element: Element | Element[]) => {
     if (!currentLayer) return
-    // Element ekleme işlemi için her zaman history'ye kaydet
-    saveToHistoryBatch(true);
     const elements = Array.isArray(element) ? element : [element]
+
+    // Batch mode'da history'yi geciktir, normal mode'da hemen kaydet
+    saveToHistoryBatch(false, `Added ${elements.length} element${elements.length !== 1 ? 's' : ''} to ${currentLayer.name}`);
+
     const updatedElements = [...currentLayer.elements, ...elements]
     updateLayer(currentLayer.id, { elements: updatedElements })
-  }, [currentLayer, updateLayer, saveToHistoryBatch])
+
+    // Chain mode aktifse, yeni eklenen elementleri otomatik olarak chain'e ekle
+    if (modes.chainMode) {
+      const newChainItems = [...chainItems]
+
+      // Her yeni element için chain item ekle
+      elements.forEach(el => {
+        newChainItems.push({
+          type: 'element',
+          id: `auto-${Date.now()}-${Math.random()}`,
+          elementId: el.id
+        })
+      })
+
+      setChainItems(newChainItems)
+      console.log('Auto-added to chain:', elements.map(el => el.id))
+      console.log('New chainItems state:', newChainItems)
+    }
+
+    // Otomatik seçim yapma - kullanıcı manuel olarak seçsin
+    // const newElementIds = elements.map(el => el.id)
+    // setSelectedElementIds(newElementIds)
+  }, [currentLayer, updateLayer, saveToHistoryBatch, modes.chainMode, chainItems, setChainItems, setSelectedElementIds])
 
   const handleClearCanvas = useCallback(() => {
     if (!currentLayer) return
-    saveToHistoryBatch(true);
+    const elementCount = currentLayer.elements.length
+    saveToHistoryBatch(true, `Cleared ${elementCount} element${elementCount !== 1 ? 's' : ''} from ${currentLayer.name}`);
     updateLayer(currentLayer.id, { elements: [] })
     // Selected element'leri de temizle
     setSelectedShapeIds([])
@@ -1600,6 +1648,87 @@ export default function EffectEditor() {
     }
   }, [layers, settings, modes, modeSettings, frameMode, manualFrameCount, captureCanvasAsBase64]);
 
+  const newProject = () => {
+    // Tüm state'leri sıfırla
+    const initialLayer: Layer = {
+      id: uuidv4(),
+      name: "Layer 1",
+      visible: true,
+      elements: [],
+      tickStart: 0,
+      tickEnd: 40,
+      tickDelay: 20,
+      particle: "reddust",
+      color: "#000000",
+      alpha: 1,
+      repeat: 1,
+      repeatInterval: 1,
+      targeter: "self",
+      effectType: "particles",
+      shapeSize: 20,
+      yOffset: 0
+    }
+
+    setLayers([initialLayer])
+    setCurrentLayer(initialLayer)
+    setSelectedElementIds([])
+    setSelectedShapeIds([])
+    setChainItems([])
+    setChainSequence([])
+    setGeneratedCode("")
+
+    // Settings'i default'a döndür
+    setSettings({
+      particleCount: 10,
+      shapeSize: 20,
+      color: "#000000",
+      particle: "reddust",
+      alpha: 1,
+      repeat: 1,
+      yOffset: 0,
+      skillName: "MySkill",
+      pngSize: 100,
+      objScale: 1.0,
+      performanceMode: false,
+      imageColorMode: true,
+      snapToGridMode: false,
+      gridSize: 20,
+      mirrorMode: false,
+      showGrid: true,
+      alphaThreshold: 100,
+      colorTolerance: 30,
+      maxElements: 10000,
+      includeAllColors: false,
+    })
+
+    // Modes'u default'a döndür
+    setModes({
+      rotateMode: false,
+      localRotateMode: false,
+      moveMode: false,
+      riseMode: false,
+      proximityMode: false,
+      chainMode: false,
+      rainbowMode: false,
+      imageColorMode: false,
+      mirrorMode: false,
+      doubleMirrorMode: false,
+      performanceMode: false,
+      staticRainbowMode: false,
+      actionRecordingMode: false,
+    })
+
+    // History'yi temizle
+    // pushSnapshot ile yeni başlangıç noktası oluştur
+    saveToHistory("New Project Created")
+
+    toast({
+      title: "New Project Created",
+      description: "All layers and settings have been reset",
+      duration: 2000,
+    })
+  }
+
   const saveProject = () => {
     const projectData = {
       layers,
@@ -1620,6 +1749,9 @@ export default function EffectEditor() {
     try {
       const parsed = yaml.load(yamlContent) as any
       console.log("YAML parsed:", parsed)
+
+      // History'ye kaydet (başlangıçta genel bir kayıt)
+      saveToHistoryBatch(true, "Imported YAML file");
 
       const elements: Element[] = []
       const newLayers: Layer[] = []
@@ -1989,7 +2121,7 @@ export default function EffectEditor() {
     });
 
     // History'ye ekle
-    saveToHistoryBatch();
+    saveToHistoryBatch(true, `Updated element in ${currentLayer.name}`);
 
     updateLayer(currentLayer.id, { elements: updatedElements });
   }, [currentLayer, updateLayer, saveToHistoryBatch]);
@@ -2235,7 +2367,7 @@ export default function EffectEditor() {
     });
 
     // History'ye ekle
-    saveToHistoryBatch();
+    saveToHistoryBatch(true, `Changed color of ${selectedShapeIds.length} element${selectedShapeIds.length !== 1 ? 's' : ''} in ${currentLayer.name}`);
 
     // Sadece layer'ı güncelle
     updateLayer(currentLayer.id, { elements: updatedElements });
@@ -2253,7 +2385,7 @@ export default function EffectEditor() {
     });
 
     // History'ye ekle
-    saveToHistoryBatch();
+    saveToHistoryBatch(true, `Changed particle of ${selectedShapeIds.length} element${selectedShapeIds.length !== 1 ? 's' : ''} in ${currentLayer.name}`);
 
     // Sadece layer'ı güncelle
     updateLayer(currentLayer.id, { elements: updatedElements });
@@ -2282,79 +2414,9 @@ export default function EffectEditor() {
       const zIndex = 1000 + idx;
       const isFront = idx === highestIdx;
       switch (panel) {
-        case "layers":
-          return (
-            <DraggablePanel
-              key="layers"
-              panelId="layers"
-              zIndex={zIndex}
-              isFront={isFront}
-              bringToFront={bringPanelToFront}
-              title="Layers"
-              defaultPosition={{ x: 260, y: 80 }}
-              onClose={() => setOpenPanels((prev) => prev.filter((p) => p !== "layers"))}
-              onMinimize={() => togglePanel("layers")}
-            >
-              <LayerPanel
-                layers={layers}
-                currentLayer={currentLayer}
-                onLayerSelect={selectLayer}
-                onAddLayer={addLayer}
-                onDeleteLayer={deleteLayer}
-                onUpdateLayer={updateLayer}
-                onClearAllLayers={clearAllLayers}
-                settings={settings}
-                onSettingsChange={setSettings}
-              />
-            </DraggablePanel>
-          );
+
         case "tools":
-          const allowedTypes = ["circle", "square", "line"];
-          const groups: Record<string, { id: string; name: string; elementIds: string[]; type: string }> = {};
-          if (currentLayer?.elements) {
-            for (const el of currentLayer.elements) {
-              if (!el.groupId) continue;
-              if (!allowedTypes.includes(el.type)) continue;
-              if (!groups[el.groupId]) {
-                groups[el.groupId] = {
-                  id: el.groupId,
-                  name: el.type.charAt(0).toUpperCase() + el.type.slice(1),
-                  elementIds: [],
-                  type: el.type,
-                };
-              }
-              groups[el.groupId].elementIds.push(el.id);
-            }
-          }
-          const shapes = Object.values(groups);
-          return (
-            <DraggablePanel
-              key="tools"
-              panelId="tools"
-              zIndex={zIndex}
-              isFront={isFront}
-              bringToFront={bringPanelToFront}
-              title="Tools"
-              defaultPosition={{ x: 320, y: 120 }}
-              onClose={() => setOpenPanels((prev) => prev.filter((p) => p !== "tools"))}
-              onMinimize={() => togglePanel("tools")}
-            >
-              <ToolPanel
-                currentTool={currentTool}
-                onToolChange={setCurrentTool}
-                settings={settings}
-                onSettingsChange={setSettings}
-                updateSelectedElementsColor={updateSelectedElementsColor}
-                shapes={shapes}
-                elements={currentLayer?.elements ?? []}
-                onElementCountChange={handleElementCountChange}
-                selectedShapeIds={selectedShapeIds}
-                onShapeSelect={handleShapeSelect}
-                onCopy={copyElements}
-                onPaste={pasteElements}
-              />
-            </DraggablePanel>
-          );
+          return null; // Tools artık right sidebar'da
         case "modes":
           return (
             <DraggablePanel
@@ -2451,35 +2513,7 @@ export default function EffectEditor() {
             </DraggablePanel>
           );
         case "code-edit":
-          return (
-            <DraggablePanel
-              key="code-edit"
-              panelId="code-edit"
-              zIndex={zIndex}
-              isFront={isFront}
-              bringToFront={bringPanelToFront}
-              title="Code Edit"
-              defaultPosition={{ x: 300, y: 50 }}
-              defaultSize={{ width: 1200, height: 800 }}
-              onClose={() => setOpenPanels((prev) => prev.filter((p) => p !== "code-edit"))}
-              onMinimize={() => togglePanel("code-edit")}
-            >
-              <CodeEditPanel
-                code={generatedCode}
-                onCodeChange={(newCode) => {
-                  // Update the generated code with the edited version
-                  setGeneratedCode(newCode);
-                }}
-                language={codeLanguage}
-                onLanguageChange={setCodeLanguage}
-                isVisible={true}
-                onSave={() => {
-                  // Save functionality - could trigger code generation or sync
-                  console.log("Code saved");
-                }}
-              />
-            </DraggablePanel>
-          );
+          return null; // Code edit panel kaldırıldı
         case "chain":
           return (
             <DraggablePanel
@@ -2538,7 +2572,7 @@ export default function EffectEditor() {
               onClose={() => setOpenPanels((prev) => prev.filter((p) => p !== "performance"))}
               onMinimize={() => togglePanel("performance")}
             >
-              <PerformanceOptimizer
+              <PerformancePanel
                 currentLineCount={performanceAnalysis.originalLines}
                 onOptimize={handleOptimize}
                 onApplyTemplate={handleApplyTemplate}
@@ -2578,6 +2612,8 @@ export default function EffectEditor() {
       .catch(() => { });
   }, [toast]);
 
+
+
   // Duyuru panel fonksiyonları artık gerekli değil - toast kullanıyoruz
 
   // Klavye kısayolları için event listener
@@ -2605,74 +2641,9 @@ export default function EffectEditor() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleUndo, handleRedo])
 
-  // 3D editörle entegrasyon
-  const importFrom3DEditor = useCallback(() => {
-    const { exportToMainSystem } = use3DStore.getState()
-    const elements = exportToMainSystem()
 
-    // Mevcut elementleri güncelle
-    if (currentLayer && elements.length > 0) {
-      // Her elementi ayrı ayrı ekle ve görünür yap
-      const updatedElements = elements.map(element => ({
-        ...element,
-        visible: true
-      }))
 
-      // Layer'ı güncelle
-      updateLayer(currentLayer.id, {
-        elements: [...currentLayer.elements, ...updatedElements],
-        visible: true
-      })
 
-      // History'ye ekle
-      saveToHistoryBatch()
-
-      // Force canvas update
-      setForceUpdate(prev => prev + 1)
-    }
-  }, [currentLayer, updateLayer, saveToHistoryBatch]);
-
-  const exportElementsTo3DEditor = useCallback((elementsToExport: Element[], clearExisting = false) => {
-    const { importFromMainSystem } = use3DStore.getState()
-
-    if (elementsToExport.length > 0) {
-      importFromMainSystem(elementsToExport, clearExisting)
-      console.log(`Successfully sent ${elementsToExport.length} elements to 3D editor (clearExisting: ${clearExisting})`)
-    } else {
-      console.log('No elements to send to 3D editor')
-    }
-  }, [])
-
-  const syncWith3DEditor = useCallback(() => {
-    const { syncWithMainSystem } = use3DStore.getState()
-    if (currentLayer) {
-      syncWithMainSystem(currentLayer.elements)
-    }
-  }, [currentLayer])
-
-  // 3D editör butonlarını ekle
-  const render3DButtons = () => (
-    <div className="flex gap-2">
-      <button
-        onClick={importFrom3DEditor}
-        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-      >
-        Import from 3D
-      </button>
-      <button
-        onClick={() => exportElementsTo3DEditor(layers.flatMap(l => l.elements))}
-        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-      >
-        Export to 3D
-      </button>
-      <button
-        onClick={syncWith3DEditor}
-        className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
-      >
-        Sync with 3D
-      </button>
-    </div>
-  )
 
   // Elementleri layer'a ekleyen fonksiyon (örnek)
   const addElementsToCurrentLayer = useCallback((elements: Element[]) => {
@@ -2761,7 +2732,7 @@ export default function EffectEditor() {
               setSelectedShapeIds(newElements.map(el => el.id))
 
               // Add to history
-              saveToHistoryBatch()
+              saveToHistoryBatch(true, `Pasted ${pasted.length} element${pasted.length !== 1 ? 's' : ''} to ${currentLayer.name}`)
             }
           }
         }
@@ -2774,6 +2745,30 @@ export default function EffectEditor() {
 
   const [showGettingStarted, setShowGettingStarted] = useState(false);
   const [isTutorialActive, setIsTutorialActive] = useState(false);
+  const [layersPanelOpen, setLayersPanelOpen] = useState(false);
+  const [canvasScale, setCanvasScale] = useState(1);
+  const [viewMode, setViewMode] = useState<'top' | 'side' | 'diagonal' | 'isometric' | 'front'>('top');
+  const [isRecording, setIsRecording] = useState(false);
+
+  const handleToggleRecording = () => {
+    if (isRecording) {
+      // Stop recording
+      setIsRecording(false)
+    } else {
+      // Start recording
+      setIsRecording(true)
+      // Clear existing chain items when starting new recording
+      setChainItems([])
+    }
+  }
+
+  const handleZoomIn = () => {
+    setCanvasScale(prev => Math.min(5, prev * 1.15));
+  };
+
+  const handleZoomOut = () => {
+    setCanvasScale(prev => Math.max(0.2, prev / 1.15));
+  };
 
 
 
@@ -2788,6 +2783,191 @@ export default function EffectEditor() {
     setShowGettingStarted(true);
     setIsTutorialActive(true);
   };
+
+  const [rightSidebarActiveTab, setRightSidebarActiveTab] = useState<number | undefined>(undefined)
+  const [show3DModal, setShow3DModal] = useState(false)
+
+  const setShowCodePanel = (show: boolean) => {
+    if (show) {
+      // Code tab'ının index'i 4
+      setRightSidebarActiveTab(4)
+    }
+  }
+
+  // 3D Modal event listener
+  useEffect(() => {
+    const handleOpen3DModal = () => {
+      setShow3DModal(true)
+    }
+
+    const handleImport3DElements = (event: CustomEvent) => {
+      const { elements, selectedLayerIds, simpleTransfer } = event.detail;
+      console.log('=== 2D PAGE: RECEIVED 3D IMPORT EVENT ===');
+      console.log('Elements:', elements);
+      console.log('Selected layer IDs:', selectedLayerIds);
+      console.log('Simple transfer:', simpleTransfer);
+
+      if (elements && elements.length > 0) {
+        if (selectedLayerIds && selectedLayerIds.length > 0) {
+          // Target layer'lar seçilmişse, elementleri o layer'lara ekle
+          selectedLayerIds.forEach((layerId: string) => {
+            const targetLayer = layers.find(l => l.id === layerId);
+            if (targetLayer) {
+              const updatedElements = simpleTransfer
+                ? [...elements] // Sade geçiş: sadece 3D elementleri
+                : [...targetLayer.elements, ...elements]; // Normal geçiş: mevcut + 3D elementleri
+
+              updateLayer(layerId, { elements: updatedElements });
+              console.log(`Added ${elements.length} elements to layer: ${targetLayer.name}`);
+            }
+          });
+        } else {
+          // Target layer seçilmemişse, yeni layer oluştur
+          const newLayer: Layer = {
+            id: `exported_${Date.now()}`,
+            name: "Exported from 3D",
+            visible: true,
+            color: "#ffffff",
+            effectType: "particles",
+            elements: elements,
+            tickStart: 0,
+            tickEnd: 0,
+            tickDelay: 0,
+            particle: "particles",
+            alpha: 1,
+            shapeSize: 1,
+            repeat: 1,
+            yOffset: 0,
+            repeatInterval: 1,
+            targeter: "@self"
+          };
+
+          setLayers([...layers, newLayer]);
+          console.log(`Created new layer with ${elements.length} elements`);
+        }
+
+        // History'ye ekle
+        saveToHistoryBatch(true, `Imported ${elements.length} elements from 3D editor`);
+
+        // Toast göster
+        toast({
+          title: "3D Data Imported",
+          description: `Successfully imported ${elements.length} elements from 3D editor`,
+          duration: 3000,
+        });
+      }
+    }
+
+    window.addEventListener('open3DModal', handleOpen3DModal)
+    window.addEventListener('import3DElements', handleImport3DElements as EventListener)
+
+    return () => {
+      window.removeEventListener('open3DModal', handleOpen3DModal)
+      window.removeEventListener('import3DElements', handleImport3DElements as EventListener)
+    }
+  }, [layers, updateLayer, saveToHistoryBatch, toast])
+
+  // 3D'den gelen transfer verilerini kontrol et
+  useEffect(() => {
+    const checkTransferData = () => {
+      try {
+        const transferData = sessionStorage.getItem('aurafx-3d-transfer');
+        if (transferData) {
+          const parsed = JSON.parse(transferData);
+          const { elements, clearExisting, timestamp } = parsed;
+
+          // Veri yaşını kontrol et (5 dakika)
+          const now = Date.now();
+          if (now - timestamp > 5 * 60 * 1000) {
+            sessionStorage.removeItem('aurafx-3d-transfer');
+            return;
+          }
+
+          console.log('=== 3D->2D TRANSFER DATA FOUND ===');
+          console.log('Elements:', elements);
+          console.log('Clear existing:', clearExisting);
+
+          if (elements && elements.length > 0) {
+            if (clearExisting) {
+              // Tüm layer'ları temizle ve yeni layer oluştur
+              const newLayer: Layer = {
+                id: `imported_3d_${Date.now()}`,
+                name: "Imported from 3D",
+                visible: true,
+                color: "#ffffff",
+                effectType: "particles",
+                elements: elements,
+                tickStart: 0,
+                tickEnd: 0,
+                tickDelay: 0,
+                particle: "particles",
+                alpha: 1,
+                shapeSize: 1,
+                repeat: 1,
+                yOffset: 0,
+                repeatInterval: 1,
+                targeter: "@self"
+              };
+
+              setLayers([newLayer]);
+              setCurrentLayer(newLayer);
+              console.log(`Created new layer with ${elements.length} elements (cleared existing)`);
+            } else {
+              // Mevcut layer'a ekle veya yeni layer oluştur
+              if (currentLayer) {
+                const updatedElements = [...currentLayer.elements, ...elements];
+                updateLayer(currentLayer.id, { elements: updatedElements });
+                console.log(`Added ${elements.length} elements to current layer`);
+              } else {
+                // Yeni layer oluştur
+                const newLayer: Layer = {
+                  id: `imported_3d_${Date.now()}`,
+                  name: "Imported from 3D",
+                  visible: true,
+                  color: "#ffffff",
+                  effectType: "particles",
+                  elements: elements,
+                  tickStart: 0,
+                  tickEnd: 0,
+                  tickDelay: 0,
+                  particle: "particles",
+                  alpha: 1,
+                  shapeSize: 1,
+                  repeat: 1,
+                  yOffset: 0,
+                  repeatInterval: 1,
+                  targeter: "@self"
+                };
+
+                setLayers([...layers, newLayer]);
+                setCurrentLayer(newLayer);
+                console.log(`Created new layer with ${elements.length} elements`);
+              }
+            }
+
+            // History'ye ekle
+            saveToHistoryBatch(true, `Imported ${elements.length} elements from 3D editor`);
+
+            // Toast göster
+            toast({
+              title: "3D Data Imported",
+              description: `Successfully imported ${elements.length} elements from 3D editor`,
+              duration: 3000,
+            });
+
+            // Transfer verisini temizle
+            sessionStorage.removeItem('aurafx-3d-transfer');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to process transfer data:', error);
+        sessionStorage.removeItem('aurafx-3d-transfer');
+      }
+    };
+
+    // Sayfa yüklendiğinde kontrol et
+    checkTransferData();
+  }, [layers, currentLayer, updateLayer, setLayers, setCurrentLayer, saveToHistoryBatch, toast])
 
   return (
     <>
@@ -2955,6 +3135,7 @@ export default function EffectEditor() {
             setOpenPanels((prev) => [...prev.filter((p) => p !== "code"), "code"]);
             generateCode(optimize);
           }}
+          onNewProject={newProject}
           onSave={saveProject}
           onLoad={loadProject}
           minimizedPanels={minimizedPanels}
@@ -2962,50 +3143,189 @@ export default function EffectEditor() {
           showGridCoordinates={showGridCoordinates}
           onToggleGridCoordinates={() => setShowGridCoordinates(!showGridCoordinates)}
         />
-        <div className="flex h-[calc(100vh-64px)]">
-          <SidebarProvider>
-            <Sidebar
-              activePanel={openPanels[openPanels.length - 1] || ""}
-              onPanelChange={togglePanel}
+
+        {/* Footer */}
+        <Footer />
+
+        {/* 3D Transfer Modal */}
+        <Transfer3DModal
+          isOpen={show3DModal}
+          onClose={() => setShow3DModal(false)}
+          layers={layers}
+          currentLayer={currentLayer}
+          onExportElements={(elements: Element[], simpleTransfer?: boolean) => {
+            console.log('=== 2D->3D EXPORT CALLBACK (YEDEK STYLE) ===');
+            console.log('Elements to export:', elements);
+            console.log('Simple transfer:', simpleTransfer);
+
+            // Yedekteki gibi direkt 3D store'a import et
+            const { importFromMainSystem } = use3DStore.getState();
+
+            if (elements.length > 0) {
+              importFromMainSystem(elements, simpleTransfer || false);
+              console.log(`Successfully sent ${elements.length} elements to 3D editor (clearExisting: ${simpleTransfer})`);
+            } else {
+              console.log('No elements to send to 3D editor');
+            }
+
+            // Modal'ı kapat
+            setShow3DModal(false);
+          }}
+        />
+
+        {/* Left Toolbar */}
+        <LeftToolbar
+          currentTool={currentTool}
+          setCurrentTool={setCurrentTool}
+          onClearCanvas={handleClearCanvas}
+          onShowQuickSettings={() => setShowQuickSettings(!showQuickSettings)}
+          onGenerateCode={() => generateCode(optimize)}
+        />
+
+        {/* Right Sidebar */}
+        <RightSidebar
+          settings={settings}
+          onSettingsChange={setSettings}
+          currentTool={currentTool}
+          onToolChange={setCurrentTool}
+          modes={modes}
+          onModesChange={setModes}
+          modeSettings={modeSettings}
+          onModeSettingsChange={setModeSettings}
+          layers={layers}
+          currentLayer={currentLayer}
+          onUpdateLayer={updateLayer}
+          onShowCode={() => setShowCodePanel(true)}
+          updateSelectedElementsParticle={(particle: string) => {
+            if (selectedElementIds.length > 0) {
+              selectedElementIds.forEach((elementId: string) => {
+                // Find which layer contains this element
+                const parentLayer = layers.find(layer =>
+                  layer.elements.some(el => el.id === elementId)
+                )
+
+                if (parentLayer) {
+                  updateLayer(parentLayer.id, {
+                    elements: parentLayer.elements.map(el =>
+                      el.id === elementId ? { ...el, particle } : el
+                    )
+                  })
+                }
+              })
+            }
+          }}
+          generatedCode={generatedCode}
+          onGenerateCode={generateCode}
+          isGeneratingCode={isGenerating}
+          onFrameSettingsChange={(mode: "auto" | "manual", frameCount?: number) => {
+            setFrameMode(mode)
+            if (frameCount !== undefined) {
+              setManualFrameCount(frameCount)
+            }
+          }}
+          optimize={optimize}
+          setOptimize={setOptimize}
+          chainSequence={chainSequence}
+          onChainSequenceChange={setChainSequence}
+          selectedElementIds={selectedElementIds}
+          chainItems={chainItems}
+          onChainItemsChange={setChainItems}
+          currentLineCount={performanceAnalysis.originalLines}
+          onOptimize={handleOptimize}
+          onApplyTemplate={handleApplyTemplate}
+          isRecording={isRecording}
+          onToggleRecording={handleToggleRecording}
+          activeTabOverride={rightSidebarActiveTab}
+          onTabChange={(tabIndex) => setRightSidebarActiveTab(undefined)}
+        />
+
+        {/* Top Center Toolbar */}
+        <TopCenterToolbar
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          modes={modes}
+          isRecording={isRecording}
+          onToggleRecording={handleToggleRecording}
+        />
+
+        {/* Layers Panel */}
+        <LayersPanel
+          isOpen={layersPanelOpen}
+          onClose={() => setLayersPanelOpen(false)}
+          layers={layers}
+          currentLayer={currentLayer}
+          onAddLayer={addLayer}
+          onDeleteLayer={(layerId) => {
+            const layerToDelete = layers.find(l => l.id === layerId);
+            if (layerToDelete) {
+              setCurrentLayer(layerToDelete);
+              deleteLayer();
+            }
+          }}
+          onSelectLayer={(layerId) => {
+            const layer = layers.find(l => l.id === layerId);
+            if (layer) selectLayer(layer);
+          }}
+          onUpdateLayer={updateLayer}
+          onReorderLayers={(fromIndex, toIndex) => {
+            console.log('MAIN onReorderLayers called:', { fromIndex, toIndex, layersCount: layers.length });
+            console.log('MAIN Before reorder:', layers.map(l => ({ id: l.id, name: l.name })));
+
+            const newLayers = [...layers];
+            const [movedLayer] = newLayers.splice(fromIndex, 1);
+            newLayers.splice(toIndex, 0, movedLayer);
+
+            console.log('MAIN After reorder:', newLayers.map(l => ({ id: l.id, name: l.name })));
+            setLayers(newLayers);
+          }}
+        />
+
+        {/* Bottom Status Bar */}
+        <BottomStatusBar
+          onLayersClick={() => setLayersPanelOpen(!layersPanelOpen)}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          zoomLevel={Math.round(canvasScale * 100)}
+        />
+
+        <div className="flex h-screen">
+          <div className="flex-1 relative flex flex-col">
+            <Canvas
+              ref={canvasRef}
+              key={currentLayer?.id}
+              onStartBatchMode={startBatchMode}
+              onEndBatchMode={endBatchMode}
+              currentTool={currentTool}
+              setCurrentTool={setCurrentTool}
               layers={layers}
-              onExportElements={exportElementsTo3DEditor}
-              modes={modes as unknown as Record<string, boolean>}
-              isTutorialActive={isTutorialActive}
-              onChangelogOpen={() => setShowChangelog(true)}
-              onTutorialOpen={handleTutorialOpen}
+              currentLayerId={currentLayer?.id || null}
+              settings={settings}
+              onSettingsChange={setSettings}
+              modes={modes}
+              onAddElement={handleAddElement}
+              onClearCanvas={handleClearCanvas}
+              onUpdateLayer={updateLayer}
+              selectedElementIds={selectedElementIds}
+              setSelectedElementIds={setSelectedElementIds}
+              performanceMode={settings.performanceMode}
+              chainSequence={chainSequence}
+              onChainSequenceChange={setChainSequence}
+              chainItems={chainItems}
+              optimize={optimize}
+              showGridCoordinates={showGridCoordinates}
+              onToggleGridCoordinates={() => setShowGridCoordinates(!showGridCoordinates)}
+              updateSelectedElementsParticle={updateSelectedElementsParticle}
+              onElementCountChange={handleElementCountChange}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              scale={canvasScale}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              isRecording={isRecording}
             />
-            <div className="flex-1 relative flex flex-col">
-              <Canvas
-                ref={canvasRef}
-                key={currentLayer?.id}
-                onStartBatchMode={startBatchMode}
-                onEndBatchMode={endBatchMode}
-                currentTool={currentTool}
-                setCurrentTool={setCurrentTool}
-                layers={layers}
-                currentLayerId={currentLayer?.id || null}
-                settings={settings}
-                onSettingsChange={setSettings}
-                modes={modes}
-                onAddElement={handleAddElement}
-                onClearCanvas={handleClearCanvas}
-                onUpdateLayer={updateLayer}
-                selectedElementIds={selectedElementIds}
-                setSelectedElementIds={setSelectedElementIds}
-                performanceMode={settings.performanceMode}
-                chainSequence={chainSequence}
-                onChainSequenceChange={setChainSequence}
-                chainItems={chainItems}
-                optimize={optimize}
-                showGridCoordinates={showGridCoordinates}
-                onToggleGridCoordinates={() => setShowGridCoordinates(!showGridCoordinates)}
-                updateSelectedElementsParticle={updateSelectedElementsParticle}
-                onElementCountChange={handleElementCountChange}
-              />
-              {renderActivePanel()}
-              {/* 3D buttons hidden per user request */}
-            </div>
-          </SidebarProvider>
+            {renderActivePanel()}
+            {/* 3D buttons hidden per user request */}
+          </div>
         </div>
         {/* Duyurular artık toast olarak gösteriliyor */}
 
@@ -3025,6 +3345,187 @@ export default function EffectEditor() {
         isOpen={showChangelog}
         onClose={() => setShowChangelog(false)}
       />
+
+      {/* Quick Settings Modal */}
+      <AnimatePresence>
+        {showQuickSettings && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowQuickSettings(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+                      <Settings className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Quick Settings</h3>
+                  </div>
+                  <button
+                    onClick={() => setShowQuickSettings(false)}
+                    className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-6">
+                {/* Particle Count */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center">
+                        <Hash className="w-3 h-3 text-blue-600" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">Particle Count</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded-md">
+                      {settings.particleCount}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[settings.particleCount]}
+                    onValueChange={([value]) => {
+                      setSettings({ ...settings, particleCount: value })
+                    }}
+                    min={1}
+                    max={100}
+                    step={1}
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Color Picker */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-purple-100 rounded-md flex items-center justify-center">
+                      <Palette className="w-3 h-3 text-purple-600" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">Color</span>
+                  </div>
+                  <ColorPicker
+                    value={settings.color || "#000000"}
+                    onChange={(color) => {
+                      setSettings({ ...settings, color })
+                    }}
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Grid Settings */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-green-100 rounded-md flex items-center justify-center">
+                      <Grid3X3 className="w-3 h-3 text-green-600" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">Grid Settings</span>
+                  </div>
+
+                  <div className="space-y-3 pl-8">
+                    {/* Show Grid */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700">Show Grid</span>
+                      <button
+                        onClick={() => {
+                          setSettings({ ...settings, showGrid: !settings.showGrid })
+                        }}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.showGrid !== false ? 'bg-black' : 'bg-gray-200'
+                          }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.showGrid !== false ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Grid Coordinates */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700">Grid Coordinates</span>
+                      <button
+                        onClick={() => setShowGridCoordinates(!showGridCoordinates)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showGridCoordinates ? 'bg-black' : 'bg-gray-200'
+                          }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showGridCoordinates ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Performance Mode */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-yellow-100 rounded-md flex items-center justify-center">
+                        <Zap className="w-3 h-3 text-yellow-600" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">Performance Mode</span>
+                    </div>
+                    <button
+                      onClick={() => setSettings({ ...settings, performanceMode: !settings.performanceMode })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.performanceMode ? 'bg-black' : 'bg-gray-200'
+                        }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.performanceMode ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Particle Type */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-red-100 rounded-md flex items-center justify-center">
+                        <Sparkles className="w-3 h-3 text-red-600" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">Particle Type</span>
+                    </div>
+                    <button
+                      onClick={() => setShowParticleModal(true)}
+                      className="bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-sm rounded-lg px-3 py-2 transition-colors font-medium"
+                    >
+                      {settings.particle || "reddust"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Particle Selection Modal */}
+      {showParticleModal && (
+        <ParticleSelectModal
+          currentParticle={settings.particle || "reddust"}
+          onSelectParticle={(particle) => {
+            setSettings({ ...settings, particle })
+            setShowParticleModal(false)
+          }}
+          onClose={() => setShowParticleModal(false)}
+        />
+      )}
 
     </>
   )

@@ -10,6 +10,7 @@ interface HistorySnapshot {
   modes: any
   currentTool: string
   selectedShapeIds: string[]
+  action?: string // İşlem türü (opsiyonel, geriye uyumluluk için)
 }
 
 interface HistoryState {
