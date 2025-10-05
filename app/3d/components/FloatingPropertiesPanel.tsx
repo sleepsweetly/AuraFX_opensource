@@ -190,7 +190,6 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
                   }
                 }}
                 className="w-full"
-                showAlpha={false}
               />
             </div>
           </div>
@@ -303,7 +302,6 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
                 value="#ffffff"
                 onChange={(color) => allSelectedVertices.forEach((v: any) => updateVertex(v.id, { color }))}
                 className="w-full"
-                showAlpha={false}
               />
             </div>
           </div>

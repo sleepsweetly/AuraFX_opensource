@@ -159,7 +159,6 @@ export function RightSidebar() {
                   }
                 }}
                 className="w-full"
-                showAlpha={false}
               />
             </div>
           </div>
@@ -423,7 +422,6 @@ export function RightSidebar() {
                 value="#ffffff"
                 onChange={(color) => allSelectedVertices.forEach((v: any) => updateVertex(v.id, { color }))}
                 className="w-full"
-                showAlpha={false}
               />
             </div>
           </div>

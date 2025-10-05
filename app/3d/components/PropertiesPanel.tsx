@@ -43,7 +43,6 @@ export function PropertiesPanel() {
                 value={currentLayer.color}
                 onChange={(color) => updateLayer(currentLayer.id, { color })}
                 className="w-full"
-                showAlpha={false}
               />
             </div>
           </div>
