@@ -932,7 +932,10 @@ export default function EffectEditor() {
     records: actionRecords,
     optimizeCircleFrames,
     optimizeIdleRepeat,
-    debugFrameComments
+    debugFrameComments,
+    startRecording,
+    stopRecording,
+    isRecording: storeIsRecording
   } = useActionRecordingStore();
 
   // Duyuru toast'ları için özel state
@@ -1015,48 +1018,7 @@ export default function EffectEditor() {
     setSelectedShapeIds(selectedElementIds);
   }, [selectedElementIds]);
 
-  // Chain recording event listeners - Ana sayfa seviyesinde
-  useEffect(() => {
-    const handleAddToChainRecording = (event: CustomEvent) => {
-      const { elements, delayTicks } = event.detail
 
-      setChainItems(prevItems => {
-        const newItems = [...prevItems]
-
-        // Add delay before elements (except for the very first element)
-        if (newItems.length > 0) {
-          newItems.push({
-            type: 'delay',
-            id: `delay-${Date.now()}`,
-            delay: delayTicks
-          })
-        }
-
-        // Add elements
-        elements.forEach((element: any) => {
-          newItems.push({
-            type: 'element',
-            id: `rec-${Date.now()}-${Math.random()}`,
-            elementId: element.id
-          })
-        })
-
-        return newItems
-      })
-    }
-
-    const handleResetChainItems = () => {
-      setChainItems([])
-    }
-
-    window.addEventListener('addToChainRecording', handleAddToChainRecording as EventListener)
-    window.addEventListener('resetChainItems', handleResetChainItems)
-
-    return () => {
-      window.removeEventListener('addToChainRecording', handleAddToChainRecording as EventListener)
-      window.removeEventListener('resetChainItems', handleResetChainItems)
-    }
-  }, [])
 
   const [settings, setSettings] = useState({
     particleCount: 10,
@@ -1106,6 +1068,64 @@ export default function EffectEditor() {
     proximityMode: { step: 5, delay: 2 },
     rainbowMode: { period: 3 },
   });
+
+  // Chain recording event listeners - modes tanımlandıktan sonra
+  useEffect(() => {
+    const handleAddToChainRecording = (event: CustomEvent) => {
+      // Sadece action recording aktifken çalış
+      if (!storeIsRecording) return
+
+      const { elements, delayTicks } = event.detail
+
+      setChainItems(prevItems => {
+        const newItems = [...prevItems]
+
+        // Mevcut chain'deki element ID'lerini topla (duplicate kontrolü)
+        const existingElementIds = new Set<string>()
+        newItems.forEach((item) => {
+          if (item.elementId) existingElementIds.add(item.elementId)
+          if (item.elementIds) item.elementIds.forEach((id) => existingElementIds.add(id))
+        })
+
+        // Sadece henüz chain'de olmayan elementleri ekle
+        const elementsToAdd = elements.filter((element: any) => !existingElementIds.has(element.id))
+
+        if (elementsToAdd.length === 0) return prevItems // Hiç yeni element yoksa değişiklik yapma
+
+        // Add delay before elements (except for the very first element)
+        if (newItems.length > 0) {
+          newItems.push({
+            type: 'delay',
+            id: `delay-${Date.now()}`,
+            delay: delayTicks
+          })
+        }
+
+        // Add elements
+        elementsToAdd.forEach((element: any) => {
+          newItems.push({
+            type: 'element',
+            id: `rec-${Date.now()}-${Math.random()}`,
+            elementId: element.id
+          })
+        })
+
+        return newItems
+      })
+    }
+
+    const handleResetChainItems = () => {
+      setChainItems([])
+    }
+
+    window.addEventListener('addToChainRecording', handleAddToChainRecording as EventListener)
+    window.addEventListener('resetChainItems', handleResetChainItems)
+
+    return () => {
+      window.removeEventListener('addToChainRecording', handleAddToChainRecording as EventListener)
+      window.removeEventListener('resetChainItems', handleResetChainItems)
+    }
+  }, [storeIsRecording])
 
   // Duyuru state'leri artık gerekli değil - toast kullanıyoruz
 
@@ -1542,23 +1562,7 @@ export default function EffectEditor() {
     const updatedElements = [...currentLayer.elements, ...elements]
     updateLayer(currentLayer.id, { elements: updatedElements })
 
-    // Chain mode aktifse, yeni eklenen elementleri otomatik olarak chain'e ekle
-    if (modes.chainMode) {
-      const newChainItems = [...chainItems]
-
-      // Her yeni element için chain item ekle
-      elements.forEach(el => {
-        newChainItems.push({
-          type: 'element',
-          id: `auto-${Date.now()}-${Math.random()}`,
-          elementId: el.id
-        })
-      })
-
-      setChainItems(newChainItems)
-      console.log('Auto-added to chain:', elements.map(el => el.id))
-      console.log('New chainItems state:', newChainItems)
-    }
+    // Otomatik chain'e ekleme kaldırıldı - sadece REC butonu ile kontrol edilecek
 
     // Otomatik seçim yapma - kullanıcı manuel olarak seçsin
     // const newElementIds = elements.map(el => el.id)
@@ -2478,6 +2482,8 @@ export default function EffectEditor() {
                   setOpenPanels((prev) => [...prev.filter((p) => p !== "settings"), "code"]);
                   await generateCode();
                 }}
+                updateSelectedElementsColor={updateSelectedElementsColor}
+                selectedElementIds={selectedShapeIds}
               />
             </DraggablePanel>
           );
@@ -2748,17 +2754,16 @@ export default function EffectEditor() {
   const [layersPanelOpen, setLayersPanelOpen] = useState(false);
   const [canvasScale, setCanvasScale] = useState(1);
   const [viewMode, setViewMode] = useState<'top' | 'side' | 'diagonal' | 'isometric' | 'front'>('top');
-  const [isRecording, setIsRecording] = useState(false);
 
   const handleToggleRecording = () => {
-    if (isRecording) {
+    if (storeIsRecording) {
       // Stop recording
-      setIsRecording(false)
+      stopRecording()
     } else {
       // Start recording
-      setIsRecording(true)
-      // Clear existing chain items when starting new recording
-      setChainItems([])
+      startRecording()
+      // REC butonu sadece action recording başlatır, chain'i temizlemez
+      // Chain'i temizlemek istiyorsan chain panel'den yapmalısın
     }
   }
 
@@ -3214,6 +3219,7 @@ export default function EffectEditor() {
               })
             }
           }}
+          updateSelectedElementsColor={updateSelectedElementsColor}
           generatedCode={generatedCode}
           onGenerateCode={generateCode}
           isGeneratingCode={isGenerating}
@@ -3233,10 +3239,10 @@ export default function EffectEditor() {
           currentLineCount={performanceAnalysis.originalLines}
           onOptimize={handleOptimize}
           onApplyTemplate={handleApplyTemplate}
-          isRecording={isRecording}
+          isRecording={storeIsRecording}
           onToggleRecording={handleToggleRecording}
           activeTabOverride={rightSidebarActiveTab}
-          onTabChange={(tabIndex) => setRightSidebarActiveTab(undefined)}
+          onTabChange={(tabIndex: number) => setRightSidebarActiveTab(undefined)}
         />
 
         {/* Top Center Toolbar */}
@@ -3244,7 +3250,7 @@ export default function EffectEditor() {
           viewMode={viewMode}
           setViewMode={setViewMode}
           modes={modes}
-          isRecording={isRecording}
+          isRecording={storeIsRecording}
           onToggleRecording={handleToggleRecording}
         />
 
@@ -3321,7 +3327,7 @@ export default function EffectEditor() {
               scale={canvasScale}
               viewMode={viewMode}
               setViewMode={setViewMode}
-              isRecording={isRecording}
+              isRecording={storeIsRecording}
             />
             {renderActivePanel()}
             {/* 3D buttons hidden per user request */}

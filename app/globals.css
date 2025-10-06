@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    /* Original Tailwind variables for compatibility */
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
     --card: 0 0% 0%;
@@ -24,6 +25,22 @@
     --input: 0 0% 20%;
     --ring: 0 0% 60%;
     --radius: 0.5rem;
+
+    /* AuraFX White Modern Theme */
+    --theme-background: #ffffff;
+    --theme-surface: #fafafa;
+    --theme-primary: #000000;
+    --theme-secondary: #6b7280;
+    --theme-accent: #3b82f6;
+    --theme-border: #e5e7eb;
+    --theme-text: #111827;
+    --theme-text-secondary: #6b7280;
+    --theme-hover: #f3f4f6;
+    --theme-active: #e5e7eb;
+    --theme-success: #10b981;
+    --theme-warning: #f59e0b;
+    --theme-error: #ef4444;
+    --theme-info: #3b82f6;
   }
 }
 
@@ -33,6 +50,52 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* AuraFX White Modern Theme Utilities */
+@layer utilities {
+  .theme-bg {
+    background-color: var(--theme-background);
+  }
+  .theme-surface {
+    background-color: var(--theme-surface);
+  }
+  .theme-text {
+    color: var(--theme-text);
+  }
+  .theme-text-secondary {
+    color: var(--theme-text-secondary);
+  }
+  .theme-border {
+    border-color: var(--theme-border);
+  }
+  .theme-hover:hover {
+    background-color: var(--theme-hover);
+  }
+  .theme-active:active {
+    background-color: var(--theme-active);
+  }
+  
+  /* Modern panel styles */
+  .modern-panel {
+    @apply theme-bg theme-border border rounded-lg shadow-sm;
+  }
+  
+  .modern-panel-header {
+    @apply flex items-center gap-3 p-4 theme-border border-b;
+  }
+  
+  .modern-panel-content {
+    @apply p-4;
+  }
+  
+  .modern-button {
+    @apply theme-bg theme-border border rounded-md px-3 py-2 text-sm font-medium theme-text transition-colors theme-hover;
+  }
+  
+  .modern-button-primary {
+    @apply bg-gray-900 text-white border-gray-900 hover:bg-gray-800;
   }
 }
 
@@ -401,6 +464,33 @@ html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover, *::-we
   background: #1f2937;
   box-shadow: 0 4px 12px rgba(31, 41, 55, 0.4);
   transform: scale(1.1);
+}
+
+/* SVG Icon Fixes */
+svg {
+  display: inline-block;
+  vertical-align: middle;
+  fill: currentColor;
+  width: 1em;
+  height: 1em;
+}
+
+/* Lucide React Icon Fixes */
+.lucide {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+/* Button Icon Fixes */
+button svg,
+.btn svg {
+  pointer-events: none;
+  flex-shrink: 0;
 }
 
 /* Disable text selection globally, but allow it in inputs, textareas, editors, and opt-in areas */

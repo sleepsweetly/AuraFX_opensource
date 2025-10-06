@@ -213,7 +213,7 @@ export function LayersPanel({
   return (
     <div
       ref={panelRef}
-      className={`fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 shadow-xl z-50 transition-all duration-300 ease-out rounded-r-2xl ${isOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
+      className={`fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 shadow-xl z-50 transition-all duration-300 ease-out rounded-r-lg ${isOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
         }`}
     >
       <div className="flex flex-col h-full">
@@ -221,12 +221,10 @@ export function LayersPanel({
         <div className="border-b border-gray-200">
           <button
             onClick={() => setHistoryExpanded(!historyExpanded)}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100 transition-colors rounded-t-2xl"
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100 transition-colors rounded-t-lg"
           >
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-gray-800 to-gray-600 flex items-center justify-center">
-                <Undo className="w-3 h-3 text-white" />
-              </div>
+              <Undo className="w-4 h-4 text-gray-700" />
               <span className="font-medium text-sm text-gray-900">History</span>
             </div>
             {historyExpanded ? <ChevronUp className="h-4 w-4 text-gray-700" /> : <ChevronDown className="h-4 w-4 text-gray-700" />}
@@ -236,13 +234,11 @@ export function LayersPanel({
               {past.length === 0 && future.length === 0 ? (
                 <div className="px-4 py-8 text-center">
                   <div className="flex justify-center mb-2">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                    </div>
+                    <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
                   </div>
-                  <p className="text-sm text-gray-400">No history yet</p>
+                  <p className="text-sm text-gray-500">No history yet</p>
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -252,18 +248,16 @@ export function LayersPanel({
                     return (
                       <div
                         key={`future-${snapshot.id}-${index}`}
-                        className="px-4 py-2 border-l-2 border-green-400 opacity-60"
+                        className="mx-3 mb-2 p-3 bg-green-50 border border-green-200 rounded-lg opacity-60"
                         title={`Future: ${action} - ${new Date(snapshot.timestamp).toLocaleTimeString()}`}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center">
-                            <Redo className="w-3 h-3 text-green-600" />
-                          </div>
+                          <Redo className="w-4 h-4 text-green-600" />
                           <div className="flex-1">
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-green-600 font-medium">
                               {new Date(snapshot.timestamp).toLocaleTimeString()}
                             </div>
-                            <div className="text-sm text-gray-700 truncate">
+                            <div className="text-sm text-green-700 truncate">
                               {action}
                             </div>
                           </div>
@@ -273,13 +267,11 @@ export function LayersPanel({
                   })}
 
                   {/* Current state indicator */}
-                  <div className="px-4 py-2 bg-blue-50 border-l-2 border-blue-400">
+                  <div className="mx-3 mb-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
-                        <svg className="w-3 h-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
+                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                       <div className="flex-1">
                         <div className="text-xs text-blue-600 font-medium">Current</div>
                         <div className="text-sm text-blue-700">
@@ -295,18 +287,16 @@ export function LayersPanel({
                     return (
                       <div
                         key={`past-${snapshot.id}-${index}`}
-                        className="px-4 py-2 border-l-2 border-orange-400 opacity-60"
+                        className="mx-3 mb-2 p-3 bg-orange-50 border border-orange-200 rounded-lg opacity-60"
                         title={`Past: ${action} - ${new Date(snapshot.timestamp).toLocaleTimeString()}`}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 bg-orange-100 rounded flex items-center justify-center">
-                            <Undo className="w-3 h-3 text-orange-600" />
-                          </div>
+                          <Undo className="w-4 h-4 text-orange-600" />
                           <div className="flex-1">
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-orange-600 font-medium">
                               {new Date(snapshot.timestamp).toLocaleTimeString()}
                             </div>
-                            <div className="text-sm text-gray-700 truncate">
+                            <div className="text-sm text-orange-700 truncate">
                               {action}
                             </div>
                           </div>
@@ -327,17 +317,15 @@ export function LayersPanel({
               onClick={() => setLayersExpanded(!layersExpanded)}
               className="flex items-center gap-2"
             >
-              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-gray-800 to-gray-600 flex items-center justify-center">
-                <Layers className="w-3 h-3 text-white" />
-              </div>
+              <Layers className="w-4 h-4 text-gray-700" />
               <span className="font-medium text-sm text-gray-900">Layers</span>
               {layersExpanded ? <ChevronUp className="h-4 w-4 text-gray-700" /> : <ChevronDown className="h-4 w-4 text-gray-700" />}
             </button>
             <button
               onClick={onAddLayer}
-              className="w-6 h-6 bg-gradient-to-br from-gray-800 to-gray-600 hover:from-gray-700 hover:to-gray-500 text-white rounded-lg flex items-center justify-center transition-colors shadow-md"
+              className="w-8 h-8 hover:bg-gray-100 text-gray-700 rounded-lg flex items-center justify-center transition-colors"
             >
-              <Plus className="w-3 h-3" />
+              <Plus className="w-4 h-4" />
             </button>
           </div>
 
@@ -346,13 +334,11 @@ export function LayersPanel({
               {!displayLayers || displayLayers.length === 0 ? (
                 <div className="px-4 py-8 text-center">
                   <div className="flex justify-center mb-2">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                    </div>
+                    <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
                   </div>
-                  <p className="text-sm text-gray-400">No layers yet</p>
+                  <p className="text-sm text-gray-500">No layers yet</p>
                 </div>
               ) : (
                 displayLayers.map((layer, index) => (
@@ -384,19 +370,14 @@ export function LayersPanel({
                           e.preventDefault()
                         }}
                       >
-                        <GripVertical className="w-3 h-3 text-gray-400" />
+                        <GripVertical className="w-4 h-4 text-gray-400" />
                       </div>
 
                       {/* Layer Icon */}
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${(displayCurrentLayer?.id === layer.id || currentLayerId === layer.id)
-                        ? 'bg-blue-100'
-                        : layer.visible !== false ? 'bg-gray-100' : 'bg-gray-200 opacity-50'
-                        }`}>
-                        <Layers className={`w-4 h-4 ${(displayCurrentLayer?.id === layer.id || currentLayerId === layer.id)
-                          ? 'text-blue-600'
-                          : 'text-gray-600'
-                          }`} />
-                      </div>
+                      <Layers className={`w-4 h-4 ${(displayCurrentLayer?.id === layer.id || currentLayerId === layer.id)
+                        ? 'text-blue-600'
+                        : layer.visible !== false ? 'text-gray-700' : 'text-gray-400'
+                        }`} />
 
                       {editingLayerId === layer.id ? (
                         <Input
@@ -410,7 +391,7 @@ export function LayersPanel({
                       ) : (
                         <span className={`text-sm flex-1 ${(displayCurrentLayer?.id === layer.id || currentLayerId === layer.id)
                           ? 'text-blue-700 font-medium'
-                          : layer.visible !== false ? 'text-black' : 'text-gray-400'
+                          : layer.visible !== false ? 'text-gray-900' : 'text-gray-400'
                           }`}>
                           {layer.name}
                         </span>
@@ -422,13 +403,13 @@ export function LayersPanel({
                             e.stopPropagation()
                             toggleLayerVisibility(layer.id)
                           }}
-                          className="p-1 hover:bg-gray-200 rounded"
+                          className="p-1 hover:bg-gray-100 rounded transition-colors"
                           title={layer.visible !== false ? "Hide layer" : "Show layer"}
                         >
                           {layer.visible !== false ? (
-                            <Eye className="w-3 h-3 text-gray-600" />
+                            <Eye className="w-4 h-4 text-gray-700" />
                           ) : (
-                            <EyeOff className="w-3 h-3 text-gray-400" />
+                            <EyeOff className="w-4 h-4 text-gray-400" />
                           )}
                         </button>
                         <button
@@ -436,30 +417,30 @@ export function LayersPanel({
                             e.stopPropagation()
                             handleStartRename(layer)
                           }}
-                          className="p-1 hover:bg-gray-200 rounded"
+                          className="p-1 hover:bg-gray-100 rounded transition-colors"
                           title="Rename layer"
                         >
-                          <Edit3 className="w-3 h-3 text-gray-600" />
+                          <Edit3 className="w-4 h-4 text-gray-700" />
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
                             duplicateLayer(layer.id)
                           }}
-                          className="p-1 hover:bg-gray-200 rounded"
+                          className="p-1 hover:bg-gray-100 rounded transition-colors"
                           title="Duplicate layer"
                         >
-                          <Copy className="w-3 h-3 text-gray-600" />
+                          <Copy className="w-4 h-4 text-gray-700" />
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
                             onDeleteLayer(layer.id)
                           }}
-                          className="p-1 hover:bg-red-200 rounded"
+                          className="p-1 hover:bg-red-50 rounded transition-colors"
                           title="Delete layer"
                         >
-                          <Trash2 className="w-3 h-3 text-red-600" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
                       </div>
                     </div>

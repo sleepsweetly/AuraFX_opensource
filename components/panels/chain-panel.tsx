@@ -1,11 +1,20 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Link2, Plus, Clock, X } from "lucide-react"
+import React, { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import {
+  Link2,
+  Plus,
+  Clock,
+  X,
+  ChevronDown,
+  Trash2,
+  Settings,
+  Layers,
+  Timer
+} from "lucide-react"
 import type { Element, Layer } from "@/types"
+import { Play } from "next/font/google"
 
 type ChainItem = {
   type: "element" | "delay"
@@ -16,10 +25,10 @@ type ChainItem = {
 }
 
 interface ChainPanelProps {
-  layers: Layer[]
-  currentLayerId: string | null
-  chainSequence: string[]
-  onChainSequenceChange: (sequence: string[]) => void
+  layers?: Layer[]
+  currentLayerId?: string | null
+  chainSequence?: string[]
+  onChainSequenceChange?: (sequence: string[]) => void
   onUpdateLayer?: (layerId: string, updates: Partial<Layer>) => void
   selectedElementIds?: string[]
   chainItems?: ChainItem[]
@@ -27,54 +36,25 @@ interface ChainPanelProps {
 }
 
 export function ChainPanel({
-  layers,
+  layers = [],
   currentLayerId,
   selectedElementIds = [],
   chainItems = [],
-  onChainItemsChange,
+  onChainItemsChange = () => { },
 }: ChainPanelProps) {
   const [defaultDelay, setDefaultDelay] = useState(1)
-  const [showDropZones, setShowDropZones] = useState(false)
+  const [sequenceExpanded, setSequenceExpanded] = useState(true)
+  const [settingsExpanded, setSettingsExpanded] = useState(false)
 
-  if (!chainItems) {
-    console.error("ChainPanel: chainItems prop is undefined!")
-    return <div>Error: chainItems prop is missing</div>
-  }
+
   const currentLayer = layers.find((layer) => layer.id === currentLayerId)
-
-  console.log("ChainPanel Debug:", {
-    layersCount: layers.length,
-    currentLayerId,
-    currentLayer: currentLayer?.name,
-    currentLayerElementsCount: currentLayer?.elements.length || 0,
-    selectedElementIds,
-    selectedElementIdsCount: selectedElementIds.length,
-    chainItemsCount: chainItems.length,
-    chainItemsActual: chainItems,
-    onChainItemsChange: !!onChainItemsChange,
-    chainItemsType: typeof chainItems,
-    chainItemsIsArray: Array.isArray(chainItems),
-  })
 
   const getElementById = (elementId: string): Element | undefined => {
     return currentLayer?.elements.find((el) => el.id === elementId)
   }
 
   const addSelectedToChain = () => {
-    console.log("addSelectedToChain called:", {
-      onChainItemsChange: !!onChainItemsChange,
-      selectedElementIds,
-      selectedElementIdsLength: selectedElementIds.length,
-      chainItemsLength: chainItems.length,
-    })
-
-    if (!onChainItemsChange || selectedElementIds.length === 0) {
-      console.log("Early return:", {
-        hasCallback: !!onChainItemsChange,
-        hasSelected: selectedElementIds.length > 0,
-      })
-      return
-    }
+    if (selectedElementIds.length === 0) return
 
     const newItems = [...chainItems]
     const groupId = `group-${Date.now()}`
@@ -86,12 +66,6 @@ export function ChainPanel({
     })
 
     const elementsToAdd = selectedElementIds.filter((elementId) => !existingElementIds.has(elementId))
-
-    console.log("Elements to add:", {
-      existingElementIds: Array.from(existingElementIds),
-      elementsToAdd,
-      elementsToAddLength: elementsToAdd.length,
-    })
 
     if (elementsToAdd.length > 0) {
       if (elementsToAdd.length === 1) {
@@ -107,23 +81,37 @@ export function ChainPanel({
           elementIds: elementsToAdd,
         })
       }
-
-      console.log("Calling onChainItemsChange with:", newItems)
       onChainItemsChange(newItems)
-    } else {
-      console.log("No new elements to add - all already exist in chain")
     }
   }
 
   const removeItem = (index: number) => {
-    if (!onChainItemsChange) return
     const newItems = [...chainItems]
     newItems.splice(index, 1)
     onChainItemsChange(newItems)
   }
 
+  const addDelay = () => {
+    const newItems = [...chainItems]
+    newItems.push({
+      type: "delay",
+      id: `delay-${Date.now()}`,
+      delay: defaultDelay,
+    })
+    onChainItemsChange(newItems)
+  }
+
+  const addDelayAt = (index: number) => {
+    const newItems = [...chainItems]
+    newItems.splice(index, 0, {
+      type: "delay",
+      id: `delay-${Date.now()}`,
+      delay: defaultDelay,
+    })
+    onChainItemsChange(newItems)
+  }
+
   const updateDelay = (index: number, delay: number) => {
-    if (!onChainItemsChange) return
     const newItems = [...chainItems]
     if (newItems[index].type === "delay") {
       newItems[index].delay = delay
@@ -132,261 +120,263 @@ export function ChainPanel({
   }
 
   const clearChain = () => {
-    if (!onChainItemsChange) return
     onChainItemsChange([])
-  }
-
-  const addDelayAt = (index: number) => {
-    if (!onChainItemsChange) return
-
-    const newItems = [...chainItems]
-    newItems.splice(index, 0, {
-      type: "delay",
-      id: `delay-${Date.now()}`,
-      delay: defaultDelay,
-    })
-    onChainItemsChange(newItems)
-    setShowDropZones(false)
   }
 
   const activeCount = chainItems.length
 
   return (
-    <div className="h-full flex flex-col bg-white">
-      <div className="border-b border-gray-200 px-6 py-4 bg-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-sm">
-              <Link2 className="w-5 h-5 text-gray-700" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 text-base">Chain Sequence</h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {activeCount} {activeCount === 1 ? "item" : "items"} in sequence
-              </p>
-            </div>
+    <div className="w-full max-w-md mx-auto h-full flex flex-col bg-white p-4 overflow-y-auto">
+      {/* Header */}
+      <div className="flex-shrink-0 mb-6">
+        <div className="flex items-center gap-3">
+          <Link2 className="w-5 h-5 text-gray-700" />
+          <div>
+            <h3 className="font-semibold text-gray-900 text-base">Chain Sequence</h3>
+            <p className="text-sm text-gray-500">
+              {activeCount} {activeCount === 1 ? "item" : "items"} in sequence
+            </p>
           </div>
-          {chainItems.length > 0 && (
-            <button
-              onClick={clearChain}
-              className="text-xs font-medium text-gray-600 hover:text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all border border-transparent hover:border-red-200"
-            >
-              Clear All
-            </button>
-          )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
-        <style jsx>{`
-                    .custom-scrollbar::-webkit-scrollbar {
-                        width: 8px;
-                    }
-                    .custom-scrollbar::-webkit-scrollbar-track {
-                        background: #f9fafb;
-                        border-radius: 4px;
-                    }
-                    .custom-scrollbar::-webkit-scrollbar-thumb {
-                        background: #d1d5db;
-                        border-radius: 4px;
-                        transition: background 0.2s;
-                    }
-                    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                        background: #9ca3af;
-                    }
-                `}</style>
-
+      {/* Add Elements Section */}
+      <div className="flex-shrink-0 mb-6">
         <div className="space-y-3">
           {selectedElementIds.length > 0 ? (
-            <Button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={addSelectedToChain}
-              size="sm"
-              className="w-full h-11 bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black text-white shadow-sm hover:shadow-md transition-all font-medium"
+              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
             >
-              <Link2 className="w-4 h-4 mr-2" />
-              Add Selected Elements ({selectedElementIds.length})
-            </Button>
+              <Plus className="w-4 h-4" />
+              Add {selectedElementIds.length} Selected Element{selectedElementIds.length > 1 ? 's' : ''}
+            </motion.button>
           ) : (
-            <div className="w-full p-4 bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl border border-gray-200 text-center">
-              <div className="w-12 h-12 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center mx-auto mb-3">
-                <Link2 className="w-5 h-5 text-gray-400" />
-              </div>
-              <p className="text-sm font-medium text-gray-600 mb-1">No Elements Selected</p>
-              <p className="text-xs text-gray-500">Select elements on canvas to add them to the chain</p>
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-center">
+              <Layers className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">Select elements to add to chain</p>
             </div>
           )}
 
-          <div className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-2 flex-1">
-              <Clock className="w-4 h-4 text-gray-500" />
-              <Label className="text-sm font-medium text-gray-700">Default Delay:</Label>
-              <Input
-                type="number"
-                min={1}
-                max={100}
-                value={defaultDelay}
-                onChange={(e) => setDefaultDelay(Number(e.target.value))}
-                className="w-20 h-9 text-sm border-gray-300 focus:border-gray-400 focus:ring-gray-400"
-              />
-              <span className="text-sm text-gray-500">ticks</span>
-            </div>
-            <Button
-              onClick={() => setShowDropZones(!showDropZones)}
-              size="sm"
-              variant={showDropZones ? "default" : "outline"}
-              className={`h-9 px-3 transition-all ${
-                showDropZones
-                  ? "bg-gray-900 hover:bg-black text-white"
-                  : "border-gray-300 hover:bg-gray-100 text-gray-700"
-              }`}
+          <div className="grid grid-cols-2 gap-3">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={addDelay}
+              className="py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm"
             >
-              <Plus className={`w-4 h-4 transition-transform duration-300 ${showDropZones ? "rotate-45" : ""}`} />
-            </Button>
+              <Clock className="w-4 h-4" />
+              Add Delay
+            </motion.button>
+
+            {chainItems.length > 0 && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={clearChain}
+                className="py-2 px-3 bg-red-100 hover:bg-red-200 text-red-700 font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm"
+              >
+                <Trash2 className="w-4 h-4" />
+                Clear All
+              </motion.button>
+            )}
           </div>
         </div>
+      </div>
 
-        <div className="space-y-3">
-          {chainItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mb-4 shadow-sm">
-                <Link2 className="w-9 h-9 text-gray-400" />
-              </div>
-              <h4 className="text-base font-semibold text-gray-700 mb-2">Empty Chain Sequence</h4>
-              <p className="text-sm text-gray-500 max-w-xs mb-4 leading-relaxed">
-                Build your animation chain by selecting elements on the canvas and adding them to the sequence
-              </p>
-              {selectedElementIds.length > 0 && (
-                <div className="inline-flex items-center gap-2 text-xs font-medium text-gray-700 bg-gray-100 px-4 py-2 rounded-full border border-gray-200">
-                  <div className="w-2 h-2 rounded-full bg-gray-600 animate-pulse" />
-                  {selectedElementIds.length} element{selectedElementIds.length !== 1 ? "s" : ""} selected
-                </div>
-              )}
-              {!currentLayer && (
-                <div className="inline-flex items-center gap-2 text-xs font-medium text-red-700 bg-red-50 px-4 py-2 rounded-full border border-red-200 mt-2">
-                  <X className="w-3 h-3" />
-                  No active layer found
-                </div>
-              )}
+      {/* Chain Sequence Section */}
+      <div className="flex-shrink-0 mb-6">
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => setSequenceExpanded(!sequenceExpanded)}
+          className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors mb-3"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+              <Link2 className="w-4 h-4 text-gray-600" />
             </div>
-          ) : (
-            chainItems.map((item, index) => (
-              <div key={item.id}>
-                {showDropZones && index > 0 && chainItems[index - 1].type === "element" && (
-                  <div
-                    onClick={() => addDelayAt(index)}
-                    className="h-10 border-2 border-dashed border-gray-300 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100/50 flex items-center justify-center cursor-pointer hover:border-gray-400 hover:from-gray-100 hover:to-gray-200/50 transition-all mb-3 group"
-                  >
-                    <Clock className="w-4 h-4 text-gray-400 mr-2 group-hover:text-gray-600 transition-colors" />
-                    <span className="text-gray-500 text-xs font-medium group-hover:text-gray-700 transition-colors">
-                      Add delay ({defaultDelay} ticks)
-                    </span>
+            <div className="text-left">
+              <h4 className="text-sm font-semibold text-gray-900">Sequence Items</h4>
+              <p className="text-xs text-gray-500">{activeCount} items in chain</p>
+            </div>
+          </div>
+          <motion.div
+            animate={{ rotate: sequenceExpanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronDown className="h-4 w-4 text-gray-400" />
+          </motion.div>
+        </motion.button>
+
+        <AnimatePresence>
+          {sequenceExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                {chainItems.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Link2 className="w-8 h-8 text-gray-400 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500">No items in chain sequence</p>
+                    <p className="text-xs text-gray-400 mt-1">Add elements or delays to create a sequence</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {chainItems.map((item, index) => (
+                      <div key={item.id}>
+                        {/* Add Delay Button (before each item except first) */}
+                        {index > 0 && (
+                          <div className="flex justify-center py-1">
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => addDelayAt(index)}
+                              className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors flex items-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" />
+                              Add Delay
+                            </motion.button>
+                          </div>
+                        )}
+
+                        {/* Chain Item */}
+                        <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                          {item.type === "element" ? (
+                            <>
+                              <div className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center">
+                                <Layers className="w-4 h-4 text-blue-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {item.elementIds ? `${item.elementIds.length} Elements` : "1 Element"}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Step {index + 1}
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-8 h-8 rounded-lg bg-yellow-100 border border-yellow-200 flex items-center justify-center">
+                                <Timer className="w-4 h-4 text-yellow-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">
+                                  Delay: {item.delay}s
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Step {index + 1}
+                                </div>
+                              </div>
+                              <input
+                                type="number"
+                                value={item.delay || 1}
+                                onChange={(e) => updateDelay(index, Number(e.target.value))}
+                                className="w-16 px-2 py-1 text-xs border border-gray-200 rounded bg-white text-gray-900"
+                                min="0.1"
+                                step="0.1"
+                              />
+                            </>
+                          )}
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => removeItem(index)}
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </motion.button>
+                        </div>
+
+                        {/* Add Delay Button (after last item) */}
+                        {index === chainItems.length - 1 && (
+                          <div className="flex justify-center py-1">
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => addDelayAt(index + 1)}
+                              className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors flex items-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" />
+                              Add Delay
+                            </motion.button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all">
-                  {item.type === "element" ? (
-                    (() => {
-                      const isGroup = item.elementIds && item.elementIds.length > 1
-                      const elementIds = isGroup ? item.elementIds! : [item.elementId!]
-                      const elements = elementIds.map((id) => getElementById(id)).filter(Boolean)
+      {/* Settings Section */}
+      <div className="flex-shrink-0 mb-6">
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => setSettingsExpanded(!settingsExpanded)}
+          className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors mb-3"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+              <Settings className="w-4 h-4 text-gray-600" />
+            </div>
+            <div className="text-left">
+              <h4 className="text-sm font-semibold text-gray-900">Chain Settings</h4>
+              <p className="text-xs text-gray-500">Configure sequence behavior</p>
+            </div>
+          </div>
+          <motion.div
+            animate={{ rotate: settingsExpanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronDown className="h-4 w-4 text-gray-400" />
+          </motion.div>
+        </motion.button>
 
-                      if (elements.length === 0) return null
-
-                      const groupNumber = chainItems.filter(
-                        (_, i) => i <= index && chainItems[i].type === "element",
-                      ).length
-
-                      return (
-                        <div className="group relative">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 text-white flex items-center justify-center text-sm font-bold shadow-sm">
-                                {groupNumber}
-                              </div>
-                              <div>
-                                <span className="text-sm font-semibold text-gray-900 block">
-                                  {isGroup ? `Element Group` : "Single Element"}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {elements.length} {elements.length === 1 ? "element" : "elements"}
-                                </span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => removeItem(index)}
-                              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-red-100 border border-gray-200 hover:border-red-300 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                            >
-                              <X className="w-4 h-4 text-gray-600 hover:text-red-600" />
-                            </button>
-                          </div>
-
-                          {isGroup && (
-                            <div className="grid grid-cols-6 gap-2">
-                              {elements.map((element) => {
-                                if (!element) return null
-                                return (
-                                  <div
-                                    key={element.id}
-                                    className="p-2 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100/50 border border-gray-200 text-center hover:shadow-sm transition-all"
-                                  >
-                                    <div
-                                      className="w-3 h-3 rounded-full mx-auto mb-1.5 shadow-sm"
-                                      style={{ backgroundColor: element.color || currentLayer?.color || "#000" }}
-                                    />
-                                    <div className="text-[10px] font-medium text-gray-600 truncate">{element.type}</div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })()
-                  ) : (
-                    <div className="group relative">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-sm">
-                          <Clock className="w-5 h-5 text-gray-600" />
-                        </div>
-                        <div className="flex-1 flex items-center gap-3">
-                          <Label className="text-sm font-medium text-gray-700">Delay:</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={100}
-                            value={item.delay || 1}
-                            onChange={(e) => updateDelay(index, Number(e.target.value))}
-                            className="w-20 h-9 text-sm border-gray-300 focus:border-gray-400 focus:ring-gray-400"
-                          />
-                          <span className="text-sm text-gray-500 font-medium">ticks</span>
-                        </div>
-                        <button
-                          onClick={() => removeItem(index)}
-                          className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-red-100 border border-gray-200 hover:border-red-300 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <X className="w-4 h-4 text-gray-600 hover:text-red-600" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
+        <AnimatePresence>
+          {settingsExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                {/* Default Delay */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Default Delay</span>
+                    <span className="text-xs text-gray-500">{defaultDelay}s</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    value={defaultDelay}
+                    onChange={(e) => setDefaultDelay(Number(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer slider-modern"
+                  />
                 </div>
               </div>
-            ))
+            </motion.div>
           )}
-
-          {showDropZones && chainItems.length > 0 && chainItems[chainItems.length - 1].type === "element" && (
-            <div
-              onClick={() => addDelayAt(chainItems.length)}
-              className="h-10 border-2 border-dashed border-gray-300 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100/50 flex items-center justify-center cursor-pointer hover:border-gray-400 hover:from-gray-100 hover:to-gray-200/50 transition-all group"
-            >
-              <Clock className="w-4 h-4 text-gray-400 mr-2 group-hover:text-gray-600 transition-colors" />
-              <span className="text-gray-500 text-xs font-medium group-hover:text-gray-700 transition-colors">
-                Add delay ({defaultDelay} ticks)
-              </span>
-            </div>
-          )}
-        </div>
+        </AnimatePresence>
       </div>
+
+
     </div>
   )
 }

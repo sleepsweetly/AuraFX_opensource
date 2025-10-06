@@ -1,48 +1,29 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "../ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
-import { Slider } from "../ui/slider"
-import { Switch } from "../ui/switch"
-import { Badge } from "../ui/badge"
-import { Alert, AlertDescription } from "../ui/alert"
+import React, { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { 
-  Zap, 
+  Gauge, 
   AlertTriangle, 
   Settings,
-  Target,
   BarChart3,
-  Sparkles,
   TrendingUp,
   Shield,
-  Palette,
   Cpu,
-  Gauge,
   Lightbulb,
   ChevronDown,
-  ChevronRight,
   CheckCircle,
   ThumbsUp,
   AlertCircle,
   Siren,
-  Flame,
-  Snowflake,
-  Zap as Lightning,
-  Bomb,
-  ShieldCheck,
-  Tornado,
-  Rainbow,
-  Grid3X3,
-  Ruler,
-  Dice6,
-  Crosshair
+  Zap,
+  Target
 } from "lucide-react"
 
 interface PerformancePanelProps {
-  currentLineCount: number
-  onOptimize: (settings: OptimizationSettings) => void
-  onApplyTemplate: (template: string) => void
+  currentLineCount?: number
+  onOptimize?: (settings: OptimizationSettings) => void
+  onApplyTemplate?: (template: string) => void
 }
 
 interface OptimizationSettings {
@@ -56,12 +37,12 @@ interface OptimizationSettings {
 }
 
 export function PerformancePanel({ 
-  currentLineCount, 
-  onOptimize, 
-  onApplyTemplate 
+  currentLineCount = 0, 
+  onOptimize = () => {}, 
+  onApplyTemplate = () => {} 
 }: PerformancePanelProps) {
   const [settings, setSettings] = useState<OptimizationSettings>({
-    maxLines: 20,
+    maxLines: 1000,
     mergeSimilarEffects: true,
     increaseInterval: true,
     compressionLevel: "medium",
@@ -70,33 +51,45 @@ export function PerformancePanel({
     stepValue: 2
   })
 
+  const [statusExpanded, setStatusExpanded] = useState(true)
+  const [optimizationExpanded, setOptimizationExpanded] = useState(false)
+  const [templatesExpanded, setTemplatesExpanded] = useState(false)
+
   const getPerformanceLevel = (lines: number) => {
     if (lines <= 10) return { 
       level: "excellent", 
-      color: "bg-green-50 border-green-200 text-green-800", 
+      color: "text-green-600", 
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
       text: "Excellent",
-      icon: <CheckCircle className="h-6 w-6 text-green-600" />,
+      icon: <CheckCircle className="h-5 w-5 text-green-600" />,
       description: "Perfect performance"
     }
     if (lines <= 25) return { 
       level: "good", 
-      color: "bg-blue-50 border-blue-200 text-blue-800", 
+      color: "text-blue-600", 
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
       text: "Good",
-      icon: <ThumbsUp className="h-6 w-6 text-blue-600" />,
+      icon: <ThumbsUp className="h-5 w-5 text-blue-600" />,
       description: "Good performance"
     }
     if (lines <= 50) return { 
       level: "warning", 
-      color: "bg-yellow-50 border-yellow-200 text-yellow-800", 
+      color: "text-yellow-600", 
+      bgColor: "bg-yellow-50",
+      borderColor: "border-yellow-200",
       text: "Warning",
-      icon: <AlertCircle className="h-6 w-6 text-yellow-600" />,
+      icon: <AlertCircle className="h-5 w-5 text-yellow-600" />,
       description: "Performance warning"
     }
     return { 
       level: "danger", 
-      color: "bg-red-50 border-red-200 text-red-800", 
+      color: "text-red-600", 
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
       text: "Danger",
-      icon: <Siren className="h-6 w-6 text-red-600" />,
+      icon: <Siren className="h-5 w-5 text-red-600" />,
       description: "Critical performance"
     }
   }
@@ -107,232 +100,343 @@ export function PerformancePanel({
     onOptimize(settings)
   }
 
+  const compressionLevels = [
+    { id: "low", name: "Low", description: "Minimal optimization" },
+    { id: "medium", name: "Medium", description: "Balanced optimization" },
+    { id: "high", name: "High", description: "Maximum optimization" }
+  ]
+
+  const samplingMethods = [
+    { id: "grid", name: "Grid", description: "Grid-based sampling" },
+    { id: "step", name: "Step", description: "Step-based sampling" },
+    { id: "random", name: "Random", description: "Random sampling" },
+    { id: "center", name: "Center", description: "Center-focused sampling" }
+  ]
+
   return (
     <div className="w-full max-w-md mx-auto h-full flex flex-col bg-white p-4 overflow-y-auto">
       {/* Header */}
-      <div className="flex-shrink-0 mb-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-800 to-gray-600 flex items-center justify-center shadow-md">
-            <Gauge className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-bold text-gray-900 text-sm">Performance Optimizer</h3>
-            <p className="text-xs text-gray-500">Optimize your effects for better performance</p>
+      <div className="flex-shrink-0 mb-6">
+        <div className="flex items-center gap-3">
+          <Gauge className="w-5 h-5 text-gray-700" />
+          <div>
+            <h3 className="font-semibold text-gray-900 text-base">Performance</h3>
+            <p className="text-sm text-gray-500">Optimize your effects for better performance</p>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 space-y-4">
-        {/* Performance Status */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <BarChart3 className="w-5 h-5 text-gray-600" />
-            <h4 className="text-sm font-semibold text-gray-900">Performance Status</h4>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 rounded-lg bg-white border border-gray-200 mb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-gray-100 border border-gray-200">
-                {performance.icon}
-              </div>
-              <div>
-                <div className="text-sm text-gray-600">Current Lines</div>
-                <div className="text-2xl font-bold text-gray-900">{currentLineCount.toLocaleString()}</div>
-              </div>
+      {/* Performance Status Section */}
+      <div className="flex-shrink-0 mb-6">
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => setStatusExpanded(!statusExpanded)}
+          className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors mb-3"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+              <BarChart3 className="w-4 h-4 text-gray-600" />
             </div>
-            <Badge className={`${performance.color} px-3 py-1 text-sm font-semibold`}>
-              {performance.text}
-            </Badge>
-          </div>
-          
-          <div className="p-3 rounded-lg bg-white border border-gray-200 mb-3">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Gauge className="w-4 h-4" />
-              {performance.description}
+            <div className="text-left">
+              <h4 className="text-sm font-semibold text-gray-900">Performance Status</h4>
+              <p className="text-xs text-gray-500">Current effect performance</p>
             </div>
           </div>
-
-          {currentLineCount > 25 && (
-            <Alert className="border-yellow-200 bg-yellow-50">
-              <AlertTriangle className="w-4 h-4 text-yellow-600" />
-              <AlertDescription className="text-yellow-800">
-                This effect may impact server performance. Consider optimization for better performance.
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-
-        {/* Optimization Settings */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <Settings className="w-5 h-5 text-gray-600" />
-            <h4 className="text-sm font-semibold text-gray-900">Optimization Settings</h4>
-          </div>
-          <p className="text-gray-600 text-xs mb-4">Fine-tune your effect for optimal performance</p>
-          
-          <div className="space-y-4">
-            {/* Max Line Count */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-gray-600" />
-                  Max Line Count
-                </label>
-                <span className="text-sm text-gray-600 bg-white px-2 py-1 rounded border border-gray-200">
-                  {settings.maxLines.toLocaleString()}
-                </span>
-              </div>
-              <Slider
-                value={[settings.maxLines]}
-                onValueChange={([value]) => setSettings(prev => ({ ...prev, maxLines: value }))}
-                max={10000}
-                min={50}
-                step={50}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>50</span>
-                <span>10,000</span>
-              </div>
-            </div>
-
-            {/* Switches */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-white border border-gray-200">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-gray-600" />
-                    Merge Similar Effects
-                  </label>
-                  <p className="text-xs text-gray-500">
-                    Combines effects of the same type into single lines
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.mergeSimilarEffects}
-                  onCheckedChange={(checked) => 
-                    setSettings(prev => ({ ...prev, mergeSimilarEffects: checked }))
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-lg bg-white border border-gray-200">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                    <Cpu className="w-4 h-4 text-gray-600" />
-                    Increase Interval
-                  </label>
-                  <p className="text-xs text-gray-500">
-                    Automatically increases effect repeat intervals
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.increaseInterval}
-                  onCheckedChange={(checked) => 
-                    setSettings(prev => ({ ...prev, increaseInterval: checked }))
-                  }
-                />
-              </div>
-            </div>
-
-            {/* Compression Level */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-900 flex items-center gap-1">
-                <Shield className="w-3 h-3 text-gray-600" />
-                Compression Level
-              </label>
-              <div className="grid grid-cols-3 gap-1">
-                {([
-                  { level: "low", label: "Low", desc: "Minimal", color: "bg-green-100 border-green-300 text-green-800" },
-                  { level: "medium", label: "Medium", desc: "Balanced", color: "bg-blue-100 border-blue-300 text-blue-800" },
-                  { level: "high", label: "High", desc: "Aggressive", color: "bg-red-100 border-red-300 text-red-800" }
-                ] as const).map((option) => (
-                  <Button
-                    key={option.level}
-                    variant="outline"
-                    size="sm"
-                    className={`flex flex-col h-auto py-1 px-2 min-h-0 ${
-                      settings.compressionLevel === option.level 
-                        ? `${option.color}` 
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200 hover:border-gray-300'
-                    }`}
-                    style={{fontSize: '0.85rem', lineHeight: 1.1}}
-                    onClick={() => setSettings(prev => ({ ...prev, compressionLevel: option.level }))}
-                  >
-                    <span className="font-medium text-xs">{option.label}</span>
-                    <span className="text-[10px] opacity-70">{option.desc}</span>
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Sampling Method */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-900 flex items-center gap-1">
-                <Palette className="w-3 h-3 text-gray-600" />
-                Sampling Method
-              </label>
-              <p className="text-[10px] text-gray-500 mb-1">
-                Choose how to reduce element count while preserving image quality
-              </p>
-              <div className="grid grid-cols-2 gap-1">
-                {([
-                  { value: "grid", label: "Grid", desc: "Preserves shape", icon: <Grid3X3 className="w-4 h-4" /> },
-                  { value: "step", label: "Step", desc: "Every N elements", icon: <Ruler className="w-4 h-4" /> },
-                  { value: "random", label: "Random", desc: "Random selection", icon: <Dice6 className="w-4 h-4" /> },
-                  { value: "center", label: "Center", desc: "Center priority", icon: <Crosshair className="w-4 h-4" /> }
-                ] as const).map((method) => (
-                  <Button
-                    key={method.value}
-                    variant="outline"
-                    size="sm"
-                    className={`flex flex-col h-auto py-1 px-2 min-h-0 items-center ${
-                      settings.samplingMethod === method.value 
-                        ? 'bg-gray-100 text-gray-900 border-gray-300' 
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200 hover:border-gray-300'
-                    }`}
-                    style={{fontSize: '0.85rem', lineHeight: 1.1}}
-                    onClick={() => setSettings(prev => ({ ...prev, samplingMethod: method.value }))}
-                  >
-                    <div className="mb-0.5 text-gray-600">{method.icon}</div>
-                    <span className="font-medium text-xs">{method.label}</span>
-                    <span className="text-[10px] opacity-70">{method.desc}</span>
-                  </Button>
-                ))}
-              </div>
-              {settings.samplingMethod === "step" && (
-                <div className="mt-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs text-gray-900 font-medium">Step Value</label>
-                    <span className="text-xs text-gray-600">{settings.stepValue}</span>
-                  </div>
-                  <Slider
-                    value={[settings.stepValue || 2]}
-                    onValueChange={([value]) => setSettings(prev => ({ ...prev, stepValue: value }))}
-                    min={1}
-                    max={50}
-                    step={1}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                    <span>1</span>
-                    <span>50</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <Button 
-              onClick={handleOptimize} 
-              className="w-full bg-gradient-to-r from-gray-900 to-gray-700 hover:from-gray-800 hover:to-gray-600 text-white py-2 text-sm font-semibold transition-all duration-200 shadow-lg"
-              style={{minHeight: 0, height: '2.2rem'}}
+          <motion.div
+            animate={{ rotate: statusExpanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronDown className="h-4 w-4 text-gray-400" />
+          </motion.div>
+        </motion.button>
+        
+        <AnimatePresence>
+          {statusExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="overflow-hidden"
             >
-              <Zap className="w-4 h-4 mr-1" />
-              Optimize Effect
-            </Button>
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                {/* Performance Indicator */}
+                <div className={`p-4 rounded-lg border ${performance.borderColor} ${performance.bgColor}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      {performance.icon}
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">Current Lines</div>
+                        <div className="text-2xl font-bold text-gray-900">{currentLineCount.toLocaleString()}</div>
+                      </div>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${performance.bgColor} ${performance.color}`}>
+                      {performance.text}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600">{performance.description}</p>
+                </div>
+
+                {/* Performance Warning */}
+                {currentLineCount > 25 && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                      <p className="text-sm text-yellow-800">
+                        This effect may impact server performance. Consider optimization.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Optimization Settings Section */}
+      <div className="flex-shrink-0 mb-6">
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => setOptimizationExpanded(!optimizationExpanded)}
+          className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors mb-3"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+              <Settings className="w-4 h-4 text-gray-600" />
+            </div>
+            <div className="text-left">
+              <h4 className="text-sm font-semibold text-gray-900">Optimization Settings</h4>
+              <p className="text-xs text-gray-500">Fine-tune performance options</p>
+            </div>
           </div>
-        </div>
+          <motion.div
+            animate={{ rotate: optimizationExpanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronDown className="h-4 w-4 text-gray-400" />
+          </motion.div>
+        </motion.button>
+        
+        <AnimatePresence>
+          {optimizationExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                {/* Max Lines */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Max Lines</span>
+                    <span className="text-xs text-gray-500">{settings.maxLines.toLocaleString()}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={50}
+                    max={10000}
+                    step={50}
+                    value={settings.maxLines}
+                    onChange={(e) => setSettings(prev => ({ ...prev, maxLines: Number(e.target.value) }))}
+                    className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer slider-modern"
+                  />
+                </div>
+
+                {/* Compression Level */}
+                <div className="space-y-3">
+                  <span className="text-sm font-medium text-gray-700">Compression Level</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {compressionLevels.map((level) => (
+                      <button
+                        key={level.id}
+                        onClick={() => setSettings(prev => ({ ...prev, compressionLevel: level.id as any }))}
+                        className={`p-2 rounded-lg border transition-all text-xs font-medium ${
+                          settings.compressionLevel === level.id
+                            ? "border-gray-300 bg-gray-100 text-gray-900"
+                            : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {level.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sampling Method */}
+                <div className="space-y-3">
+                  <span className="text-sm font-medium text-gray-700">Sampling Method</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {samplingMethods.map((method) => (
+                      <button
+                        key={method.id}
+                        onClick={() => setSettings(prev => ({ ...prev, samplingMethod: method.id as any }))}
+                        className={`p-2 rounded-lg border transition-all text-xs font-medium ${
+                          settings.samplingMethod === method.id
+                            ? "border-gray-300 bg-gray-100 text-gray-900"
+                            : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {method.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Toggle Options */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Merge Similar Effects</span>
+                    <div
+                      onClick={() => setSettings(prev => ({ ...prev, mergeSimilarEffects: !prev.mergeSimilarEffects }))}
+                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${
+                        settings.mergeSimilarEffects ? 'bg-gray-900' : 'bg-gray-200'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${
+                          settings.mergeSimilarEffects ? 'left-5' : 'left-0.5'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Increase Interval</span>
+                    <div
+                      onClick={() => setSettings(prev => ({ ...prev, increaseInterval: !prev.increaseInterval }))}
+                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${
+                        settings.increaseInterval ? 'bg-gray-900' : 'bg-gray-200'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${
+                          settings.increaseInterval ? 'left-5' : 'left-0.5'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Auto Optimize</span>
+                    <div
+                      onClick={() => setSettings(prev => ({ ...prev, autoOptimize: !prev.autoOptimize }))}
+                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${
+                        settings.autoOptimize ? 'bg-gray-900' : 'bg-gray-200'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${
+                          settings.autoOptimize ? 'left-5' : 'left-0.5'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Optimize Button */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleOptimize}
+                  className="w-full py-2 px-4 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-all duration-200 flex items-center justify-center gap-2 text-sm"
+                >
+                  <Zap className="w-4 h-4" />
+                  Apply Optimization
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Performance Templates Section */}
+      <div className="flex-shrink-0 mb-6">
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => setTemplatesExpanded(!templatesExpanded)}
+          className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors mb-3"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
+              <Target className="w-4 h-4 text-gray-600" />
+            </div>
+            <div className="text-left">
+              <h4 className="text-sm font-semibold text-gray-900">Performance Templates</h4>
+              <p className="text-xs text-gray-500">Quick optimization presets</p>
+            </div>
+          </div>
+          <motion.div
+            animate={{ rotate: templatesExpanded ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronDown className="h-4 w-4 text-gray-400" />
+          </motion.div>
+        </motion.button>
+        
+        <AnimatePresence>
+          {templatesExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <div className="space-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => onApplyTemplate("high-performance")}
+                  className="w-full p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <Cpu className="w-4 h-4 text-green-600" />
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">High Performance</div>
+                      <div className="text-xs text-gray-500">Maximum optimization for servers</div>
+                    </div>
+                  </div>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => onApplyTemplate("balanced")}
+                  className="w-full p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-4 h-4 text-blue-600" />
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">Balanced</div>
+                      <div className="text-xs text-gray-500">Good balance of quality and performance</div>
+                    </div>
+                  </div>
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => onApplyTemplate("quality-focused")}
+                  className="w-full p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <Lightbulb className="w-4 h-4 text-yellow-600" />
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">Quality Focused</div>
+                      <div className="text-xs text-gray-500">Prioritize visual quality over performance</div>
+                    </div>
+                  </div>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )
