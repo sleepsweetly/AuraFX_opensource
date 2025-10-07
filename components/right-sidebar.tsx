@@ -114,7 +114,7 @@ export function RightSidebar({
   isRecording, onToggleRecording, activeTabOverride, onTabChange
 }: RightSidebarProps) {
   const [activeTab, setActiveTab] = useState(4)
-  const [isMinimized, setIsMinimized] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(true)
 
   const FIXED_WIDTH = 550
   const TAB_BAR_WIDTH = 60
@@ -159,7 +159,7 @@ export function RightSidebar({
       case "modes": return <ModesPanel modes={modes || {}} onModesChange={onModesChange || (() => { })} modeSettings={modeSettings || {}} onModeSettingsChange={onModeSettingsChange || (() => { })} />
       case "import": return <ImportPanel settings={settings || {}} onSettingsChange={onSettingsChange || (() => { })} />
       case "element-config": return <ElementSettingsPanel layers={layers || []} currentLayer={currentLayer} onUpdateLayer={onUpdateLayer || (() => { })} modes={modes || {}} onShowCode={onShowCode || (() => { })} updateSelectedElementsParticle={updateSelectedElementsParticle} updateSelectedElementsColor={updateSelectedElementsColor} />
-      case "code": return <CodePanel code={generatedCode || ""} onGenerateCode={onGenerateCode || (() => Promise.resolve())} onShowElementSettings={onShowCode} isGenerating={isGeneratingCode} settings={settings || {}} onSettingsChange={onSettingsChange || (() => { })} layers={layers || []} onUpdateLayer={onUpdateLayer || (() => { })} currentLayer={currentLayer} modes={modes || {}} onFrameSettingsChange={onFrameSettingsChange} optimize={optimize || false} setOptimize={setOptimize || (() => { })} />
+      case "code": return <CodePanel code={generatedCode || ""} onGenerateCode={onGenerateCode || (() => Promise.resolve())} isGenerating={isGeneratingCode} settings={settings || {}} onSettingsChange={onSettingsChange || (() => { })} layers={layers || []} onUpdateLayer={onUpdateLayer || (() => { })} currentLayer={currentLayer} modes={modes || {}} onFrameSettingsChange={onFrameSettingsChange} optimize={optimize || false} setOptimize={setOptimize || (() => { })} />
       case "chain": return <ChainPanel layers={layers || []} currentLayerId={currentLayer?.id || null} chainSequence={chainSequence || []} onChainSequenceChange={onChainSequenceChange || (() => { })} selectedElementIds={selectedElementIds || []} chainItems={chainItems || []} onChainItemsChange={onChainItemsChange || (() => { })} />
       case "recording": return <ActionRecordingPanel isRecording={isRecording || false} onToggleRecording={onToggleRecording || (() => { })} />
       case "performance": return <PerformancePanel currentLineCount={currentLineCount || 0} onOptimize={onOptimize || (() => { })} onApplyTemplate={onApplyTemplate || (() => { })} />

@@ -50,7 +50,7 @@ import {
   Calendar,
   Clock
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/toast-system';
 
 interface EffectListPanelProps {
   onSessionSelect?: (projectId: string, sessionId: string) => void;

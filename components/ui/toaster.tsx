@@ -1,6 +1,6 @@
 "use client"
 
-import { useToast } from "../../hooks/use-toast"
+import { useToast } from "../toast-system"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   Toast,
@@ -9,7 +9,7 @@ import {
   ToastProvider,
   ToastTitle,
   ToastViewport,
-} from "./toast"
+} from "../toast-system"
 
 export function Toaster() {
   const { toasts } = useToast()

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, MoveDiagonal, Axis3D, Square } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/toast-system";
 
 interface AxisWidgetProps {
   viewMode: "top" | "side" | "diagonal" | "isometric" | "front";

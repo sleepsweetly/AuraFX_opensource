@@ -12,6 +12,7 @@ import { RotateCw, MoveDiagonal } from "lucide-react"
 
 import { Pencil, MousePointerClick, Eraser, Circle, Square, Slash, Triangle } from "lucide-react"
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
+import { useToast } from "@/components/toast-system"
 
 interface CanvasProps {
   currentTool: Tool
@@ -44,6 +45,7 @@ interface CanvasProps {
   viewMode?: "top" | "side" | "diagonal" | "isometric" | "front";
   setViewMode?: (mode: "top" | "side" | "diagonal" | "isometric" | "front") => void;
   isRecording?: boolean;
+  backgroundColor?: string;
 }
 
 // Web Workers for optimization
@@ -58,10 +60,11 @@ if (typeof window !== 'undefined' && typeof Worker !== 'undefined') {
 }
 
 const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
-  { currentTool, setCurrentTool, layers, currentLayerId, settings, onSettingsChange, modes, onAddElement, onClearCanvas, onUpdateLayer, selectedElementIds, setSelectedElementIds, performanceMode = false, onShapeCreated, onStartBatchMode, onEndBatchMode, chainSequence = [], onChainSequenceChange, chainItems = [], optimize = false, showGridCoordinates = true, onToggleGridCoordinates, updateSelectedElementsParticle, onElementCountChange, onZoomIn, onZoomOut, scale: externalScale, viewMode: externalViewMode, setViewMode: externalSetViewMode, isRecording = false },
+  { currentTool, setCurrentTool, layers, currentLayerId, settings, onSettingsChange, modes, onAddElement, onClearCanvas, onUpdateLayer, selectedElementIds, setSelectedElementIds, performanceMode = false, onShapeCreated, onStartBatchMode, onEndBatchMode, chainSequence = [], onChainSequenceChange, chainItems = [], optimize = false, showGridCoordinates = true, onToggleGridCoordinates, updateSelectedElementsParticle, onElementCountChange, onZoomIn, onZoomOut, scale: externalScale, viewMode: externalViewMode, setViewMode: externalSetViewMode, isRecording = false, backgroundColor = "#ffffff" },
   ref
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const { toast } = useToast()
   useImperativeHandle(ref, () => canvasRef.current as HTMLCanvasElement)
 
   // Action Recording Store
@@ -257,7 +260,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   const [dragEnd, setDragEnd] = useState({ x: 0, y: 0 })
   const [internalScale, setInternalScale] = useState(1)
   const scale = externalScale ?? internalScale
-  const [offset, setOffset] = useState({ x: -200, y: 0, z: 0 })
+  const [offset, setOffset] = useState({ x: -0, y: 0, z: 0 })
 
 
   const [rotation, setRotation] = useState({ x: 20, y: 0, z: 0 })
@@ -300,6 +303,18 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     maxX: number;
     maxY: number;
   } | null>(null);
+
+  // Fixed selection box - mouse bırakıldığında sabit kalacak
+  const [fixedSelectionBox, setFixedSelectionBox] = useState<null | {
+    start: { x: number, y: number },
+    end: { x: number, y: number },
+    originalWidth?: number,
+    originalHeight?: number
+  }>(null);
+
+  // Scale ve offset değişikliğini takip etmek için
+  const prevScaleRef = useRef(scale);
+  const prevOffsetRef = useRef(offset);
 
   const currentLayer = layers.find(layer => layer.id === currentLayerId) || null
 
@@ -353,6 +368,71 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     return () => resizeObserver.disconnect()
   }, [selectedElementIds, currentLayer, viewMode, scale, offset])
+
+  // Scale ve offset değiştiğinde fixed selection box'ı güncelle
+  useEffect(() => {
+    if (!fixedSelectionBox) {
+      prevScaleRef.current = scale
+      prevOffsetRef.current = offset
+      return
+    }
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    let needsUpdate = false
+    let newFixedSelectionBox = { ...fixedSelectionBox }
+
+    // Scale değişikliği
+    if (prevScaleRef.current !== scale) {
+      const scaleRatio = scale / prevScaleRef.current
+      const centerX = canvas.width / 2 + prevOffsetRef.current.x
+      const centerY = canvas.height / 2 + prevOffsetRef.current.y
+
+      // Selection box'ı canvas merkezine göre ölçekle
+      newFixedSelectionBox = {
+        start: {
+          x: centerX + (newFixedSelectionBox.start.x - centerX) * scaleRatio,
+          y: centerY + (newFixedSelectionBox.start.y - centerY) * scaleRatio
+        },
+        end: {
+          x: centerX + (newFixedSelectionBox.end.x - centerX) * scaleRatio,
+          y: centerY + (newFixedSelectionBox.end.y - centerY) * scaleRatio
+        },
+        originalWidth: (newFixedSelectionBox as any).originalWidth,
+        originalHeight: (newFixedSelectionBox as any).originalHeight
+      }
+      needsUpdate = true
+    }
+
+    // Offset değişikliği (pan)
+    if (prevOffsetRef.current.x !== offset.x || prevOffsetRef.current.y !== offset.y) {
+      const offsetDx = offset.x - prevOffsetRef.current.x
+      const offsetDy = offset.y - prevOffsetRef.current.y
+
+      // Selection box'ı offset kadar kaydır
+      newFixedSelectionBox = {
+        start: {
+          x: newFixedSelectionBox.start.x + offsetDx,
+          y: newFixedSelectionBox.start.y + offsetDy
+        },
+        end: {
+          x: newFixedSelectionBox.end.x + offsetDx,
+          y: newFixedSelectionBox.end.y + offsetDy
+        },
+        originalWidth: (newFixedSelectionBox as any).originalWidth,
+        originalHeight: (newFixedSelectionBox as any).originalHeight
+      }
+      needsUpdate = true
+    }
+
+    if (needsUpdate) {
+      setFixedSelectionBox(newFixedSelectionBox as any)
+    }
+
+    prevScaleRef.current = scale
+    prevOffsetRef.current = offset
+  }, [scale, offset, fixedSelectionBox])
 
   // Chain mode animasyon timer - sürekli canvas'ı yenile
   useEffect(() => {
@@ -432,8 +512,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     const centerX = canvas.width / 2 + offset.x;
     const centerY = canvas.height / 2 + offset.y;
 
-    // Clear canvas - only clear dirty regions if possible
-    ctx.fillStyle = "#ffffff";
+    // Clear canvas with background color
+    ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Draw grid - only if enabled in settings
@@ -934,7 +1014,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       ctx.restore();
     }
 
-  }, [layers, performanceMode, modes, scale, offset, viewMode, currentLayer, dragStart, dragEnd, isDragging, currentTool, selectionBox, selectedElementIds, isRotating, isScaling, scaleStart, chainItems, animationTick, forceUpdate, mousePosition, showGridCoordinates, settings]);
+  }, [layers, performanceMode, modes, scale, offset, viewMode, currentLayer, dragStart, dragEnd, isDragging, currentTool, selectionBox, selectedElementIds, isRotating, isScaling, scaleStart, chainItems, animationTick, forceUpdate, mousePosition, showGridCoordinates, settings, backgroundColor]);
 
   // Chain Animation Web Worker - Kaldırıldı
   // useEffect(() => {
@@ -1074,6 +1154,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         const newElements = currentLayer.elements.filter(element => !selectedElementIds.includes(element.id))
         onUpdateLayer(currentLayer.id, { elements: newElements })
         setSelectedElementIds([])
+        setFixedSelectionBox(null) // Fixed selection box'ı da temizle
         setWorkerSelection(null) // Seçim silindiğinde workerSelection'ı da temizle
       }
     }
@@ -1275,15 +1356,11 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     }
     if (!currentLayer) {
       // Show warning when no layer is selected
-      const event = new CustomEvent('showToast', {
-        detail: {
-          type: 'warning',
-          title: 'No Layer Selected',
-          message: 'To start drawing, please select a layer from the left panel. Each layer can contain different elements and effects.',
-          duration: 6000
-        }
+      toast({
+        title: 'No Layer Selected',
+        description: 'To start drawing, please select a layer from the left panel. Each layer can contain different elements and effects.',
+        variant: 'destructive'
       });
-      window.dispatchEvent(event);
       return;
     }
 
@@ -1291,15 +1368,11 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     // Show warning when layer is hidden
     if (!currentLayer.visible) {
-      const event = new CustomEvent('showToast', {
-        detail: {
-          type: 'warning',
-          title: 'Layer is Hidden',
-          message: `The layer "${currentLayer.name}" is currently hidden. Click the eye icon next to the layer name to make it visible.`,
-          duration: 5000
-        }
+      toast({
+        title: 'Layer is Hidden',
+        description: `The layer "${currentLayer.name}" is currently hidden. Click the eye icon next to the layer name to make it visible.`,
+        variant: 'destructive'
       });
-      window.dispatchEvent(event);
       return;
     }
 
@@ -1322,9 +1395,53 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       let clickedOnSelectionBox = false
 
       if ((selectedElementIds?.length ?? 0) > 0) {
-        // Calculate selection box bounds
+        // Önce fixed selection box kontrolü yap
+        if (fixedSelectionBox) {
+          const bounds = (() => {
+            const canvas = canvasRef.current
+            if (!canvas || !currentLayer) return null
+
+            // Seçili elementlerin merkez noktasını hesapla
+            const selectedElements = currentLayer.elements.filter(el => selectedElementIds.includes(el.id))
+            if (selectedElements.length === 0) return null
+
+            const centerX = canvas.width / 2 + offset.x
+            const centerY = canvas.height / 2 + offset.y
+
+            // Elementlerin piksel koordinatlarındaki merkez noktasını bul
+            let totalX = 0, totalY = 0
+            selectedElements.forEach(element => {
+              const ex = centerX + element.position.x * 10 * scale
+              const ey = viewMode === 'side'
+                ? centerY - (typeof element.yOffset === 'number' ? element.yOffset : 0) * 10 * scale
+                : centerY + element.position.z * 10 * scale
+              totalX += ex
+              totalY += ey
+            })
+
+            const elementsCenterX = totalX / selectedElements.length
+            const elementsCenterY = totalY / selectedElements.length
+
+            // Orijinal selection box boyutlarını elementlerin merkezine yerleştir
+            const halfWidth = (fixedSelectionBox as any).originalWidth / 2
+            const halfHeight = (fixedSelectionBox as any).originalHeight / 2
+
+            return {
+              minX: elementsCenterX - halfWidth,
+              minY: elementsCenterY - halfHeight,
+              maxX: elementsCenterX + halfWidth,
+              maxY: elementsCenterY + halfHeight
+            }
+          })()
+
+          if (bounds && x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY) {
+            clickedOnSelectionBox = true
+          }
+        }
+
+        // Calculate selection box bounds (fallback)
         const selectedEls = currentLayer.elements.filter(el => selectedElementIds.includes(el.id))
-        if (selectedEls.length > 0) {
+        if (selectedEls.length > 0 && !clickedOnSelectionBox) {
           const xs = selectedEls.map(el => centerX + el.position.x * 10 * scale)
           const ys = selectedEls.map(el => {
             if (viewMode === 'side') {
@@ -1419,6 +1536,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         setSelectionBox(null)
         setSelectionBox({ start: { x, y }, end: { x, y } })
         setSelectedElementIds([])
+        setFixedSelectionBox(null) // Fixed selection box'ı da temizle
         setWorkerSelection(null) // Seçim iptalinde workerSelection'ı da temizle
 
         // Action Recording: Clear selection - gereksiz, sadece UI durumu
@@ -1604,6 +1722,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         };
       });
       onUpdateLayer(currentLayer.id, { elements: updatedElements });
+
+      // Fixed selection box sabit kalıyor, güncellemeye gerek yok
+
       return;
     }
 
@@ -1692,6 +1813,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           };
         });
         onUpdateLayer(currentLayer.id, { elements: updatedElements });
+
+        // Fixed selection box sabit kalıyor, güncellemeye gerek yok
       } else {
         // Top view: Y ekseni etrafında döndürme (X ve Z koordinatlarını değiştir) - mevcut davranış
         const centerX = rotateStart.initialPositions.reduce((sum, p) => sum + p.x, 0) / rotateStart.initialPositions.length;
@@ -1719,6 +1842,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           };
         });
         onUpdateLayer(currentLayer.id, { elements: updatedElements });
+
+        // Fixed selection box sabit kalıyor, güncellemeye gerek yok
       }
       return;
     }
@@ -1777,6 +1902,23 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             setLastMoveRecordTime(currentTime)
           }
         }
+      }
+
+      // Fixed selection box'ı da aynı miktarda hareket ettir
+      if (fixedSelectionBox) {
+        const pixelDx = x - dragOffset.x
+        const pixelDy = y - dragOffset.y
+
+        setFixedSelectionBox({
+          start: {
+            x: fixedSelectionBox.start.x + pixelDx,
+            y: fixedSelectionBox.start.y + pixelDy
+          },
+          end: {
+            x: fixedSelectionBox.end.x + pixelDx,
+            y: fixedSelectionBox.end.y + pixelDy
+          }
+        })
       }
 
       setDragOffset({ x, y })
@@ -1876,7 +2018,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           }).map(element => element.id);
         }
 
-        // Önce selectionBox'ı temizle, sonra element'leri seç
+        // Selection box'ı sabit konumda sakla, sonra element'leri seç
+        setFixedSelectionBox(selectionBox)
         setSelectionBox(null)
         setSelectedElementIds(selected)
 
@@ -2561,7 +2704,15 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     return { minX, minY, maxX, maxY };
   }
-  const selectionBounds = getSelectionBoxBounds();
+  // Fixed selection box varsa onu kullan, yoksa element bounds'ını hesapla
+  const selectionBounds = fixedSelectionBox && selectedElementIds.length > 0
+    ? {
+      minX: Math.min(fixedSelectionBox.start.x, fixedSelectionBox.end.x),
+      minY: Math.min(fixedSelectionBox.start.y, fixedSelectionBox.end.y),
+      maxX: Math.max(fixedSelectionBox.start.x, fixedSelectionBox.end.x),
+      maxY: Math.max(fixedSelectionBox.start.y, fixedSelectionBox.end.y),
+    }
+    : getSelectionBoxBounds();
 
   // Overlay butonları için event handler'ları
   const handleDeleteClick = () => {
@@ -2569,6 +2720,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     const newElements = currentLayer.elements.filter(element => !selectedElementIds.includes(element.id));
     onUpdateLayer(currentLayer.id, { elements: newElements });
     setSelectedElementIds([]);
+    setFixedSelectionBox(null); // Fixed selection box'ı da temizle
     setWorkerSelection(null); // Seçim silindiğinde workerSelection'ı da temizle
   };
 
@@ -2780,7 +2932,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   }, [modes.chainMode])
 
   return (
-    <div className="canvas-area relative w-full h-full bg-white overflow-hidden">
+    <div className="canvas-area relative w-full h-full overflow-hidden" style={{ backgroundColor }}>
 
       <canvas
         ref={canvasRef}
@@ -2812,7 +2964,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       {/* --- Modern overlay kutusu ve butonlar --- */}
       {selectionBounds && selectedElementIds.length > 0 && (
         <div
-          className="absolute z-30 pointer-events-none"
+          className="absolute z-20 pointer-events-none"
           style={{
             left: selectionBounds.minX,
             top: selectionBounds.minY,
@@ -2825,7 +2977,6 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           <div className="
             absolute inset-0
             border-2 border-blue-400
-            rounded-xl
             bg-blue-100/30
             shadow-[0_0_24px_0_rgba(255,255,255,0.10)]
             transition-all

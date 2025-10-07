@@ -4,7 +4,7 @@ import { Eye, Square, MoveDiagonal, Axis3D, EyeOff, ChevronDown } from "lucide-r
 import { motion, AnimatePresence, Variants } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/toast-system"
 
 interface TopCenterToolbarProps {
   viewMode?: "top" | "side" | "diagonal" | "isometric" | "front"

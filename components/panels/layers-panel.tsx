@@ -15,6 +15,8 @@ interface LayersPanelProps {
   onUpdateLayer?: (layerId: string, updates: any) => void
   onReorderLayers?: (fromIndex: number, toIndex: number) => void
   currentLayer?: any
+  onUndo?: () => void
+  onRedo?: () => void
 }
 
 export function LayersPanel({
@@ -26,7 +28,9 @@ export function LayersPanel({
   onSelectLayer = () => { },
   onUpdateLayer = () => { },
   onReorderLayers = () => { },
-  currentLayer = null
+  currentLayer = null,
+  onUndo = () => { },
+  onRedo = () => { }
 }: LayersPanelProps) {
   const [historyExpanded, setHistoryExpanded] = useState(true)
   const [layersExpanded, setLayersExpanded] = useState(true)
@@ -230,82 +234,62 @@ export function LayersPanel({
             {historyExpanded ? <ChevronUp className="h-4 w-4 text-gray-700" /> : <ChevronDown className="h-4 w-4 text-gray-700" />}
           </button>
           {historyExpanded && (
-            <div className="max-h-48 overflow-y-auto">
-              {past.length === 0 && future.length === 0 ? (
-                <div className="px-4 py-8 text-center">
-                  <div className="flex justify-center mb-2">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  </div>
-                  <p className="text-sm text-gray-500">No history yet</p>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {/* Future items (redo) */}
-                  {future.map((snapshot, index) => {
-                    const action = (snapshot as any).action || 'Action'
-                    return (
-                      <div
-                        key={`future-${snapshot.id}-${index}`}
-                        className="mx-3 mb-2 p-3 bg-green-50 border border-green-200 rounded-lg opacity-60"
-                        title={`Future: ${action} - ${new Date(snapshot.timestamp).toLocaleTimeString()}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Redo className="w-4 h-4 text-green-600" />
-                          <div className="flex-1">
-                            <div className="text-xs text-green-600 font-medium">
-                              {new Date(snapshot.timestamp).toLocaleTimeString()}
-                            </div>
-                            <div className="text-sm text-green-700 truncate">
-                              {action}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+            <div className="px-4 py-3">
+              {/* Undo/Redo Buttons */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={onUndo}
+                  disabled={!canUndo()}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    canUndo() 
+                      ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200' 
+                      : 'bg-gray-50 text-gray-400 cursor-not-allowed border border-gray-200'
+                  }`}
+                  title={canUndo() ? 'Undo last action' : 'Nothing to undo'}
+                >
+                  <Undo className="w-4 h-4" />
+                  Undo
+                </button>
+                <button
+                  onClick={onRedo}
+                  disabled={!canRedo()}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    canRedo() 
+                      ? 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200' 
+                      : 'bg-gray-50 text-gray-400 cursor-not-allowed border border-gray-200'
+                  }`}
+                  title={canRedo() ? 'Redo last action' : 'Nothing to redo'}
+                >
+                  <Redo className="w-4 h-4" />
+                  Redo
+                </button>
+              </div>
 
-                  {/* Current state indicator */}
-                  <div className="mx-3 mb-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="flex-1">
-                        <div className="text-xs text-blue-600 font-medium">Current</div>
-                        <div className="text-sm text-blue-700">
-                          {displayLayers.reduce((total, layer) => total + layer.elements.length, 0)} elements
-                        </div>
-                      </div>
+              {/* History Stats */}
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600">Actions Available</span>
+                  <span className="font-medium text-gray-900">{past.length + future.length}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600">Current Elements</span>
+                  <span className="font-medium text-gray-900">
+                    {displayLayers.reduce((total, layer) => total + layer.elements.length, 0)}
+                  </span>
+                </div>
+                {past.length > 0 && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <div className="text-xs text-gray-600 mb-1">Last Action:</div>
+                    <div className="text-xs font-medium text-gray-900 truncate">
+                      {((past[past.length - 1] as any)?.action || 'Unknown action').substring(0, 30)}
+                      {((past[past.length - 1] as any)?.action || '').length > 30 ? '...' : ''}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {new Date((past[past.length - 1] as any)?.timestamp || Date.now()).toLocaleTimeString()}
                     </div>
                   </div>
-
-                  {/* Past items (undo) */}
-                  {past.slice().reverse().map((snapshot, index) => {
-                    const action = (snapshot as any).action || 'Action'
-                    return (
-                      <div
-                        key={`past-${snapshot.id}-${index}`}
-                        className="mx-3 mb-2 p-3 bg-orange-50 border border-orange-200 rounded-lg opacity-60"
-                        title={`Past: ${action} - ${new Date(snapshot.timestamp).toLocaleTimeString()}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Undo className="w-4 h-4 text-orange-600" />
-                          <div className="flex-1">
-                            <div className="text-xs text-orange-600 font-medium">
-                              {new Date(snapshot.timestamp).toLocaleTimeString()}
-                            </div>
-                            <div className="text-sm text-orange-700 truncate">
-                              {action}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>

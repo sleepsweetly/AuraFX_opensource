@@ -18,8 +18,9 @@ import { ActionRecordingPanel } from "@/components/panels/action-recording-panel
 import { ChangelogModal } from "@/components/changelog-modal"
 import { PerformancePanel } from "@/components/panels/performance-panel"
 import { EffectListPanel } from "@/components/EffectListPanel"
+import { AnnouncementSystem } from "@/components/announcement-system"
 import type { Layer, Element, Tool, ActionRecord } from "@/types"
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/toast-system"
 import { v4 as uuidv4 } from "uuid"
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
 import { generateEffectCode } from "./generate-effect-code"
@@ -34,7 +35,7 @@ import { Settings, Grid3X3, Zap, Hash, Palette, X, Sparkles } from "lucide-react
 import { use3DStore } from "@/app/3d/store/use3DStore"
 import { useClipboardStore } from "@/store/useClipboardStore"
 import { useLayerStore } from "@/store/useLayerStore"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/toast-system"
 import { analyzeEffectLines, optimizeEffects, applyTemplate } from "@/lib/effect-optimizer"
 import type { OptimizationSettings } from "@/lib/effect-optimizer"
 import * as yaml from 'js-yaml'
@@ -53,17 +54,7 @@ declare global {
   }
 }
 
-const ANNOUNCEMENT_TYPES = {
-  info: { icon: "ℹ️", color: "#3B82F6" },
-  success: { icon: "✅", color: "#10B981" },
-  warning: { icon: "⚠️", color: "#F59E0B" },
-  error: { icon: "❌", color: "#EF4444" },
-  maintenance: { icon: "🛠️", color: "#8B5CF6" },
-  update: { icon: "🔔", color: "#06B6D4" },
-  security: { icon: "🔐", color: "#DC2626" },
-  feature: { icon: "✨", color: "#F97316" },
-  loading: { icon: "⏳", color: "#6B7280" },
-}
+
 
 interface Viewport {
   width: number;
@@ -938,15 +929,7 @@ export default function EffectEditor() {
     isRecording: storeIsRecording
   } = useActionRecordingStore();
 
-  // Duyuru toast'ları için özel state
-  const [announcementToasts, setAnnouncementToasts] = useState<Array<{
-    id: string;
-    title: string;
-    message: string;
-    type: string;
-    timestamp: number;
-    image?: string; // Sunucu reklamları için görsel
-  }>>([]);
+
 
   // Toast event listener'ı ekle
   useEffect(() => {
@@ -1007,11 +990,12 @@ export default function EffectEditor() {
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [selectedElementIds, setSelectedElementIds] = useState<string[]>([]);
-  const [expandedModes, setExpandedModes] = useState<string[]>([]);
+  const [expandedModes, setExpandedModes] = useState<Record<string, boolean>>({});
   const [chainSequence, setChainSequence] = useState<string[]>([]);
   const [chainItems, setChainItems] = useState<Array<{ type: 'element' | 'delay', id: string, elementId?: string, elementIds?: string[], delay?: number }>>([]);
   const [showQuickSettings, setShowQuickSettings] = useState(false);
   const [showParticleModal, setShowParticleModal] = useState(false);
+  const [canvasBackgroundColor, setCanvasBackgroundColor] = useState("#ffffff");
 
   // Synchronize selectedElementIds with selectedShapeIds
   useEffect(() => {
@@ -2440,7 +2424,7 @@ export default function EffectEditor() {
                 modeSettings={modeSettings}
                 onModeSettingsChange={(newSettings) => setModeSettings(newSettings as typeof modeSettings)}
                 expandedModes={expandedModes}
-                onExpandedModesChange={(modes) => setExpandedModes(modes)}
+                onExpandedModesChange={(modes: Record<string, boolean>) => setExpandedModes(modes)}
               />
             </DraggablePanel>
           );
@@ -2591,32 +2575,7 @@ export default function EffectEditor() {
     });
   };
 
-  // Duyuruları çek ve toast olarak göster
-  useEffect(() => {
-    fetch("https://raw.githubusercontent.com/sleepsweetly/AuraFX-Launcher-Apps/refs/heads/main/announcements.json")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.announcements && Array.isArray(data.announcements)) {
-          // Duyuruları özel container'a ekle
-          const newToasts = data.announcements.map((announcement: any) => ({
-            id: `announcement-${Date.now()}-${Math.random()}`,
-            title: announcement.title,
-            message: announcement.message,
-            type: announcement.type,
-            timestamp: Date.now(),
-            image: announcement.image, // Görsel desteği
-          }));
 
-          setAnnouncementToasts(newToasts);
-
-          // 8 saniye sonra otomatik kaldır
-          setTimeout(() => {
-            setAnnouncementToasts([]);
-          }, 8000);
-        }
-      })
-      .catch(() => { });
-  }, [toast]);
 
 
 
@@ -2987,152 +2946,8 @@ export default function EffectEditor() {
         )}
         <Toaster />
 
-        {/* Modern Duyuru Toast Container - Sayfanın en üstünde ortada */}
-        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[9999] space-y-3">
-          <AnimatePresence>
-            {announcementToasts.map((announcementToast, index) => {
-              // Modern gradient ve glow efektleri
-              let gradientClass = "";
-              let borderClass = "";
-              let glowClass = "";
-              let iconBgClass = "";
-
-              switch (announcementToast.type) {
-                case 'success':
-                  gradientClass = "bg-gradient-to-r from-green-500/10 to-emerald-500/5";
-                  borderClass = "border-green-500/30";
-                  glowClass = "shadow-green-500/20";
-                  iconBgClass = "bg-green-500/20 text-green-400";
-                  break;
-                case 'warning':
-                  gradientClass = "bg-gradient-to-r from-orange-500/10 to-yellow-500/5";
-                  borderClass = "border-orange-500/30";
-                  glowClass = "shadow-orange-500/20";
-                  iconBgClass = "bg-orange-500/20 text-orange-400";
-                  break;
-                case 'error':
-                case 'security':
-                  gradientClass = "bg-gradient-to-r from-red-500/10 to-rose-500/5";
-                  borderClass = "border-red-500/30";
-                  glowClass = "shadow-red-500/20";
-                  iconBgClass = "bg-red-500/20 text-red-400";
-                  break;
-                case 'info':
-                  gradientClass = "bg-gradient-to-r from-blue-500/10 to-cyan-500/5";
-                  borderClass = "border-blue-500/30";
-                  glowClass = "shadow-blue-500/20";
-                  iconBgClass = "bg-blue-500/20 text-blue-400";
-                  break;
-                case 'feature':
-                  gradientClass = "bg-gradient-to-r from-purple-500/10 to-violet-500/5";
-                  borderClass = "border-purple-500/30";
-                  glowClass = "shadow-purple-500/20";
-                  iconBgClass = "bg-purple-500/20 text-purple-400";
-                  break;
-                case 'update':
-                  gradientClass = "bg-gradient-to-r from-cyan-500/10 to-teal-500/5";
-                  borderClass = "border-cyan-500/30";
-                  glowClass = "shadow-cyan-500/20";
-                  iconBgClass = "bg-cyan-500/20 text-cyan-400";
-                  break;
-                default:
-                  gradientClass = "bg-gradient-to-r from-indigo-500/10 to-blue-500/5";
-                  borderClass = "border-indigo-500/30";
-                  glowClass = "shadow-indigo-500/20";
-                  iconBgClass = "bg-indigo-500/20 text-indigo-400";
-              }
-
-              return (
-                <motion.div
-                  key={announcementToast.id}
-                  initial={{ opacity: 0, y: -60, scale: 0.8, rotateX: -15 }}
-                  animate={{ opacity: 1, y: 0, scale: 1, rotateX: 0 }}
-                  exit={{ opacity: 0, y: -60, scale: 0.8, rotateX: 15 }}
-                  transition={{
-                    duration: 0.4,
-                    delay: index * 0.1,
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 25
-                  }}
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  className={`${gradientClass} ${borderClass} ${glowClass} backdrop-blur-xl border rounded-2xl p-6 bg-black/80 min-w-[480px] max-w-[580px] shadow-2xl`}
-                >
-                  <div className="flex items-start space-x-4">
-                    {/* Modern Icon/Image Container */}
-                    <motion.div
-                      className={`flex-shrink-0 w-20 h-20 rounded-xl ${iconBgClass} flex items-center justify-center text-lg font-semibold overflow-hidden`}
-                      initial={{ scale: 0, rotate: -180 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ delay: index * 0.1 + 0.2, type: "spring", stiffness: 400 }}
-                    >
-                      {announcementToast.image ? (
-                        <img
-                          src={announcementToast.image}
-                          alt="Server"
-                          className="w-full h-full object-cover rounded-xl"
-                          onError={(e) => {
-                            // Görsel yüklenemezse icon'a geri dön
-                            e.currentTarget.style.display = 'none';
-                            (e.currentTarget.nextElementSibling as HTMLElement)!.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className={`w-full h-full flex items-center justify-center ${announcementToast.image ? 'hidden' : ''}`}
-                      >
-                        {ANNOUNCEMENT_TYPES[announcementToast.type as keyof typeof ANNOUNCEMENT_TYPES]?.icon || "📢"}
-                      </div>
-                    </motion.div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <motion.h4
-                        className="text-base font-bold text-white mb-1"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 + 0.3 }}
-                      >
-                        {announcementToast.title}
-                      </motion.h4>
-                      <motion.p
-                        className="text-sm text-zinc-300 leading-relaxed"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 + 0.4 }}
-                      >
-                        {announcementToast.message}
-                      </motion.p>
-                    </div>
-
-                    {/* Modern Close Button */}
-                    <motion.button
-                      onClick={() => {
-                        setAnnouncementToasts(prev => prev.filter(t => t.id !== announcementToast.id));
-                      }}
-                      className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/70 text-zinc-400 hover:text-white transition-all duration-200 flex items-center justify-center text-sm font-bold"
-                      whileHover={{ scale: 1.1, rotate: 90 }}
-                      whileTap={{ scale: 0.9 }}
-                      initial={{ opacity: 0, scale: 0 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.1 + 0.5 }}
-                    >
-                      ×
-                    </motion.button>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <motion.div
-                    className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-b-2xl"
-                    initial={{ width: "100%" }}
-                    animate={{ width: "0%" }}
-                    transition={{ duration: 8, ease: "linear" }}
-                  />
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
+        {/* Announcement System */}
+        <AnnouncementSystem />
 
         {/* Header */}
         <Header
@@ -3273,6 +3088,8 @@ export default function EffectEditor() {
             if (layer) selectLayer(layer);
           }}
           onUpdateLayer={updateLayer}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
           onReorderLayers={(fromIndex, toIndex) => {
             console.log('MAIN onReorderLayers called:', { fromIndex, toIndex, layersCount: layers.length });
             console.log('MAIN Before reorder:', layers.map(l => ({ id: l.id, name: l.name })));
@@ -3323,6 +3140,7 @@ export default function EffectEditor() {
               updateSelectedElementsParticle={updateSelectedElementsParticle}
               onElementCountChange={handleElementCountChange}
               onZoomIn={handleZoomIn}
+              backgroundColor={canvasBackgroundColor}
               onZoomOut={handleZoomOut}
               scale={canvasScale}
               viewMode={viewMode}
@@ -3427,6 +3245,23 @@ export default function EffectEditor() {
                     value={settings.color || "#000000"}
                     onChange={(color) => {
                       setSettings({ ...settings, color })
+                    }}
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Canvas Background Color */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-orange-100 rounded-md flex items-center justify-center">
+                      <Palette className="w-3 h-3 text-orange-600" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">Canvas Background</span>
+                  </div>
+                  <ColorPicker
+                    value={canvasBackgroundColor}
+                    onChange={(color) => {
+                      setCanvasBackgroundColor(color)
                     }}
                     className="w-full"
                   />

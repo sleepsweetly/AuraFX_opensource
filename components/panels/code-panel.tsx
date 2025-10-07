@@ -1,16 +1,12 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
+import React, { useState } from "react"
 import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Download,
   Copy,
   Loader2,
-  Sparkles,
   Check,
   Code2,
   Zap,
@@ -19,12 +15,11 @@ import {
   EyeOff,
   ChevronDown,
   ChevronUp,
-  Play,
   Settings,
   Film
 } from "lucide-react"
 import type { Layer } from "@/types"
-import { toast } from "@/components/ui/use-toast"
+import { useToast } from "@/components/toast-system"
 
 interface CodePanelProps {
   code?: string
@@ -104,7 +99,7 @@ function CompactCodeDisplay({ code, isVisible }: { code: string; isVisible: bool
 
   if (!isVisible) {
     return (
-      <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
+      <div className="h-full flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
         <div className="text-center space-y-1">
           <EyeOff className="w-6 h-6 text-gray-400 mx-auto" />
           <p className="text-xs text-gray-500">Preview hidden</p>
@@ -114,7 +109,7 @@ function CompactCodeDisplay({ code, isVisible }: { code: string; isVisible: bool
   }
 
   return (
-    <div className="h-64 flex flex-col bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <div className="h-80 flex flex-col bg-white rounded-lg border border-gray-200 overflow-hidden">
       {/* Compact Header */}
       <div className="flex-shrink-0 px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -130,13 +125,13 @@ function CompactCodeDisplay({ code, isVisible }: { code: string; isVisible: bool
 
       {/* Compact Code Content - Scrollable */}
       <div className="flex-1 overflow-auto compact-scrollbar">
-        <div className="font-mono text-[10px] leading-tight">
+        <div className="font-mono text-[10px] leading-tight min-w-max">
           {lines.map((line, index) => (
-            <div key={index} className="flex hover:bg-gray-50 transition-colors">
+            <div key={index} className="flex hover:bg-gray-50 transition-colors min-w-max">
               <span className="flex-shrink-0 text-gray-400 text-right px-2 py-0.5 select-none w-8 bg-gray-50/50">
                 {index + 1}
               </span>
-              <span className="px-2 py-0.5 flex-1 text-gray-700 whitespace-pre">
+              <span className="px-2 py-0.5 text-gray-700 whitespace-nowrap">
                 {line || " "}
               </span>
             </div>
@@ -146,17 +141,21 @@ function CompactCodeDisplay({ code, isVisible }: { code: string; isVisible: bool
 
       <style jsx>{`
         .compact-scrollbar::-webkit-scrollbar {
-          width: 4px;
+          width: 6px;
+          height: 6px;
         }
         .compact-scrollbar::-webkit-scrollbar-track {
           background: #f9fafb;
         }
         .compact-scrollbar::-webkit-scrollbar-thumb {
           background: #d1d5db;
-          border-radius: 2px;
+          border-radius: 3px;
         }
         .compact-scrollbar::-webkit-scrollbar-thumb:hover {
           background: #9ca3af;
+        }
+        .compact-scrollbar::-webkit-scrollbar-corner {
+          background: #f9fafb;
         }
       `}</style>
     </div>
@@ -204,6 +203,7 @@ export function CodePanel({
   const [framesExpanded, setFramesExpanded] = useState(false)
   const [frameMode, setFrameMode] = useState<"auto" | "manual">("auto")
   const [manualFrameCount, setManualFrameCount] = useState(120)
+  const { toast } = useToast()
 
   // Check if any animation modes are active
   const hasAnimationModes = Object.values(modes).some(Boolean)
@@ -262,26 +262,28 @@ export function CodePanel({
   }
 
   return (
-    <div className="w-full max-w-md mx-auto h-full flex flex-col bg-white p-4 overflow-y-auto">
+    <div className="h-full w-full bg-white flex flex-col text-sm">
       {/* Header */}
-      <div className="flex-shrink-0 mb-6">
+      <div className="flex-shrink-0 p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <Code2 className="w-5 h-5 text-gray-700" />
+          <div className="p-2 bg-purple-50 rounded-lg">
+            <Code2 className="w-5 h-5 text-purple-600" />
+          </div>
           <div>
-            <h3 className="font-semibold text-gray-900 text-base">Code Generator</h3>
+            <h3 className="font-semibold text-gray-900 text-lg">Code Generator</h3>
             <p className="text-sm text-gray-500">Configure and export your effect</p>
           </div>
         </div>
       </div>
 
       {/* Generate Button */}
-      <div className="flex-shrink-0 mb-6">
+      <div className="flex-shrink-0 p-4 border-b border-gray-200">
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="w-full py-3 px-4 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+          className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
         >
           {isGenerating ? (
             <>
@@ -298,201 +300,214 @@ export function CodePanel({
       </div>
 
       {/* Settings Section */}
-      <div className="flex-shrink-0 mb-6">
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          onClick={() => setSettingsExpanded(!settingsExpanded)}
-          className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors mb-3"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
-              <Settings className="w-4 h-4 text-gray-600" />
-            </div>
-            <div className="text-left">
-              <h4 className="text-sm font-semibold text-gray-900">Settings</h4>
+      <div className="flex-1 overflow-y-auto p-1">
+        <div className="mb-1">
+          <motion.div
+            layout
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 relative hover:bg-gray-100"
+            whileHover={{ x: 2 }}
+          >
+            <Settings className="w-4 h-4 flex-shrink-0 text-gray-600" />
+            <div className="flex-1">
+              <span className="font-medium text-gray-900">Settings</span>
               <p className="text-xs text-gray-500">Effect configuration</p>
             </div>
-          </div>
-          <motion.div
-            animate={{ rotate: settingsExpanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <ChevronDown className="h-4 w-4 text-gray-400" />
+
+            <button
+              onClick={() => setSettingsExpanded(!settingsExpanded)}
+              className="p-1 rounded hover:bg-gray-200 transition-colors"
+            >
+              {settingsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
           </motion.div>
-        </motion.button>
-
-        <AnimatePresence>
-          {settingsExpanded && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="overflow-hidden"
-            >
-              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                {/* Skill Name */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Skill Name</Label>
-                  <Input
-                    type="text"
-                    value={settings.skillName}
-                    onChange={(e) => onSettingsChange({ ...settings, skillName: e.target.value })}
-                    placeholder="Enter effect name..."
-                    className="bg-white border-gray-200 text-gray-900"
-                  />
-                </div>
-
-                {/* Optimizer */}
-                <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <Sparkles className="w-4 h-4 text-gray-600" />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-900">Code Optimizer</span>
-                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full font-medium">BETA</span>
-                      </div>
-                      <p className="text-xs text-gray-500">Optimizes circle patterns</p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={optimize}
-                    onCheckedChange={setOptimize}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Animation Frames Section */}
-      {hasAnimationModes && (
-        <div className="flex-shrink-0 mb-6">
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-            onClick={() => setFramesExpanded(!framesExpanded)}
-            className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors mb-3"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
-                <Film className="w-4 h-4 text-gray-600" />
-              </div>
-              <div className="text-left">
-                <h4 className="text-sm font-semibold text-gray-900">Animation Frames</h4>
-                <p className="text-xs text-gray-500">Frame configuration</p>
-              </div>
-            </div>
-            <motion.div
-              animate={{ rotate: framesExpanded ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            </motion.div>
-          </motion.button>
 
           <AnimatePresence>
-            {framesExpanded && (
+            {settingsExpanded && (
               <motion.div
+                layout
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
+                transition={{ duration: 0.3, ease: [0.4, 0.0, 0.2, 1] }}
                 className="overflow-hidden"
               >
-                <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  {/* Frame Mode Selection */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium text-gray-700">Frame Mode</Label>
-                    <div className="grid grid-cols-2 gap-2">
+                <div className="px-3 pb-3 pl-7">
+                  <div className="bg-gray-50 rounded-md p-3 space-y-3 border border-gray-100">
+                    {/* Skill Name */}
+                    <div className="space-y-2">
+                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Skill Name</span>
+                      <Input
+                        type="text"
+                        value={settings.skillName}
+                        onChange={(e) => onSettingsChange({ ...settings, skillName: e.target.value })}
+                        placeholder="Enter effect name..."
+                        className="bg-white border-gray-200 text-gray-900 text-sm"
+                      />
+                    </div>
+
+                    {/* Optimizer */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Optimize Code</span>
                       <button
-                        onClick={() => handleFrameModeChange("auto")}
-                        className={`p-3 rounded-lg border transition-all text-sm font-medium ${frameMode === "auto"
-                          ? "border-gray-300 bg-gray-100 text-gray-900"
-                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                        onClick={() => setOptimize(!optimize)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${optimize ? 'bg-purple-500' : 'bg-gray-300'
                           }`}
                       >
-                        Auto
-                      </button>
-                      <button
-                        onClick={() => handleFrameModeChange("manual")}
-                        className={`p-3 rounded-lg border transition-all text-sm font-medium ${frameMode === "manual"
-                          ? "border-gray-300 bg-gray-100 text-gray-900"
-                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                          }`}
-                      >
-                        Manual
+                        <motion.span
+                          layout
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${optimize ? 'translate-x-4' : 'translate-x-0.5'
+                            }`}
+                        />
                       </button>
                     </div>
                   </div>
-
-                  {/* Manual Frame Count */}
-                  {frameMode === "manual" && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium text-gray-700">Frame Count</Label>
-                        <span className="text-xs text-gray-500">{manualFrameCount}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={12}
-                        max={240}
-                        step={6}
-                        value={manualFrameCount}
-                        onChange={(e) => handleManualFrameChange(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer slider-modern"
-                      />
-                    </div>
-                  )}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-      )}
 
-      {/* Code Preview Section */}
-      <div className="flex-1 flex flex-col">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <FileCode className="w-4 h-4 text-gray-600" />
-            <span className="text-sm font-medium text-gray-900">Code Preview</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowCode(!showCode)}
-              className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+        {/* Animation Frames Section */}
+        {hasAnimationModes && (
+          <div className="mb-1">
+            <motion.div
+              layout
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 relative hover:bg-gray-100"
+              whileHover={{ x: 2 }}
             >
-              {showCode ? <Eye className="w-4 h-4 text-gray-600" /> : <EyeOff className="w-4 h-4 text-gray-600" />}
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleCopy}
-              disabled={!code || isGenerating}
-              className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-gray-600" />}
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleDownload}
-              disabled={!code || isGenerating}
-              className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              <Download className="w-4 h-4 text-gray-600" />
-            </motion.button>
-          </div>
-        </div>
+              <Film className="w-4 h-4 flex-shrink-0 text-gray-600" />
+              <div className="flex-1">
+                <span className="font-medium text-gray-900">Animation Frames</span>
+                <p className="text-xs text-gray-500">Frame configuration</p>
+              </div>
 
-        {/* Code Display */}
-        <div className="flex-1">
-          <CompactCodeDisplay code={code} isVisible={showCode} />
+              <button
+                onClick={() => setFramesExpanded(!framesExpanded)}
+                className="p-1 rounded hover:bg-gray-200 transition-colors"
+              >
+                {framesExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </motion.div>
+
+            <AnimatePresence>
+              {framesExpanded && (
+                <motion.div
+                  layout
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: [0.4, 0.0, 0.2, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-3 pb-3 pl-7">
+                    <div className="bg-gray-50 rounded-md p-3 space-y-3 border border-gray-100">
+                      {/* Frame Mode Selection */}
+                      <div className="space-y-2">
+                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Frame Mode</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => handleFrameModeChange("auto")}
+                            className={`p-2 rounded-md border transition-all text-xs font-medium ${frameMode === "auto"
+                              ? "border-purple-300 bg-purple-100 text-purple-900"
+                              : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                              }`}
+                          >
+                            Auto
+                          </button>
+                          <button
+                            onClick={() => handleFrameModeChange("manual")}
+                            className={`p-2 rounded-md border transition-all text-xs font-medium ${frameMode === "manual"
+                              ? "border-purple-300 bg-purple-100 text-purple-900"
+                              : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                              }`}
+                          >
+                            Manual
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Manual Frame Count */}
+                      {frameMode === "manual" && (
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Frame Count</span>
+                            <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">
+                              {manualFrameCount}
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={12}
+                            max={240}
+                            step={6}
+                            value={manualFrameCount}
+                            onChange={(e) => handleManualFrameChange(Number(e.target.value))}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                          />
+                          <div className="flex justify-between text-xs text-gray-400">
+                            <span>12</span>
+                            <span>240</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* Code Preview Section */}
+        <div className="mb-1">
+          <motion.div
+            layout
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 relative hover:bg-gray-100"
+            whileHover={{ x: 2 }}
+          >
+            <FileCode className="w-4 h-4 flex-shrink-0 text-gray-600" />
+            <div className="flex-1">
+              <span className="font-medium text-gray-900">Code Preview</span>
+              <p className="text-xs text-gray-500">Generated effect code</p>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowCode(!showCode)}
+                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                title={showCode ? "Hide code" : "Show code"}
+              >
+                {showCode ? <Eye className="w-4 h-4 text-gray-600" /> : <EyeOff className="w-4 h-4 text-gray-600" />}
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCopy}
+                disabled={!code || isGenerating}
+                className="p-1 rounded hover:bg-gray-200 transition-colors disabled:opacity-50"
+                title="Copy code"
+              >
+                {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-gray-600" />}
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleDownload}
+                disabled={!code || isGenerating}
+                className="p-1 rounded hover:bg-gray-200 transition-colors disabled:opacity-50"
+                title="Download code"
+              >
+                <Download className="w-4 h-4 text-gray-600" />
+              </motion.button>
+            </div>
+          </motion.div>
+
+          {/* Code Display */}
+          <div className="px-3 pb-3">
+            <CompactCodeDisplay code={code} isVisible={showCode} />
+          </div>
         </div>
       </div>
     </div>
