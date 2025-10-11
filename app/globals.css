@@ -119,26 +119,26 @@
   font-style: normal;
 }
 
-/* Modern Global Scrollbar Styles */
+/* Modern Global Scrollbar Styles - White Theme */
 html, body, * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.8) rgba(255, 255, 255, 0.1);
+  scrollbar-color: #d1d5db #ffffff;
 }
 
 /* Webkit browsers */
 html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar {
   width: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: #ffffff;
   border-radius: 8px;
 }
 html::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb, *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.8);
+  background: #e5e7eb;
   border-radius: 8px;
   min-height: 40px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid #ffffff;
 }
 html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover, *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.9);
+  background: #d1d5db;
 }
 
 /* Custom Scrollbar Styles */
@@ -147,27 +147,27 @@ html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover, *::-we
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
+  background: #ffffff;
   border-radius: 6px;
   margin: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.7));
+  background: linear-gradient(180deg, #e5e7eb, #d1d5db);
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid #f3f4f6;
   min-height: 40px;
   transition: all 0.2s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8));
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, #d1d5db, #9ca3af);
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
 }
 
 .custom-scrollbar::-webkit-scrollbar-corner {
-  background: rgba(255, 255, 255, 0.1);
+  background: #ffffff;
   border-radius: 6px;
 }
 

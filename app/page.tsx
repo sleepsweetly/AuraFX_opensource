@@ -15,7 +15,7 @@ import { ModesPanel } from "@/components/panels/modes-panel"
 import { ChainPanel } from "@/components/panels/chain-panel"
 import { ImportPanel } from "@/components/panels/import-panel"
 import { ActionRecordingPanel } from "@/components/panels/action-recording-panel"
-import { ChangelogModal } from "@/components/changelog-modal"
+
 import { PerformancePanel } from "@/components/panels/performance-panel"
 import { EffectListPanel } from "@/components/EffectListPanel"
 import { AnnouncementSystem } from "@/components/announcement-system"
@@ -855,7 +855,7 @@ function DraggablePanel({ title, children, defaultPosition, defaultSize, onClose
               className="h-full overflow-y-auto p-4 pb-6 scroll-contain custom-scrollbar"
               style={{
                 scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(255, 255, 255, 0.2) rgba(0, 0, 0, 0.3)',
+                scrollbarColor: '#e5e7eb #ffffff',
                 scrollbarGutter: 'stable'
               }}
               onWheel={(e) => {
@@ -902,7 +902,7 @@ interface FetchedAnnouncements {
 export default function EffectEditor() {
   const [openPanels, setOpenPanels] = useState<string[]>([]);
   const [minimizedPanels, setMinimizedPanels] = useState<string[]>([]);
-  const [showChangelog, setShowChangelog] = useState(false);
+
   const { toast } = useToast();
 
   // Changelog otomatik gösterim kontrolü
@@ -911,7 +911,6 @@ export default function EffectEditor() {
     const currentVersion = '2.1.7'; // Her deploy'da bu versiyonu güncelleyin
 
     if (lastSeenVersion !== currentVersion) {
-      setShowChangelog(true);
       localStorage.setItem('aurafx-last-seen-version', currentVersion);
     }
 
@@ -3164,11 +3163,7 @@ export default function EffectEditor() {
 
 
 
-      {/* Changelog Modal */}
-      <ChangelogModal
-        isOpen={showChangelog}
-        onClose={() => setShowChangelog(false)}
-      />
+
 
       {/* Quick Settings Modal */}
       <AnimatePresence>

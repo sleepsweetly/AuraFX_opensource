@@ -1,6 +1,6 @@
 "use client"
 
-import { Wrench, Zap, FolderOpen, Settings, Code, Link, Video, Gauge, Minimize2, Maximize2 } from "lucide-react"
+import { Wrench, Zap, FolderOpen, Settings, Code, Link, Video, Gauge, Minimize2, Maximize2, Sparkles } from "lucide-react"
 import { ToolsPanel } from "@/components/panels/tools-panel"
 import { ModesPanel } from "@/components/panels/modes-panel"
 import { ImportPanel } from "@/components/panels/import-panel"
@@ -9,6 +9,7 @@ import { CodePanel } from "@/components/panels/code-panel"
 import { ChainPanel } from "@/components/panels/chain-panel"
 import { PerformancePanel } from "@/components/panels/performance-panel"
 import { ActionRecordingPanel } from "@/components/panels/action-recording-panel"
+import { ChangelogPanel } from "@/components/panels/changelog-panel"
 import React, { useState } from "react"
 import { motion, AnimatePresence, Variants } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -136,6 +137,7 @@ export function RightSidebar({
     { id: "element-config", name: "Element Config", icon: Settings },
     { id: "code", name: "Code", icon: Code },
     { id: "performance", name: "Performance", icon: Gauge },
+    { id: "changelog", name: "What's New", icon: Sparkles },
   ]
 
   const conditionalTabs = []
@@ -163,6 +165,7 @@ export function RightSidebar({
       case "chain": return <ChainPanel layers={layers || []} currentLayerId={currentLayer?.id || null} chainSequence={chainSequence || []} onChainSequenceChange={onChainSequenceChange || (() => { })} selectedElementIds={selectedElementIds || []} chainItems={chainItems || []} onChainItemsChange={onChainItemsChange || (() => { })} />
       case "recording": return <ActionRecordingPanel isRecording={isRecording || false} onToggleRecording={onToggleRecording || (() => { })} />
       case "performance": return <PerformancePanel currentLineCount={currentLineCount || 0} onOptimize={onOptimize || (() => { })} onApplyTemplate={onApplyTemplate || (() => { })} />
+      case "changelog": return <ChangelogPanel />
       default: return <div className="text-center text-gray-500 py-8">Select a panel</div>
     }
   }

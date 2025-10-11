@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -92,10 +92,31 @@ function cleanCode(code: string, removeAllComments: boolean = false): string {
   return cleanedLines.join('\n')
 }
 
-// Compact Code Display Component
+// Virtual Scrolling Code Display Component
 function CompactCodeDisplay({ code, isVisible }: { code: string; isVisible: boolean }) {
   const cleanedCode = cleanCode(code, true) // Remove ALL comments for preview
-  const lines = cleanedCode.split("\n").filter(line => line.trim()) // Remove empty lines too
+  const allLines = cleanedCode.split("\n").filter(line => line.trim()) // Remove empty lines too
+  
+  const [scrollTop, setScrollTop] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+  
+  // Virtual scrolling parameters
+  const LINE_HEIGHT = 16 // Height of each line in pixels
+  const CONTAINER_HEIGHT = 320 - 40 // Total height minus header
+  const VISIBLE_LINES = Math.ceil(CONTAINER_HEIGHT / LINE_HEIGHT)
+  const BUFFER_SIZE = 10 // Extra lines to render for smooth scrolling
+  
+  // Calculate which lines to render
+  const startIndex = Math.max(0, Math.floor(scrollTop / LINE_HEIGHT) - BUFFER_SIZE)
+  const endIndex = Math.min(allLines.length, startIndex + VISIBLE_LINES + (BUFFER_SIZE * 2))
+  const visibleLines = allLines.slice(startIndex, endIndex)
+  
+  // Total height for scrollbar
+  const totalHeight = allLines.length * LINE_HEIGHT
+  
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop)
+  }
 
   if (!isVisible) {
     return (
@@ -120,22 +141,42 @@ function CompactCodeDisplay({ code, isVisible }: { code: string; isVisible: bool
           </div>
           <span className="text-xs font-mono text-gray-600">effect.yaml</span>
         </div>
-        <span className="text-[10px] text-gray-500">{lines.length} lines</span>
+        <span className="text-[10px] text-gray-500">{allLines.length} lines</span>
       </div>
 
-      {/* Compact Code Content - Scrollable */}
-      <div className="flex-1 overflow-auto compact-scrollbar">
-        <div className="font-mono text-[10px] leading-tight min-w-max">
-          {lines.map((line, index) => (
-            <div key={index} className="flex hover:bg-gray-50 transition-colors min-w-max">
-              <span className="flex-shrink-0 text-gray-400 text-right px-2 py-0.5 select-none w-8 bg-gray-50/50">
-                {index + 1}
-              </span>
-              <span className="px-2 py-0.5 text-gray-700 whitespace-nowrap">
-                {line || " "}
-              </span>
-            </div>
-          ))}
+      {/* Virtual Scrolling Code Content */}
+      <div 
+        ref={containerRef}
+        className="flex-1 overflow-auto compact-scrollbar"
+        onScroll={handleScroll}
+      >
+        <div style={{ height: totalHeight, position: 'relative' }}>
+          <div 
+            style={{ 
+              position: 'absolute',
+              top: startIndex * LINE_HEIGHT,
+              width: '100%'
+            }}
+            className="font-mono text-[10px] leading-tight min-w-max"
+          >
+            {visibleLines.map((line, index) => {
+              const actualIndex = startIndex + index
+              return (
+                <div 
+                  key={actualIndex} 
+                  className="flex hover:bg-gray-50 transition-colors min-w-max"
+                  style={{ height: LINE_HEIGHT }}
+                >
+                  <span className="flex-shrink-0 text-gray-400 text-right px-2 py-0.5 select-none w-8 bg-gray-50/50">
+                    {actualIndex + 1}
+                  </span>
+                  <span className="px-2 py-0.5 text-gray-700 whitespace-nowrap">
+                    {line || " "}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
 
@@ -145,17 +186,17 @@ function CompactCodeDisplay({ code, isVisible }: { code: string; isVisible: bool
           height: 6px;
         }
         .compact-scrollbar::-webkit-scrollbar-track {
-          background: #f9fafb;
+          background: #ffffff;
         }
         .compact-scrollbar::-webkit-scrollbar-thumb {
-          background: #d1d5db;
+          background: #e5e7eb;
           border-radius: 3px;
         }
         .compact-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #9ca3af;
+          background: #d1d5db;
         }
         .compact-scrollbar::-webkit-scrollbar-corner {
-          background: #f9fafb;
+          background: #ffffff;
         }
       `}</style>
     </div>

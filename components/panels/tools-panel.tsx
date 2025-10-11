@@ -109,28 +109,23 @@ export function ToolsPanel({
                 </div>
 
                 {/* Araça Özel Kontroller */}
-                {currentTool === 'free' && (
-                  <div>
-                    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Brush Size</label>
-                    <input
-                      type="range"
-                      min="1"
-                      max="50"
-                      value={settings?.brushSize || 5}
-                      onChange={(e) => onSettingsChange?.({ ...settings, brushSize: e.target.value })}
-                      className="w-full mt-2 accent-blue-500"
-                    />
-                  </div>
-                )}
+
                 {currentTool === 'eraser' && (
                   <div>
                     <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Eraser Size</label>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-gray-500">1</span>
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono">
+                        {settings?.eraserSize || 20}px
+                      </span>
+                      <span className="text-xs text-gray-500">100</span>
+                    </div>
                     <input
                       type="range"
                       min="1"
                       max="100"
                       value={settings?.eraserSize || 20}
-                      onChange={(e) => onSettingsChange?.({ ...settings, eraserSize: e.target.value })}
+                      onChange={(e) => onSettingsChange?.({ ...settings, eraserSize: Number(e.target.value) })}
                       className="w-full mt-2 accent-blue-500"
                     />
                   </div>

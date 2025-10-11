@@ -1003,12 +1003,13 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     // Draw eraser cursor (kırmızı yuvarlak)
     if (currentTool === "eraser" && mousePosition) {
+      const eraserSize = settings?.eraserSize || 20;
       ctx.save();
       ctx.strokeStyle = "#ff0000";
       ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(mousePosition.x, mousePosition.y, 20, 0, 2 * Math.PI);
+      ctx.arc(mousePosition.x, mousePosition.y, eraserSize, 0, 2 * Math.PI);
       ctx.fill();
       ctx.stroke();
       ctx.restore();
@@ -1125,7 +1126,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     const centerX = canvas.width / 2 + offset.x
     const centerY = canvas.height / 2 + offset.y
-    const eraseRadius = 20
+    const eraseRadius = settings?.eraserSize || 20
 
     // Yeni element listesini oluştur
     const newElements = currentLayer.elements.filter((element) => {
