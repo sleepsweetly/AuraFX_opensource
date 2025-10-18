@@ -1664,7 +1664,7 @@ return (
     </div>
 
     {/* Import Types List */}
-    <div className="flex-1 overflow-y-auto p-1">
+    <div className="flex-1 overflow-y-auto p-1 scrollbar-hidden">
       <ImportTypeSection
         id="png"
         title="PNG Import"
@@ -1955,4 +1955,15 @@ function GifSettings({ settings, onSettingsChange }: { settings: any; onSettings
       </div>
     </div>
   );
-}}
+}
+
+      <style jsx>{`
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hidden {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+}

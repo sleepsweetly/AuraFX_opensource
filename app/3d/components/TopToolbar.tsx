@@ -2,63 +2,64 @@
 
 import { Button } from "@/components/ui/button"
 import {
-  MousePointer,
-  Move3D,
-  Grid3X3,
-  Axis3D,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+
   Download,
   Upload,
   Zap,
   ZapOff,
   Send,
   Hexagon,
-  Rotate3D,
-  Maximize2,
-  Play,
-  Monitor,
-  HelpCircle,
+
+
+
+  ChevronDown,
+  FileText,
+  FolderOpen,
+  Plus,
+  BookOpen
 } from "lucide-react"
 import { use3DStore } from "../store/use3DStore"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useLayerStore } from "@/store/useLayerStore"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, Variants } from "framer-motion"
+
+interface TopToolbarProps {
+  useOptimizedRenderer?: boolean
+  setUseOptimizedRenderer?: (v: boolean) => void
+  onNewProject?: () => void
+  onSave?: () => void
+  onLoad?: () => void
+}
 
 export function TopToolbar({
-  vrMode,
-  setVRMode,
-  onShowTutorial,
   useOptimizedRenderer,
-  setUseOptimizedRenderer
-}: {
-  vrMode: boolean,
-  setVRMode: (v: boolean) => void,
-  onShowTutorial?: () => void,
-  useOptimizedRenderer?: boolean,
-  setUseOptimizedRenderer?: (v: boolean) => void
-}) {
+  setUseOptimizedRenderer,
+  onNewProject,
+  onSave,
+  onLoad
+}: TopToolbarProps) {
   const router = useRouter()
   const {
-    currentTool,
-    setCurrentTool,
-    scene,
-    updateScene,
     exportToMythicMobs,
   } = use3DStore()
 
-
-
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([])
   const [showSendModal, setShowSendModal] = useState(false)
-  const [simpleTransfer, setSimpleTransfer] = useState(false) // Sade geçiş seçeneği
+  const [simpleTransfer, setSimpleTransfer] = useState(false)
 
-  const mainLayers = useLayerStore((state) => state.layers) // 2D editördeki katmanlar
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null)
 
-  // 3D editördeki katmanları al
+  const mainLayers = useLayerStore((state) => state.layers)
   const threeDLayers = use3DStore((state) => state.layers)
   const threeDShapes = use3DStore((state) => state.shapes)
-
-
 
   const handleExportMythicMobs = () => {
     const data = exportToMythicMobs()
@@ -95,13 +96,10 @@ export function TopToolbar({
     setShowSendModal(true);
   }
 
-
-
   const handleSendElements = () => {
     console.log('=== 3D->2D TRANSFER ===');
 
     try {
-      // 3D store'dan elementleri export et
       const { exportToMainSystem } = use3DStore.getState();
       const elements = exportToMainSystem();
 
@@ -109,20 +107,17 @@ export function TopToolbar({
       console.log('Elements count:', elements.length);
 
       if (elements.length > 0) {
-        // TransferUtils kullanarak veri sakla
         const transferData = {
           elements,
-          layers: [], // 3D'den layer yapısı gönderilmiyor
+          layers: [],
           clearExisting: simpleTransfer,
           timestamp: Date.now(),
           layerNames: selectedLayerIds
         };
 
-        // SessionStorage'a kaydet
         sessionStorage.setItem('aurafx-3d-transfer', JSON.stringify(transferData));
         console.log('Transfer data saved to sessionStorage');
 
-        // Ana sayfaya yönlendir
         window.location.href = "/";
       } else {
         console.log('No elements to transfer to 2D editor');
@@ -138,240 +133,296 @@ export function TopToolbar({
     setSimpleTransfer(false);
   }
 
+  // Animation variants
+  const containerVariants: Variants = {
+    hidden: { opacity: 0, x: -50, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      scale: 1,
+      transition: {
+        duration: 0.4,
+        delay: 0.1,
+        staggerChildren: 0.1,
+        when: "beforeChildren"
+      }
+    }
+  }
+
+  const itemVariants: Variants = {
+    hidden: { opacity: 0, y: -10 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring" as const,
+        stiffness: 300,
+        damping: 24
+      }
+    }
+  }
+
+  const dropdownVariants: Variants = {
+    hidden: { opacity: 0, y: -5, scale: 0.98 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.1,
+        ease: "easeOut",
+        staggerChildren: 0.02,
+        when: "beforeChildren"
+      }
+    },
+    exit: {
+      opacity: 0,
+      y: -5,
+      scale: 0.98,
+      transition: { duration: 0.08, ease: "easeIn" }
+    }
+  }
+
+  const dropdownItemVariants: Variants = {
+    hidden: { opacity: 0, x: -5 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      transition: {
+        duration: 0.08,
+        ease: "easeOut"
+      }
+    }
+  }
+
   return (
-    <motion.header
-      initial={{ y: -20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className="header-actions h-16 w-full flex items-center justify-between px-6 lg:px-8 select-none backdrop-blur-sm fixed top-0 left-0 right-0 z-50"
-      style={{
-        backgroundColor: '#000000',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
-      }}
+    <motion.div
+      className="fixed top-4 left-4 z-40"
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
     >
-      {/* Left Section - Logo & Branding */}
       <motion.div
-        className="flex items-center gap-3 min-w-fit"
-        initial={{ x: -20, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ delay: 0.1, duration: 0.3 }}
+        className="flex items-center gap-2 bg-black/90 backdrop-blur-md rounded-full px-4 py-2 shadow-lg border border-white/20"
+        whileHover={{
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
+          transition: { duration: 0.2 }
+        }}
       >
+        {/* Logo & Brand */}
         <motion.div
-          className="w-8 h-8 text-white cursor-pointer"
-          whileHover={{ rotate: 180, scale: 1.1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          onClick={() => router.push("/")}
+          className="flex items-center gap-2"
+          variants={itemVariants}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
-          <Hexagon className="w-full h-full" />
+          <motion.div
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-white cursor-pointer"
+            whileHover={{ rotate: 180 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+            onClick={() => router.push("/")}
+          >
+            <Hexagon className="h-4 w-4 text-black fill-black" />
+          </motion.div>
+          <span className="text-sm font-semibold text-white">AuraFX</span>
+          <span className="text-xs text-white/60">3D</span>
         </motion.div>
 
-        <motion.span
-          className="text-xl font-bold text-white tracking-tight cursor-pointer"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.3 }}
-          onClick={() => router.push("/")}
-        >
-          AuraFX
-        </motion.span>
+        {/* Divider */}
+        <motion.div
+          className="w-px h-4 bg-white/30 mx-1"
+          variants={itemVariants}
+        />
 
-        <motion.span
-          className="text-sm text-white/60 font-medium ml-1"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.3 }}
-        >
-          3D Editor
-        </motion.span>
-      </motion.div>
+        {/* Quick Actions */}
+        <motion.div variants={itemVariants}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onNewProject}
+            className="h-8 gap-1 hover:bg-white/10 text-white/80 hover:text-white relative overflow-hidden group"
+            onMouseEnter={() => setHoveredItem("new")}
+            onMouseLeave={() => setHoveredItem(null)}
+          >
+            <motion.div
+              className="absolute inset-0 bg-white/10 z-0"
+              initial={{ width: "0%" }}
+              animate={{ width: hoveredItem === "new" ? "100%" : "0%" }}
+              transition={{ duration: 0.2 }}
+            />
+            <Plus className={`h-3 w-3 relative z-10 transition-colors duration-200 ${hoveredItem === "new" ? 'text-white' : 'text-white/80'}`} />
+            <span className={`text-xs relative z-10 transition-colors duration-200 ${hoveredItem === "new" ? 'text-white' : 'text-white/80'}`}>New</span>
+          </Button>
+        </motion.div>
 
-      {/* Center Section - 3D Tools */}
-      <motion.div
-        className="flex items-center gap-2 mx-auto"
-        initial={{ y: 10, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3, duration: 0.3 }}
-      >
-        {/* 3D Specific Tools */}
-        <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/10">
-          {/* Tool Selection */}
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              size="sm"
-              onClick={() => setCurrentTool("select")}
-              className={`h-8 w-8 p-0 rounded-md transition-all ${currentTool === "select" ? "bg-white text-black" : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"}`}
-              title="Select Tool (Q)"
-            >
-              <MousePointer className="h-4 w-4" />
-            </Button>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              size="sm"
-              onClick={() => setCurrentTool("move")}
-              className={`h-8 w-8 p-0 rounded-md transition-all ${currentTool === "move" ? "bg-white text-black" : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"}`}
-              title="Move Tool (W)"
-            >
-              <Move3D className="h-4 w-4" />
-            </Button>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              size="sm"
-              onClick={() => setCurrentTool("rotate")}
-              className={`h-8 w-8 p-0 rounded-md transition-all ${currentTool === "rotate" ? "bg-white text-black" : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"}`}
-              title="Rotate Tool (E)"
-            >
-              <Rotate3D className="h-4 w-4" />
-            </Button>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              size="sm"
-              onClick={() => setCurrentTool("scale")}
-              className={`h-8 w-8 p-0 rounded-md transition-all ${currentTool === "scale" ? "bg-white text-black" : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"}`}
-              title="Scale Tool (R)"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </Button>
-          </motion.div>
-        </div>
+        <motion.div variants={itemVariants}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSave}
+            className="h-8 gap-1 hover:bg-white/10 text-white/80 hover:text-white relative overflow-hidden group"
+            onMouseEnter={() => setHoveredItem("save")}
+            onMouseLeave={() => setHoveredItem(null)}
+          >
+            <motion.div
+              className="absolute inset-0 bg-white/10 z-0"
+              initial={{ width: "0%" }}
+              animate={{ width: hoveredItem === "save" ? "100%" : "0%" }}
+              transition={{ duration: 0.2 }}
+            />
+            <FileText className={`h-3 w-3 relative z-10 transition-colors duration-200 ${hoveredItem === "save" ? 'text-white' : 'text-white/80'}`} />
+            <span className={`text-xs relative z-10 transition-colors duration-200 ${hoveredItem === "save" ? 'text-white' : 'text-white/80'}`}>Save</span>
+          </Button>
+        </motion.div>
 
-        {/* View Options */}
-        <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/10">
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              size="sm"
-              onClick={() => updateScene({ showGrid: !scene.showGrid })}
-              className={`h-8 w-8 p-0 rounded-md transition-all ${scene.showGrid ? "bg-white text-black" : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"}`}
-              title="Toggle Grid"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              size="sm"
-              onClick={() => updateScene({ showAxes: !scene.showAxes })}
-              className={`h-8 w-8 p-0 rounded-md transition-all ${scene.showAxes ? "bg-white text-black" : "bg-transparent text-white/60 hover:text-white hover:bg-white/10"}`}
-              title="Toggle Axes"
-            >
-              <Axis3D className="h-4 w-4" />
-            </Button>
-          </motion.div>
-        </div>
-      </motion.div>
+        <motion.div variants={itemVariants}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onLoad}
+            className="h-8 gap-1 hover:bg-white/10 text-white/80 hover:text-white relative overflow-hidden group"
+            onMouseEnter={() => setHoveredItem("open")}
+            onMouseLeave={() => setHoveredItem(null)}
+          >
+            <motion.div
+              className="absolute inset-0 bg-white/10 z-0"
+              initial={{ width: "0%" }}
+              animate={{ width: hoveredItem === "open" ? "100%" : "0%" }}
+              transition={{ duration: 0.2 }}
+            />
+            <FolderOpen className={`h-3 w-3 relative z-10 transition-colors duration-200 ${hoveredItem === "open" ? 'text-white' : 'text-white/80'}`} />
+            <span className={`text-xs relative z-10 transition-colors duration-200 ${hoveredItem === "open" ? 'text-white' : 'text-white/80'}`}>Open</span>
+          </Button>
+        </motion.div>
 
-      {/* Right Section - Action Buttons */}
-      <motion.div
-        className="flex items-center gap-2 ml-auto"
-        initial={{ x: 20, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ delay: 0.4, duration: 0.3 }}
-      >
-        {/* Performance Mode Toggle */}
+
+
+        {/* More Menu */}
+        <motion.div variants={itemVariants}>
+          <DropdownMenu open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1 hover:bg-white/10 text-white/80 hover:text-white relative overflow-hidden group"
+                onMouseEnter={() => setHoveredItem("more")}
+                onMouseLeave={() => setHoveredItem(null)}
+              >
+                <motion.div
+                  className="absolute inset-0 bg-white/10 z-0"
+                  initial={{ width: "0%" }}
+                  animate={{ width: hoveredItem === "more" ? "100%" : "0%" }}
+                  transition={{ duration: 0.2 }}
+                />
+                <motion.div
+                  animate={{ rotate: isMoreMenuOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronDown className={`h-3 w-3 relative z-10 transition-colors duration-200 ${hoveredItem === "more" ? 'text-white' : 'text-white/80'}`} />
+                </motion.div>
+              </Button>
+            </DropdownMenuTrigger>
+            <AnimatePresence>
+              {isMoreMenuOpen && (
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 bg-black/95 backdrop-blur-md border border-white/20 shadow-xl text-white"
+                  sideOffset={8}
+                  asChild
+                  forceMount
+                >
+                  <motion.div
+                    variants={dropdownVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                  >
+                    <div className="px-2 py-1.5 text-xs font-semibold text-white/60 uppercase tracking-wide">
+                      Actions
+                    </div>
+                    <DropdownMenuItem
+                      className="text-white cursor-pointer flex items-center gap-2 p-2 hover:bg-white/10"
+                      onClick={handleImport}
+                      asChild
+                    >
+                      <motion.div
+                        variants={dropdownItemVariants}
+                        whileHover={{ x: 5 }}
+                        className="w-full"
+                      >
+                        <Upload className="w-4 h-4 text-blue-400" />
+                        <div>
+                          <div className="font-medium">Import OBJ</div>
+                          <div className="text-xs text-white/50">Import 3D models</div>
+                        </div>
+                      </motion.div>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-white cursor-pointer flex items-center gap-2 p-2 hover:bg-white/10"
+                      onClick={handleExportMythicMobs}
+                      asChild
+                    >
+                      <motion.div
+                        variants={dropdownItemVariants}
+                        whileHover={{ x: 5 }}
+                        className="w-full"
+                      >
+                        <Download className="w-4 h-4 text-green-400" />
+                        <div>
+                          <div className="font-medium">Export</div>
+                          <div className="text-xs text-white/50">Export to MythicMobs</div>
+                        </div>
+                      </motion.div>
+                    </DropdownMenuItem>
+
+
+                    <div className="px-2 py-1.5 text-xs font-semibold text-white/60 uppercase tracking-wide border-t border-white/10 mt-1">
+                      Help & Info
+                    </div>
+
+                    <DropdownMenuItem
+                      className="text-white cursor-pointer flex items-center gap-2 p-2 hover:bg-white/10"
+                      onClick={() => window.location.href = '/wiki'}
+                      asChild
+                    >
+                      <motion.div
+                        variants={dropdownItemVariants}
+                        whileHover={{ x: 5 }}
+                        className="w-full"
+                      >
+                        <BookOpen className="w-4 h-4 text-green-400" />
+                        Wiki
+                      </motion.div>
+                    </DropdownMenuItem>
+                  </motion.div>
+                </DropdownMenuContent>
+              )}
+            </AnimatePresence>
+          </DropdownMenu>
+        </motion.div>
+
+        {/* Performance & VR Toggle */}
         {setUseOptimizedRenderer && (
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <motion.div variants={itemVariants}>
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               onClick={() => setUseOptimizedRenderer(!useOptimizedRenderer)}
-              className={`rounded-lg w-10 h-10 border transition-all duration-200 ${useOptimizedRenderer
-                  ? "bg-white/10 border-white/20 text-white hover:bg-white/15"
-                  : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
+              className={`h-8 gap-1 transition-all duration-200 ${useOptimizedRenderer
+                ? "bg-white/10 text-white hover:bg-white/15"
+                : "text-white/60 hover:bg-white/10 hover:text-white"
                 }`}
               title={`Optimized Renderer: ${useOptimizedRenderer ? "ON" : "OFF"}`}
             >
-              {useOptimizedRenderer ? <Zap className="h-4 w-4" /> : <ZapOff className="h-4 w-4" />}
+              {useOptimizedRenderer ? <Zap className="h-3 w-3" /> : <ZapOff className="h-3 w-3" />}
+              <span className="text-xs">{useOptimizedRenderer ? "Fast" : "Quality"}</span>
             </Button>
           </motion.div>
         )}
 
-        {/* File Operations */}
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleImport}
-            className="rounded-lg border-white/10 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 text-sm font-medium transition-all duration-200 hover:border-white/20"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            <span className="hidden md:inline">Import</span>
-          </Button>
-        </motion.div>
 
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportMythicMobs}
-            className="rounded-lg border-white/10 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 text-sm font-medium transition-all duration-200 hover:border-white/20"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            <span className="hidden md:inline">Export</span>
-          </Button>
-        </motion.div>
-
-        {/* Play Mode Toggle */}
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setVRMode(!vrMode)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${vrMode
-                ? "bg-white/10 border-white/20 text-white hover:bg-white/15"
-                : "border-white/10 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white hover:border-white/20"
-              }`}
-            title={vrMode ? "Exit Play Mode" : "Enter Play Mode"}
-          >
-            {vrMode ? (
-              <Monitor className="h-4 w-4 mr-2" />
-            ) : (
-              <Play className="h-4 w-4 mr-2" />
-            )}
-            <span className="hidden md:inline">{vrMode ? "Exit Play" : "Play Mode"}</span>
-          </Button>
-        </motion.div>
-
-        {/* Send to Main - Primary Action */}
-        <motion.button
-          onClick={handleSendToMain}
-          className="relative rounded-lg bg-white text-black px-6 py-2 text-sm font-semibold transition-all duration-200 hover:bg-white/90 overflow-hidden group"
-          whileHover={{
-            scale: 1.02,
-            transition: { duration: 0.15 }
-          }}
-          whileTap={{
-            scale: 0.98,
-            transition: { duration: 0.1 }
-          }}
-        >
-          {/* Button content */}
-          <div className="relative flex items-center justify-center">
-            <Send className="h-4 w-4 mr-2" />
-            <span className="hidden md:inline font-semibold">Send to 2D</span>
-            <span className="md:hidden font-semibold">Send</span>
-          </div>
-
-          {/* Shimmer effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-600 ease-out"></div>
-        </motion.button>
-
-        {/* Help Button */}
-        {onShowTutorial && (
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onShowTutorial}
-              className="rounded-lg w-10 h-10 border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all duration-200 hover:border-white/20"
-              title="Show Tutorial"
-            >
-              <HelpCircle className="h-4 w-4" />
-            </Button>
-          </motion.div>
-        )}
       </motion.div>
+
       {/* Send Modal - Multi Layer Selection */}
       <AnimatePresence>
         {showSendModal && (
@@ -419,7 +470,7 @@ export function TopToolbar({
               <h2 className="text-xl font-bold text-white mb-2">Send to 2D Editor</h2>
               <p className="text-white/60 text-sm mb-4">Your 3D layers will be exported to 2D editor</p>
 
-              {/* Sade Geçiş Seçeneği */}
+              {/* Simple Transfer Option */}
               <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -539,6 +590,6 @@ export function TopToolbar({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.header>
+    </motion.div>
   )
 }

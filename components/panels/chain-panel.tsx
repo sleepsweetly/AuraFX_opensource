@@ -126,7 +126,7 @@ export function ChainPanel({
   const activeCount = chainItems.length
 
   return (
-    <div className="w-full max-w-md mx-auto h-full flex flex-col bg-white p-4 overflow-y-auto">
+    <div className="w-full max-w-md mx-auto h-full flex flex-col bg-white p-4 overflow-y-auto scrollbar-hidden">
       {/* Header */}
       <div className="flex-shrink-0 mb-6">
         <div className="flex items-center gap-3">
@@ -377,6 +377,15 @@ export function ChainPanel({
       </div>
 
 
+      <style jsx>{`
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hidden {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   )
 }

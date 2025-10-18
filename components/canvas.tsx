@@ -518,7 +518,28 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     // Draw grid - only if enabled in settings
     if (settings.showGrid === true) {
-      ctx.strokeStyle = "#f3f4f6";
+      // Calculate grid color based on background color
+      const getGridColor = (bgColor: string) => {
+        // Convert hex to RGB
+        const hex = bgColor.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        
+        // Calculate luminance (0-255)
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+        
+        // If background is dark, use light grid; if light, use dark grid
+        if (luminance < 128) {
+          // Dark background - use light grid
+          return `rgba(255, 255, 255, 0.15)`;
+        } else {
+          // Light background - use dark grid
+          return `rgba(0, 0, 0, 0.1)`;
+        }
+      };
+      
+      ctx.strokeStyle = getGridColor(backgroundColor);
       ctx.lineWidth = 1;
       const gridSize = 20 * scale;
 
@@ -552,8 +573,24 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         ctx.stroke();
       }
 
-      // Draw center lines
-      ctx.strokeStyle = "#e5e7eb";
+      // Draw center lines with dynamic color
+      const getCenterLineColor = (bgColor: string) => {
+        const hex = bgColor.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+        
+        if (luminance < 128) {
+          // Dark background - use lighter center lines
+          return `rgba(255, 255, 255, 0.25)`;
+        } else {
+          // Light background - use darker center lines
+          return `rgba(0, 0, 0, 0.15)`;
+        }
+      };
+      
+      ctx.strokeStyle = getCenterLineColor(backgroundColor);
       ctx.lineWidth = 1;
 
       ctx.beginPath();
@@ -570,7 +607,25 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     // Draw grid coordinates (Desmos style) - User toggleable
     if (showGridCoordinates) {
       const gridSize = 20 * scale; // Grid koordinatları için gridSize tanımla
-      ctx.fillStyle = "#d1d5db";
+      
+      // Calculate text color based on background
+      const getTextColor = (bgColor: string) => {
+        const hex = bgColor.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+        
+        if (luminance < 128) {
+          // Dark background - use light text
+          return `rgba(255, 255, 255, 0.6)`;
+        } else {
+          // Light background - use dark text
+          return `rgba(0, 0, 0, 0.5)`;
+        }
+      };
+      
+      ctx.fillStyle = getTextColor(backgroundColor);
       ctx.font = "11px -apple-system, system-ui, sans-serif";
       ctx.textAlign = "center";
 
@@ -611,7 +666,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
       // Origin (0,0) label - always show when coordinates are enabled
       ctx.textAlign = "left";
-      ctx.fillStyle = "#d1d5db";
+      ctx.fillStyle = getTextColor(backgroundColor);
       ctx.fillText("0", centerX + 4, centerY + 15);
 
       ctx.textAlign = "start"; // Reset text alignment

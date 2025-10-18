@@ -46,8 +46,6 @@ export function Transfer3DModal({ isOpen, onClose, layers, currentLayer, onExpor
   }
 
   const handleTransfer = async () => {
-    if (selectedLayers.length === 0) return
-
     setIsTransferring(true)
     
     try {
@@ -64,17 +62,17 @@ export function Transfer3DModal({ isOpen, onClose, layers, currentLayer, onExpor
 
       console.log('Total elements to transfer:', elementsToTransfer.length)
 
+      // Element olmasa bile 3D editöre yönlendir
       if (elementsToTransfer.length === 0) {
-        console.warn('No elements found to transfer')
-        return
+        console.warn('No elements found to transfer, but opening 3D editor anyway')
+      } else {
+        // Callback kullanarak export et (yedekteki sistem gibi)
+        if (onExportElements) {
+          onExportElements(elementsToTransfer, clearExisting)
+        }
       }
 
-      // Callback kullanarak export et (yedekteki sistem gibi)
-      if (onExportElements) {
-        onExportElements(elementsToTransfer, clearExisting)
-      }
-
-      // 3D editöre yönlendir
+      // 3D editöre yönlendir (element olsun olmasın)
       window.location.href = '/3d'
       
     } catch (error) {
@@ -94,17 +92,11 @@ export function Transfer3DModal({ isOpen, onClose, layers, currentLayer, onExpor
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+      <div
         className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
         onClick={onClose}
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        <div
           className="relative w-full max-w-md bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xl"
           onClick={(e) => e.stopPropagation()}
         >
@@ -153,7 +145,7 @@ export function Transfer3DModal({ isOpen, onClose, layers, currentLayer, onExpor
                 </div>
               </div>
 
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="space-y-2">
                 {layers.map((layer) => (
                   <div
                     key={layer.id}
@@ -213,16 +205,17 @@ export function Transfer3DModal({ isOpen, onClose, layers, currentLayer, onExpor
             </div>
 
             {/* Summary */}
-            {selectedLayers.length > 0 && (
-              <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                <div className="flex items-center gap-2 text-blue-700">
-                  <Send className="w-4 h-4" />
-                  <span className="text-sm font-medium">
-                    Ready to transfer {selectedElementCount} elements from {selectedLayers.length} layer{selectedLayers.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
+            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+              <div className="flex items-center gap-2 text-blue-700">
+                <Send className="w-4 h-4" />
+                <span className="text-sm font-medium">
+                  {selectedElementCount > 0 
+                    ? `Ready to transfer ${selectedElementCount} elements from ${selectedLayers.length} layer${selectedLayers.length !== 1 ? 's' : ''}`
+                    : 'Ready to open 3D Editor (no elements selected)'
+                  }
+                </span>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Footer */}
@@ -236,28 +229,24 @@ export function Transfer3DModal({ isOpen, onClose, layers, currentLayer, onExpor
             </Button>
             <Button
               onClick={handleTransfer}
-              disabled={selectedLayers.length === 0 || isTransferring}
+              disabled={isTransferring}
               className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
             >
               {isTransferring ? (
                 <>
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
-                  />
-                  Transferring...
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                  Opening 3D...
                 </>
               ) : (
                 <>
                   <Send className="w-4 h-4 mr-2" />
-                  Send to 3D
+                  {selectedElementCount > 0 ? `Send ${selectedElementCount} elements to 3D` : 'Open 3D Editor'}
                 </>
               )}
             </Button>
           </div>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </AnimatePresence>
   )
 }

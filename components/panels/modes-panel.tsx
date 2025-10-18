@@ -207,7 +207,7 @@ export function ModesPanel({
       </div>
 
       {/* --- MODS LİSTESİ (ToolsPanel ile tutarlı) --- */}
-      <div className="flex-1 overflow-y-auto p-1">
+      <div className="flex-1 overflow-y-auto p-1 scrollbar-hidden">
         {MODES.map((mode) => {
           const isActive = modes?.[mode.id];
           const isExpanded = expandedModes.includes(mode.id);
@@ -316,6 +316,16 @@ export function ModesPanel({
           )
         })}
       </div>
+
+      <style jsx>{`
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hidden {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   )
 }

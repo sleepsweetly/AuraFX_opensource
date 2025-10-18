@@ -314,7 +314,7 @@ export function LayersPanel({
           </div>
 
           {layersExpanded && (
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto scrollbar-hidden">
               {!displayLayers || displayLayers.length === 0 ? (
                 <div className="px-4 py-8 text-center">
                   <div className="flex justify-center mb-2">
@@ -435,6 +435,16 @@ export function LayersPanel({
           )}
         </div>
       </div>
+
+      <style jsx>{`
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hidden {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   )
 }

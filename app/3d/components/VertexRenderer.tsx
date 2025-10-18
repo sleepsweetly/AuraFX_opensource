@@ -92,11 +92,14 @@ export function VertexRenderer({ vertex }: VertexRendererProps) {
 
   const handleClick = (event: any) => {
     event.stopPropagation()
+    // Prevent default to signal that a vertex was clicked
+    event.preventDefault()
+    
     // Only allow selection when select tool is active
     if (currentTool !== "select") return
     
-    // Always use multi-select when select tool is active
-    const isMultiSelect = event.shiftKey || currentTool === "select"
+    // Use shift key for multi-select
+    const isMultiSelect = event.shiftKey
     selectVertex(vertex.id, isMultiSelect)
   }
 
@@ -127,8 +130,8 @@ export function VertexRenderer({ vertex }: VertexRendererProps) {
         metalness={isSelected ? 0.1 : 0.5}
         roughness={isSelected ? 0.2 : 0.7}
         transparent
-        opacity={xrayMode ? (isSelected ? 1 : 0.4) : (isSelected ? 1 : 0.85)}
-        depthTest={!xrayMode}
+        opacity={xrayMode ? (isSelected ? 1 : 0.4) : (isSelected ? 1 : 0.9)}
+        depthTest={true}
         depthWrite={!xrayMode}
         wireframe={xrayMode && !isSelected}
       />

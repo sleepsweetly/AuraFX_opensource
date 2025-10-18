@@ -59,6 +59,18 @@ function processActionRecords(actionRecords: ActionRecord[], layers: Layer[]): {
           };
         }
       });
+    } else if (record.type === 'element_add') {
+      // Yeni element ekleme - pozisyonları kaydet
+      const { position, yOffset = 0 } = record.data || {} as any;
+      if (position) {
+        record.elementIds.forEach((id: string) => {
+          elementPositions[id] = {
+            x: position.x,
+            z: position.z,
+            yOffset: yOffset
+          };
+        });
+      }
     }
   });
   
@@ -120,7 +132,7 @@ function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: La
   const hasTransformActions = actionRecords.some(record => 
     record.type === 'transform_update' || record.type === 'transform_end' ||
     record.type === 'move' || record.type === 'move_continuous' ||
-    record.type === 'idle'
+    record.type === 'element_add' || record.type === 'idle'
   );
   
   if (!hasTransformActions) {
@@ -573,6 +585,42 @@ export const generateEffectCode = async (
   // Action Recording mevcutsa, taban canvas elementlerini üretmeyi atla - sadece action'ları göster
   if (hasActionRecording) {
     codeLines.push(`  # Action Recording Mode - Base canvas elements skipped, only actions shown`);
+    
+    // Element add action'larını işle
+    const elementAddActions = actionRecords.filter(record => record.type === 'element_add');
+    if (elementAddActions.length > 0) {
+      codeLines.push(`  # Added Elements: ${elementAddActions.length} elements`);
+      
+      elementAddActions.forEach((record, index) => {
+        const { position, yOffset = 0, elementType = 'particles', particle = 'flame', color = '#ff6b35', alpha = 10, elementCount = 1 } = record.data as any || {};
+        if (position && typeof position.x === 'number' && typeof position.z === 'number') {
+          codeLines.push(`  # Element ${index + 1}: Added at (${position.x.toFixed(2)}, ${position.z.toFixed(2)})`);
+          
+          const x = position.x;
+          const z = position.z;
+          const y = yOffset + (settings.yOffset ?? 0);
+          
+          const effectLine = generateEffectLine(
+            elementType,
+            particle,
+            color,
+            alpha,
+            elementCount,
+            1, // repeatInterval
+            x,
+            z,
+            y,
+            'origin', // targeter
+            {} // effectParams
+          );
+          codeLines.push(effectLine);
+        }
+      });
+      
+      if (actionFrames.length > 0) {
+        codeLines.push(`  # Animation frames follow:`);
+      }
+    }
     
     // Action recording frame'lerini işle
     if (actionFrames.length > 0) {

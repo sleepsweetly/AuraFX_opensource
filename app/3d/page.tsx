@@ -4,9 +4,11 @@ import { useState, useEffect } from "react"
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts"
 import { TopToolbar } from "./components/TopToolbar"
 import { LeftSidebar } from "./components/LeftSidebar"
+import { BottomStatusBar3D } from "./components/BottomStatusBar3D"
+import { RightToolbar3D } from "./components/RightToolbar3D"
+import { SendTo2DButton } from "./components/SendTo2DButton"
 
-import { Scene3DEditorVR } from "./components/Scene3DEditorVR"
-import Tutorial3D from "./components/Tutorial3D"
+
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { use3DStore } from "./store/use3DStore"
@@ -15,35 +17,60 @@ import { useTransferStore } from "@/store/useTransferStore"
 const Scene3DEditor = dynamic(() => import("./components/Scene3DEditor").then(mod => mod.Scene3DEditor), { ssr: false })
 const OptimizedScene3D = dynamic(() => import("./components/OptimizedScene3D").then(mod => mod.OptimizedScene3D), { ssr: false })
 
+// Global tip tanımı
+declare global {
+  interface Window {
+    _zoomCamera?: {
+      zoomIn: () => void
+      zoomOut: () => void
+    }
+  }
+}
+
 export default function ThreeDEditor() {
-  const [vrMode, setVRMode] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
+
   const [useOptimizedRenderer, setUseOptimizedRenderer] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(100);
   const { toast } = useToast();
 
+  // 3D store'dan object sayısını al
+  const { shapes, vertices } = use3DStore();
+  const objectCount = shapes.length + Array.from(vertices.values()).filter(v => !v.groupId).length;
+
+  // Mouse zoom event'lerini dinle
   useEffect(() => {
-    // Check if tutorial has been completed before
-    const tutorialDone = localStorage.getItem("tutorial3DDone");
-    if (!tutorialDone) {
-      setShowTutorial(true);
-    }
+    const handleZoomChange = (event: CustomEvent) => {
+      const { zoomLevel: newZoomLevel } = event.detail;
+      setZoomLevel(Math.round(newZoomLevel));
+    };
+
+    window.addEventListener('3d-zoom-change', handleZoomChange as EventListener);
+
+    return () => {
+      window.removeEventListener('3d-zoom-change', handleZoomChange as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+
 
     // Check for transfer data from global store
     const { transferData, hasTransferData, clearTransferData } = useTransferStore.getState()
-    
+
     if (hasTransferData() && transferData) {
       console.log('3D Page: Found transfer data, importing...', transferData)
       const { importLayersFromMainSystem } = use3DStore.getState()
-      
+
       // Import layers instead of just elements
       importLayersFromMainSystem(transferData.layers, transferData.clearExisting)
-      
+
       toast({
         title: "Layers Imported",
         description: `Successfully imported ${transferData.layers.length} layers with ${transferData.elements.length} elements`,
         duration: 4000,
       });
-      
+
       // Clear transfer data after successful import
       clearTransferData()
     }
@@ -51,15 +78,15 @@ export default function ThreeDEditor() {
     // Also check URL parameters as fallback
     const urlParams = new URLSearchParams(window.location.search)
     const transferParam = urlParams.get('transfer')
-    
+
     if (transferParam) {
       try {
         const decodedData = JSON.parse(atob(transferParam))
         const { layers, elements, clearExisting } = decodedData
-        
+
         console.log('3D Page: Found URL transfer data, importing...', layers || elements)
         const { importLayersFromMainSystem, importFromMainSystem } = use3DStore.getState()
-        
+
         if (layers && layers.length > 0) {
           // Import layers if available
           importLayersFromMainSystem(layers, clearExisting)
@@ -77,10 +104,10 @@ export default function ThreeDEditor() {
             duration: 3000,
           });
         }
-        
+
         // Clean URL
         window.history.replaceState({}, '', '/3d')
-        
+
       } catch (error) {
         console.error('Failed to parse URL transfer data:', error)
       }
@@ -96,7 +123,7 @@ export default function ThreeDEditor() {
     };
 
     window.addEventListener('showPerformanceNotification', handlePerformanceNotification as EventListener);
-    
+
     return () => {
       window.removeEventListener('showPerformanceNotification', handlePerformanceNotification as EventListener);
     };
@@ -104,41 +131,107 @@ export default function ThreeDEditor() {
 
   return (
     <div className="h-screen bg-black text-white overflow-hidden flex flex-col">
-      {!vrMode && <KeyboardShortcuts />}
-      
+      <KeyboardShortcuts />
+
       {/* Fixed Top Toolbar */}
       <TopToolbar
-        vrMode={vrMode}
-        setVRMode={setVRMode}
-        onShowTutorial={() => setShowTutorial(true)}
         useOptimizedRenderer={useOptimizedRenderer}
         setUseOptimizedRenderer={setUseOptimizedRenderer}
+        onNewProject={() => {
+          // 3D için yeni proje fonksiyonu
+          const { clearScene } = use3DStore.getState()
+          clearScene()
+        }}
+        onSave={() => {
+          // 3D için kaydetme fonksiyonu
+          const { exportScene } = use3DStore.getState()
+          const sceneData = exportScene()
+          const blob = new Blob([JSON.stringify(sceneData, null, 2)], { type: "application/json" })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.href = url
+          a.download = "aurafx-3d-scene.json"
+          a.click()
+          URL.revokeObjectURL(url)
+        }}
+        onLoad={() => {
+          // 3D için yükleme fonksiyonu
+          const input = document.createElement("input")
+          input.type = "file"
+          input.accept = ".json"
+          input.onchange = (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0]
+            if (file) {
+              const reader = new FileReader()
+              reader.onload = (e) => {
+                try {
+                  const content = e.target?.result as string
+                  const sceneData = JSON.parse(content)
+                  const { importScene } = use3DStore.getState()
+                  importScene(sceneData)
+                } catch (error) {
+                  console.error('Failed to load scene:', error)
+                  alert('Failed to load scene file')
+                }
+              }
+              reader.readAsText(file)
+            }
+          }
+          input.click()
+        }}
       />
-      
-      {/* Main Content Area - Below Toolbar */}
-      <div className="flex flex-1 mt-16">
-        {/* Left Sidebar - Fixed Width */}
-        <div className="w-64 flex-shrink-0">
-          <LeftSidebar />
-        </div>
-        
-        {/* Center Scene Area - Flexible */}
+
+      {/* Main Content Area - Full Screen */}
+      <div className="flex flex-1 relative">
+        {/* Center Scene Area - Full Width */}
         <div className="flex-1 relative">
-          {vrMode ? (
-            <Scene3DEditorVR />
-          ) : useOptimizedRenderer ? (
+          {useOptimizedRenderer ? (
             <OptimizedScene3D />
           ) : (
             <Scene3DEditor />
           )}
         </div>
+
+        {/* Left Sidebar - Overlay */}
+        {showSidebar && (
+          <LeftSidebar
+            isOpen={showSidebar}
+            onClose={() => setShowSidebar(false)}
+          />
+        )}
+
+        {/* Right Toolbar - 3D Tools */}
+        <RightToolbar3D />
+
+        {/* Send to 2D Button */}
+        <SendTo2DButton />
+
+        {/* Bottom Status Bar */}
+        <BottomStatusBar3D
+          onLayersClick={() => setShowSidebar(!showSidebar)}
+          onZoomIn={() => {
+            // 3D kamera zoom in
+            if (window._zoomCamera) {
+              window._zoomCamera.zoomIn()
+            }
+            // UI zoom level'ı da güncelle
+            setZoomLevel(prev => Math.min(prev + 10, 200))
+          }}
+          onZoomOut={() => {
+            // 3D kamera zoom out
+            if (window._zoomCamera) {
+              window._zoomCamera.zoomOut()
+            }
+            // UI zoom level'ı da güncelle
+            setZoomLevel(prev => Math.max(prev - 10, 50))
+          }}
+          zoomLevel={zoomLevel}
+          objectCount={objectCount}
+        />
       </div>
 
-      {/* 3D Tutorial */}
-      {showTutorial && (
-        <Tutorial3D onClose={() => setShowTutorial(false)} />
-      )}
-      
+
+
       {/* Toast Notifications */}
       <Toaster />
     </div>

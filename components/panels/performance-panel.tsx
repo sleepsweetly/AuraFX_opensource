@@ -114,7 +114,7 @@ export function PerformancePanel({
   ]
 
   return (
-    <div className="w-full max-w-md mx-auto h-full flex flex-col bg-white p-4 overflow-y-auto">
+    <div className="w-full max-w-md mx-auto h-full flex flex-col bg-white p-4 overflow-y-auto scrollbar-hidden panel-container">
       {/* Header */}
       <div className="flex-shrink-0 mb-6">
         <div className="flex items-center gap-3">
@@ -438,6 +438,18 @@ export function PerformancePanel({
           )}
         </AnimatePresence>
       </div>
+
+      <style jsx>{`
+        .scrollbar-hidden {
+          scrollbar-width: none; /* Firefox */
+          -ms-overflow-style: none; /* IE and Edge */
+        }
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Opera */
+          width: 0;
+          height: 0;
+        }
+      `}</style>
     </div>
   )
 }

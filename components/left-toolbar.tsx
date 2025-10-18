@@ -208,7 +208,7 @@ export function LeftToolbar({ currentTool, setCurrentTool, onClearCanvas, onShow
                         size="icon"
                         variant="ghost"
                         onClick={() => handleToolClick("layout")}
-                        className={`h-9 w-9 rounded-full hover:bg-gray-100 text-gray-700 hover:text-gray-900 ${showMoreTools ? "bg-black text-white hover:bg-black/90" : ""}`}
+                        className={`h-9 w-9 rounded-full hover:bg-gray-100 hover:text-gray-900 text-gray-700 ${showMoreTools ? "bg-black text-white hover:bg-black/90 hover:text-white" : ""}`}
                     >
                         <motion.div
                             variants={iconVariants}

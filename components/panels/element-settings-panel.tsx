@@ -107,11 +107,11 @@ const effectTypeParamsMap: Record<string, { key: string; label: string; type: st
 export function ElementSettingsPanel({
   layers = [],
   currentLayer,
-  onUpdateLayer = () => {},
+  onUpdateLayer = () => { },
   modes = {},
-  onShowCode = () => {},
-  updateSelectedElementsParticle = () => {},
-  updateSelectedElementsColor = () => {},
+  onShowCode = () => { },
+  updateSelectedElementsParticle = () => { },
+  updateSelectedElementsColor = () => { },
   selectedElementIds = [],
 }: ElementSettingsPanelProps) {
   const [showParticleSelect, setShowParticleSelect] = useState(false)
@@ -155,7 +155,7 @@ export function ElementSettingsPanel({
       </div>
 
       {/* Settings List */}
-      <div className="flex-1 overflow-y-auto p-1">
+      <div className="flex-1 overflow-y-auto p-1 scrollbar-hidden panel-container">
         {/* Quick Actions */}
         <div className="mb-1">
           <motion.div layout className={`w-full flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 relative ${expandedSections.includes('actions') ? "bg-violet-50 text-violet-700" : "text-gray-700 hover:bg-gray-100"}`} whileHover={{ x: 2 }}>
@@ -247,17 +247,104 @@ export function ElementSettingsPanel({
               <motion.div layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: "easeInOut" }} className="overflow-hidden">
                 <div className="px-3 pb-3 pl-7">
                   <div className="bg-gray-50 rounded-md p-4 space-y-4 border border-gray-100">
-                    <div><div className="flex justify-between items-center mb-2"><span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Repeat</span><span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{selectedLayer.repeat}</span></div><CustomSlider value={selectedLayer.repeat} onChange={(v) => onUpdateLayer(selectedLayer.id, { repeat: v })} min={1} max={10} step={1} /></div>
-                    <div><div className="flex justify-between items-center mb-2"><span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span><span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{selectedLayer.alpha}</span></div><CustomSlider value={selectedLayer.alpha} onChange={(v) => onUpdateLayer(selectedLayer.id, { alpha: v })} min={0} max={1} step={0.1} /></div>
-                    <div><div className="flex justify-between items-center mb-2"><span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Y Offset</span><span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{selectedLayer.yOffset}</span></div><CustomSlider value={selectedLayer.yOffset} onChange={(v) => onUpdateLayer(selectedLayer.id, { yOffset: v })} min={-10} max={10} step={0.1} /></div>
-                    <div><div className="flex justify-between items-center mb-2"><span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Repeat Interval</span><span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{selectedLayer.repeatInterval || 1}</span></div><CustomSlider value={selectedLayer.repeatInterval || 1} onChange={(v) => onUpdateLayer(selectedLayer.id, { repeatInterval: v })} min={1} max={20} step={1} /></div>
+                    {/* Repeat */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Repeat</span>
+                        <Input
+                          type="number"
+                          value={selectedLayer.repeat}
+                          onChange={(e) => {
+                            const value = Number(e.target.value) || 0;
+                            onUpdateLayer(selectedLayer.id, { repeat: value });
+                          }}
+                          className="w-16 h-6 text-xs text-center bg-white border-gray-200 font-mono text-gray-900"
+                        />
+                      </div>
+                      <CustomSlider
+                        value={selectedLayer.repeat}
+                        onChange={(v) => onUpdateLayer(selectedLayer.id, { repeat: v })}
+                        min={1}
+                        max={10}
+                        step={1}
+                      />
+                    </div>
+
+                    {/* Amount */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
+                        <Input
+                          type="number"
+                          value={selectedLayer.alpha}
+                          onChange={(e) => {
+                            const value = Number(e.target.value) || 0;
+                            onUpdateLayer(selectedLayer.id, { alpha: value });
+                          }}
+                          className="w-16 h-6 text-xs text-center bg-white border-gray-200 font-mono text-gray-900"
+                        />
+                      </div>
+                      <CustomSlider
+                        value={selectedLayer.alpha}
+                        onChange={(v) => onUpdateLayer(selectedLayer.id, { alpha: v })}
+                        min={0}
+                        max={1}
+                        step={0.1}
+                      />
+                    </div>
+
+                    {/* Y Offset */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Y Offset</span>
+                        <Input
+                          type="number"
+                          value={selectedLayer.yOffset}
+                          onChange={(e) => {
+                            const value = Number(e.target.value) || 0;
+                            onUpdateLayer(selectedLayer.id, { yOffset: value });
+                          }}
+                          className="w-16 h-6 text-xs text-center bg-white border-gray-200 font-mono text-gray-900"
+                        />
+                      </div>
+                      <CustomSlider
+                        value={selectedLayer.yOffset}
+                        onChange={(v) => onUpdateLayer(selectedLayer.id, { yOffset: v })}
+                        min={-10}
+                        max={10}
+                        step={0.1}
+                      />
+                    </div>
+
+                    {/* Repeat Interval */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Repeat Interval</span>
+                        <Input
+                          type="number"
+                          value={selectedLayer.repeatInterval || 1}
+                          onChange={(e) => {
+                            const value = Number(e.target.value) || 1;
+                            onUpdateLayer(selectedLayer.id, { repeatInterval: value });
+                          }}
+                          className="w-16 h-6 text-xs text-center bg-white border-gray-200 font-mono text-gray-900"
+                        />
+                      </div>
+                      <CustomSlider
+                        value={selectedLayer.repeatInterval || 1}
+                        onChange={(v) => onUpdateLayer(selectedLayer.id, { repeatInterval: v })}
+                        min={1}
+                        max={20}
+                        step={1}
+                      />
+                    </div>
                   </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-        
+
         {/* Effect Parameters */}
         {effectTypeParamsMap[selectedLayer.effectType] && effectTypeParamsMap[selectedLayer.effectType].length > 0 && (
           <div className="mb-1">
@@ -312,6 +399,18 @@ export function ElementSettingsPanel({
           onClose={() => setShowTargeterSelect(false)}
         />
       )}
+
+      <style jsx>{`
+        .scrollbar-hidden {
+          scrollbar-width: none; /* Firefox */
+          -ms-overflow-style: none; /* IE and Edge */
+        }
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Opera */
+          width: 0;
+          height: 0;
+        }
+      `}</style>
     </div>
   )
 }

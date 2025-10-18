@@ -15,6 +15,20 @@ interface ChangelogPanelProps {}
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "3.0.1",
+    date: "December 18, 2025",
+    title: "3D Editor Redesign & Easter Egg Surprise",
+    changes: [
+      "🎨 3D Editor completely redesigned with modern interface",
+      "🔧 Fixed multiple UI component z-index conflicts",
+      "🎮 Added super secret easter egg game (try to find it!)",
+      "✨ Easter egg game now properly hides UI components when active",
+      "🐛 Fixed Header component not appearing on main page",
+      "⚡ Improved component rendering performance",
+      "🎯 Better component layering and visibility management"
+    ]
+  },
+  {
     version: "3.0.0",
     date: "December 15, 2025",
     title: "Complete UI Redesign - Built from Scratch",
@@ -161,7 +175,7 @@ export function ChangelogPanel({}: ChangelogPanelProps) {
       </div>
 
       {/* Changelog List */}
-      <div className="flex-1 overflow-y-auto p-1">
+      <div className="flex-1 overflow-y-auto p-1 scrollbar-hidden panel-container">
         {CHANGELOG_DATA.map((entry, index) => (
           <div key={entry.version} className="mb-1">
             <motion.button
@@ -221,6 +235,18 @@ export function ChangelogPanel({}: ChangelogPanelProps) {
           </div>
         ))}
       </div>
+
+      <style jsx>{`
+        .scrollbar-hidden {
+          scrollbar-width: none; /* Firefox */
+          -ms-overflow-style: none; /* IE and Edge */
+        }
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Opera */
+          width: 0;
+          height: 0;
+        }
+      `}</style>
     </div>
   )
 }

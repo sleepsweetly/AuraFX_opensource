@@ -155,7 +155,7 @@ export function TopCenterToolbar({ viewMode = "top", setViewMode, modes, isRecor
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <motion.div whileHover="hover" whileTap="tap" variants={buttonVariants}>
-              <Button variant="ghost" size="sm" className="h-8 gap-1 hover:bg-gray-100 text-gray-700">
+              <Button variant="ghost" size="sm" className="h-8 gap-1 hover:bg-gray-100 hover:text-gray-900 text-gray-700">
                 <motion.div
                   animate={{ rotate: 0 }}
                   whileHover={{ rotate: 15, scale: 1.1 }}
@@ -224,7 +224,7 @@ export function TopCenterToolbar({ viewMode = "top", setViewMode, modes, isRecor
                   variant="ghost"
                   size="sm"
                   onClick={onToggleRecording}
-                  className={`h-8 gap-1 transition-colors ${isRecording ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-gray-100'}`}
+                  className={`h-8 gap-1 transition-colors ${isRecording ? 'text-red-600 hover:bg-red-50 hover:text-red-700' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}
                 >
                   {isRecording ? (
                     <motion.div

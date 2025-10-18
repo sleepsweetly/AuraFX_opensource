@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ChevronDown, Hexagon, FileText, FolderOpen, Plus, Grid3X3, Box, BookOpen, Mail, HelpCircle, Shield, FileText as Terms, Info } from "lucide-react"
 import { motion, AnimatePresence, Variants } from "framer-motion"
-import { useState } from "react"
+import { useState, useRef } from "react"
+import { EasterEggGame } from "./easter-egg-game"
 
 interface HeaderProps {
   onGenerateCode?: () => void
@@ -27,6 +28,11 @@ export function Header(props: HeaderProps = {}) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
+  
+  // Easter egg state
+  const [showEasterEgg, setShowEasterEgg] = useState(false)
+  const clickCountRef = useRef(0)
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const containerVariants: Variants = {
     hidden: { opacity: 0, x: -50, scale: 0.95 },
@@ -89,6 +95,41 @@ export function Header(props: HeaderProps = {}) {
     }
   }
 
+  // Easter egg click handler
+  const handleLogoClick = () => {
+    clickCountRef.current += 1
+    
+    // Clear existing timeout
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current)
+    }
+    
+    // If 5 clicks within 2 seconds, show easter egg
+    if (clickCountRef.current >= 5) {
+      setShowEasterEgg(true)
+      clickCountRef.current = 0
+      
+      // Hide all other components globally
+      document.body.style.overflow = 'hidden'
+      const event = new CustomEvent('easterEggToggle', { detail: { isOpen: true } })
+      window.dispatchEvent(event)
+      return
+    }
+    
+    // Reset click count after 2 seconds
+    clickTimeoutRef.current = setTimeout(() => {
+      clickCountRef.current = 0
+    }, 2000)
+  }
+
+  // Handle easter egg close
+  const handleEasterEggClose = () => {
+    setShowEasterEgg(false)
+    document.body.style.overflow = 'auto'
+    const event = new CustomEvent('easterEggToggle', { detail: { isOpen: false } })
+    window.dispatchEvent(event)
+  }
+
   return (
     <motion.div
       className="fixed top-4 left-4 z-40" // Header'ı en sola taşıdık
@@ -105,10 +146,11 @@ export function Header(props: HeaderProps = {}) {
       >
         {/* Logo & Brand */}
         <motion.div 
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 cursor-pointer"
           variants={itemVariants}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
+          onClick={handleLogoClick}
         >
           <motion.div 
             className="flex h-7 w-7 items-center justify-center rounded-full bg-black"
@@ -400,6 +442,12 @@ export function Header(props: HeaderProps = {}) {
           </DropdownMenu>
         </motion.div>
       </motion.div>
+      
+      {/* Easter Egg Game */}
+      <EasterEggGame 
+        isOpen={showEasterEgg} 
+        onClose={handleEasterEggClose} 
+      />
     </motion.div>
   )
 }

@@ -83,7 +83,7 @@ export function SelectionBox() {
 
       // If it's just a click (small rectangle), do single selection or clear
       if (Math.abs(maxX - minX) < 5 && Math.abs(maxY - minY) < 5) {
-        // Single click selection
+        // Single click selection with improved raycasting
         const mouse = new Vector2()
         mouse.x = (startPoint.x / rect.width) * 2 - 1
         mouse.y = -(startPoint.y / rect.height) * 2 + 1
@@ -91,17 +91,47 @@ export function SelectionBox() {
         const raycaster = new Raycaster()
         raycaster.setFromCamera(mouse, camera)
 
-        // OPTIMIZED: For single clicks, clear selection only if clicking on empty space
-        // VertexRenderer components handle their own selection much faster
-        if (!event.shiftKey) {
-          // Only clear selection for single clicks on empty space
-          // This will be handled by VertexRenderer if clicking on a vertex
-          setTimeout(() => {
-            // Small delay to let VertexRenderer handle its click first
-            if (!event.defaultPrevented) {
+        // Improved single click selection
+        const vertexArray = Array.from(vertices.values())
+        const intersections: Array<{ vertex: any, distance: number }> = []
+
+        // Check all vertices for intersection with proper depth testing
+        vertexArray.forEach(vertex => {
+          const vertexPos = new Vector3(vertex.position.x, vertex.position.y, vertex.position.z)
+          const distance = raycaster.ray.distanceToPoint(vertexPos)
+          
+          // Slightly more generous selection radius
+          const selectionRadius = xrayMode ? 0.3 : 0.2
+          
+          if (distance < selectionRadius) {
+            const distanceFromCamera = camera.position.distanceTo(vertexPos)
+            intersections.push({ vertex, distance: distanceFromCamera })
+          }
+        })
+
+        if (intersections.length > 0) {
+          // Sort by distance from camera (closest first)
+          intersections.sort((a, b) => a.distance - b.distance)
+          
+          if (xrayMode) {
+            // X-ray mode: Select all intersecting vertices
+            const vertexIds = intersections.map(i => i.vertex.id)
+            if (event.shiftKey) {
+              vertexIds.forEach(id => selectVertex(id, true))
+            } else {
               clearAllSelections()
+              vertexIds.forEach(id => selectVertex(id, true))
             }
-          }, 0)
+          } else {
+            // Normal mode: Select only the closest vertex (proper depth testing)
+            const closestVertex = intersections[0].vertex
+            selectVertex(closestVertex.id, event.shiftKey)
+          }
+        } else {
+          // No vertex clicked, clear selection if not holding shift
+          if (!event.shiftKey) {
+            clearAllSelections()
+          }
         }
       } else {
         // Box selection - optimized for large datasets (vertices only)
@@ -166,8 +196,8 @@ export function SelectionBox() {
                       // Calculate distance between the two vertices in 3D space
                       const distanceBetween = worldPos.distanceTo(other.worldPos)
 
-                      // If vertices are very close to each other and the other is closer, it occludes this one
-                      if (distanceBetween < 2.0 && other.distance < distance - 0.5) {
+                      // More lenient occlusion - allow more elements to be selected
+                      if (distanceBetween < 0.8 && other.distance < distance - 0.5) {
                         isVisible = false
                         break
                       }
@@ -203,13 +233,13 @@ export function SelectionBox() {
               }
             })
           } else {
-            // Normal mode: Only select truly visible vertices (Blender-style)
-            const candidateVertices: Array<{ id: string, distance: number, worldPos: Vector3 }> = []
+            // Normal mode: Improved selection with better depth handling
+            const candidateVertices: Array<{ id: string, distance: number, worldPos: Vector3, screenPos: Vector3 }> = []
 
             // Collect candidates with their distances and world positions
             vertices.forEach((vertex, id) => {
-              const screenPos = new Vector3(vertex.position.x, vertex.position.y, vertex.position.z)
-              const worldPos = screenPos.clone()
+              const worldPos = new Vector3(vertex.position.x, vertex.position.y, vertex.position.z)
+              const screenPos = worldPos.clone()
               screenPos.project(camera)
 
               const screenX = (screenPos.x * 0.5 + 0.5) * rect.width
@@ -217,29 +247,33 @@ export function SelectionBox() {
 
               if (screenX >= minX && screenX <= maxX && screenY >= minY && screenY <= maxY) {
                 const distance = camera.position.distanceTo(worldPos)
-                candidateVertices.push({ id, distance, worldPos })
+                candidateVertices.push({ id, distance, worldPos, screenPos })
               }
             })
 
             // Sort by distance (closest first)
             candidateVertices.sort((a, b) => a.distance - b.distance)
 
-            // True occlusion culling: Only select visible vertices
+            // Balanced occlusion culling: Hide elements that are clearly behind others
             const visibleVertices: string[] = []
 
-            candidateVertices.forEach(({ id, worldPos, distance }) => {
+            candidateVertices.forEach(({ id, worldPos, distance, screenPos }) => {
               let isVisible = true
 
-              // Check if any other vertex occludes this one
+              // Check occlusion against closer vertices
               for (const other of candidateVertices) {
                 if (other.id === id) continue
-                if (other.distance >= distance) continue // Skip vertices that are further away
+                if (other.distance >= distance - 0.2) continue // Only check closer vertices
 
-                // Calculate distance between the two vertices in 3D space
-                const distanceBetween = worldPos.distanceTo(other.worldPos)
+                // Calculate both 3D distance and screen distance
+                const worldDistance = worldPos.distanceTo(other.worldPos)
+                const screenDistance = Math.sqrt(
+                  Math.pow(screenPos.x - other.screenPos.x, 2) + 
+                  Math.pow(screenPos.y - other.screenPos.y, 2)
+                )
 
-                // If vertices are very close to each other and the other is closer, it occludes this one
-                if (distanceBetween < 2.0 && other.distance < distance - 0.5) {
+                // More lenient occlusion - allow more elements to be selected
+                if (worldDistance < 0.8 && screenDistance < 0.03 && other.distance < distance - 0.5) {
                   isVisible = false
                   break
                 }

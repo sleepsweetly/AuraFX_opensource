@@ -1,6 +1,6 @@
 "use client"
 
-import { Wrench, Zap, FolderOpen, Settings, Code, Link, Video, Gauge, Minimize2, Maximize2, Sparkles } from "lucide-react"
+import { Wrench, Zap, FolderOpen, Settings, Code, Link, Video, Gauge, Minimize2, Maximize2, Sparkles, Bell } from "lucide-react"
 import { ToolsPanel } from "@/components/panels/tools-panel"
 import { ModesPanel } from "@/components/panels/modes-panel"
 import { ImportPanel } from "@/components/panels/import-panel"
@@ -10,6 +10,7 @@ import { ChainPanel } from "@/components/panels/chain-panel"
 import { PerformancePanel } from "@/components/panels/performance-panel"
 import { ActionRecordingPanel } from "@/components/panels/action-recording-panel"
 import { ChangelogPanel } from "@/components/panels/changelog-panel"
+import { AnnouncementPanel } from "@/components/panels/announcement-panel"
 import React, { useState } from "react"
 import { motion, AnimatePresence, Variants } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -48,6 +49,7 @@ interface RightSidebarProps {
   onToggleRecording?: () => void
   activeTabOverride?: number
   onTabChange?: (tabIndex: number) => void
+  forceExpand?: boolean
 }
 
 // --- ANIMATION VARIANTS ---
@@ -112,10 +114,17 @@ export function RightSidebar({
   currentLayer, onUpdateLayer, layers, onShowCode, updateSelectedElementsParticle, updateSelectedElementsColor, generatedCode, onGenerateCode,
   isGeneratingCode, onFrameSettingsChange, optimize, setOptimize, chainSequence, onChainSequenceChange,
   selectedElementIds, chainItems, onChainItemsChange, currentLineCount, onOptimize, onApplyTemplate,
-  isRecording, onToggleRecording, activeTabOverride, onTabChange
+  isRecording, onToggleRecording, activeTabOverride, onTabChange, forceExpand
 }: RightSidebarProps) {
   const [activeTab, setActiveTab] = useState(4)
   const [isMinimized, setIsMinimized] = useState(true)
+
+  // Force expand sidebar when forceExpand prop is true
+  React.useEffect(() => {
+    if (forceExpand) {
+      setIsMinimized(false)
+    }
+  }, [forceExpand])
 
   const FIXED_WIDTH = 550
   const TAB_BAR_WIDTH = 60
@@ -137,6 +146,7 @@ export function RightSidebar({
     { id: "element-config", name: "Element Config", icon: Settings },
     { id: "code", name: "Code", icon: Code },
     { id: "performance", name: "Performance", icon: Gauge },
+    { id: "announcements", name: "Announcements", icon: Bell },
     { id: "changelog", name: "What's New", icon: Sparkles },
   ]
 
@@ -165,6 +175,7 @@ export function RightSidebar({
       case "chain": return <ChainPanel layers={layers || []} currentLayerId={currentLayer?.id || null} chainSequence={chainSequence || []} onChainSequenceChange={onChainSequenceChange || (() => { })} selectedElementIds={selectedElementIds || []} chainItems={chainItems || []} onChainItemsChange={onChainItemsChange || (() => { })} />
       case "recording": return <ActionRecordingPanel isRecording={isRecording || false} onToggleRecording={onToggleRecording || (() => { })} />
       case "performance": return <PerformancePanel currentLineCount={currentLineCount || 0} onOptimize={onOptimize || (() => { })} onApplyTemplate={onApplyTemplate || (() => { })} />
+      case "announcements": return <AnnouncementPanel />
       case "changelog": return <ChangelogPanel />
       default: return <div className="text-center text-gray-500 py-8">Select a panel</div>
     }
@@ -198,7 +209,7 @@ export function RightSidebar({
                 <h2 className="text-lg font-semibold text-gray-800">{tabs[safeActiveTab]?.name}</h2>
               </motion.div>
               <motion.div
-                className="flex-1 overflow-y-auto p-6"
+                className="flex-1 overflow-y-auto p-6 scrollbar-hidden panel-container"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}

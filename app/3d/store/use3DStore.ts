@@ -26,7 +26,7 @@ export interface Vertex {
 
 export interface Shape {
   id: string
-  type: "cube" | "sphere" | "circle" | "line" | "imported"
+  type: "cube" | "sphere" | "circle" | "line" | "imported" | "edited"
   position: Vector3
   rotation: Vector3
   scale: Vector3
@@ -541,7 +541,7 @@ export const use3DStore = create<Store3D>()(
 
           const newSelectedShapes = [id]
 
-          if (shape.type === "imported") {
+          if (shape.type === "imported" || shape.type === "edited") {
             set((state) => ({
               shapes: state.shapes.map((s) => (s.id === id ? { ...s, ...updates } : s)),
               selectedShapes: newSelectedShapes,
@@ -798,11 +798,18 @@ export const use3DStore = create<Store3D>()(
                 // Update shapes that contain this vertex
                 const updatedShapes = state.shapes.map(shape => {
                   if (shape.vertices.includes(vertexId)) {
+                    // Convert procedural shapes to "edited" when manually modified
+                    const isProcedural = ['cube', 'sphere', 'circle', 'line'].includes(shape.type)
                     const newVertices = shape.vertices.filter(id => id !== vertexId)
+
                     return {
                       ...shape,
+                      // Convert to "edited" type to freeze procedural generation
+                      type: isProcedural ? 'edited' as const : shape.type,
+                      // Update name to indicate manual editing
+                      name: isProcedural ? `${shape.name || 'Shape'} (Edited)` : shape.name,
                       vertices: newVertices,
-                      elementCount: Math.max(0, newVertices.length) // Update elementCount to match actual vertex count, minimum 0
+                      // elementCount remains unchanged - it's the shape's definition, not actual count
                     }
                   }
                   return shape
@@ -1093,7 +1100,7 @@ export const use3DStore = create<Store3D>()(
           shapes.forEach((shape) => {
             elements.push({
               id: shape.id,
-              type: shape.type === "cube" ? "square" : shape.type === "sphere" ? "circle" : shape.type === "imported" ? "obj" : shape.type,
+              type: shape.type === "cube" ? "square" : shape.type === "sphere" ? "circle" : shape.type === "imported" ? "obj" : shape.type === "edited" ? "free" : shape.type,
               position: {
                 x: shape.position.x,
                 y: shape.position.y,

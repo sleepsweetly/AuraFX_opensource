@@ -46,6 +46,8 @@ export interface ActionRecord {
     position?: { x: number, z: number }
     yOffset?: number
     elementCount?: number
+    particle?: string
+    alpha?: number
     
     // Idle data
     idleDuration?: number // ms cinsinden bekleme süresi

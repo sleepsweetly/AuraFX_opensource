@@ -1,12 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Plus, Trash2, Box, Layers, Search, Pencil, Check, X } from "lucide-react"
 import { use3DStore } from "../store/use3DStore"
 import { Vertex, Shape } from "../store/use3DStore"
 import { useLayerStore } from "@/store/useLayerStore"
+import { motion, AnimatePresence } from "framer-motion"
 
-export function LeftSidebar() {
+interface LeftSidebarProps {
+  isOpen: boolean
+  onClose: () => void
+}
+
+export function LeftSidebar({ isOpen, onClose }: LeftSidebarProps) {
   const {
     shapes,
     vertices,
@@ -24,6 +30,30 @@ export function LeftSidebar() {
   const [expandedShapes, setExpandedShapes] = useState<Set<string>>(new Set())
   const [editingShapeId, setEditingShapeId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState("")
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // Panel dışına tıklandığında kapanma
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isOpen && panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        // Layers toggle butonuna tıklandıysa kapanma (buton kendi toggle'ını yapacak)
+        const target = event.target as Element
+        const layersButton = document.getElementById('3d-layers-toggle-button')
+        if (layersButton && (layersButton.contains(target) || layersButton === target)) {
+          return
+        }
+        onClose()
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen, onClose])
 
   const toggleShapeExpanded = (shapeId: string) => {
     const newExpanded = new Set(expandedShapes)
@@ -102,8 +132,18 @@ export function LeftSidebar() {
     "vertex".toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  if (!isOpen) return null
+
   return (
-    <div className="w-64 bg-[#000000] border-r flex flex-col h-full select-none overflow-hidden" style={{ borderRight: '1px solid rgba(255, 255, 255, 0.08)' }}>
+    <AnimatePresence>
+      <motion.div
+        ref={panelRef}
+        initial={{ x: -320, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: -320, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="fixed left-4 top-20 bottom-4 w-80 bg-black/95 backdrop-blur-md border border-white/20 rounded-2xl flex flex-col select-none overflow-hidden shadow-2xl z-30"
+      >
       <div className="flex-none p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -279,6 +319,7 @@ export function LeftSidebar() {
           )}
         </div>
       </div>
-    </div>
+      </motion.div>
+    </AnimatePresence>
   )
 }

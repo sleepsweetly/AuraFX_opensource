@@ -18,7 +18,7 @@ import { ActionRecordingPanel } from "@/components/panels/action-recording-panel
 
 import { PerformancePanel } from "@/components/panels/performance-panel"
 import { EffectListPanel } from "@/components/EffectListPanel"
-import { AnnouncementSystem } from "@/components/announcement-system"
+// import { AnnouncementSystem } from "@/components/announcement-system" // Moved to sidebar panel
 import type { Layer, Element, Tool, ActionRecord } from "@/types"
 import { Toaster } from "@/components/toast-system"
 import { v4 as uuidv4 } from "uuid"
@@ -995,6 +995,17 @@ export default function EffectEditor() {
   const [showQuickSettings, setShowQuickSettings] = useState(false);
   const [showParticleModal, setShowParticleModal] = useState(false);
   const [canvasBackgroundColor, setCanvasBackgroundColor] = useState("#ffffff");
+  const [isEasterEggOpen, setIsEasterEggOpen] = useState(false);
+
+  // Listen for easter egg toggle events
+  useEffect(() => {
+    const handleEasterEggToggle = (event: CustomEvent) => {
+      setIsEasterEggOpen(event.detail.isOpen);
+    };
+
+    window.addEventListener('easterEggToggle', handleEasterEggToggle as EventListener);
+    return () => window.removeEventListener('easterEggToggle', handleEasterEggToggle as EventListener);
+  }, []);
 
   // Synchronize selectedElementIds with selectedShapeIds
   useEffect(() => {
@@ -2749,13 +2760,26 @@ export default function EffectEditor() {
 
   const [rightSidebarActiveTab, setRightSidebarActiveTab] = useState<number | undefined>(undefined)
   const [show3DModal, setShow3DModal] = useState(false)
+  const [forceExpandSidebar, setForceExpandSidebar] = useState(false)
 
   const setShowCodePanel = (show: boolean) => {
     if (show) {
       // Code tab'ının index'i 4
       setRightSidebarActiveTab(4)
+      // Sidebar'ı büyüt
+      setForceExpandSidebar(true)
     }
   }
+
+  // Reset forceExpandSidebar after a short delay
+  useEffect(() => {
+    if (forceExpandSidebar) {
+      const timer = setTimeout(() => {
+        setForceExpandSidebar(false)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [forceExpandSidebar])
 
   // 3D Modal event listener
   useEffect(() => {
@@ -2945,8 +2969,7 @@ export default function EffectEditor() {
         )}
         <Toaster />
 
-        {/* Announcement System */}
-        <AnnouncementSystem />
+        {/* Announcement System - Moved to sidebar panel */}
 
         {/* Header */}
         <Header
@@ -2961,10 +2984,11 @@ export default function EffectEditor() {
           onRestorePanel={restorePanel}
           showGridCoordinates={showGridCoordinates}
           onToggleGridCoordinates={() => setShowGridCoordinates(!showGridCoordinates)}
+          onShowChangelog={() => setOpenPanels((prev) => [...prev.filter((p) => p !== "changelog"), "changelog"])}
         />
 
         {/* Footer */}
-        <Footer />
+        {!isEasterEggOpen && <Footer />}
 
         {/* 3D Transfer Modal */}
         <Transfer3DModal
@@ -2993,13 +3017,18 @@ export default function EffectEditor() {
         />
 
         {/* Left Toolbar */}
-        <LeftToolbar
-          currentTool={currentTool}
-          setCurrentTool={setCurrentTool}
-          onClearCanvas={handleClearCanvas}
-          onShowQuickSettings={() => setShowQuickSettings(!showQuickSettings)}
-          onGenerateCode={() => generateCode(optimize)}
-        />
+        {!isEasterEggOpen && (
+          <LeftToolbar
+            currentTool={currentTool}
+            setCurrentTool={setCurrentTool}
+            onClearCanvas={handleClearCanvas}
+            onShowQuickSettings={() => setShowQuickSettings(!showQuickSettings)}
+            onGenerateCode={() => {
+              setShowCodePanel(true);
+              generateCode(optimize);
+            }}
+          />
+        )}
 
         {/* Right Sidebar */}
         <RightSidebar
@@ -3057,16 +3086,19 @@ export default function EffectEditor() {
           onToggleRecording={handleToggleRecording}
           activeTabOverride={rightSidebarActiveTab}
           onTabChange={(tabIndex: number) => setRightSidebarActiveTab(undefined)}
+          forceExpand={forceExpandSidebar}
         />
 
         {/* Top Center Toolbar */}
-        <TopCenterToolbar
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          modes={modes}
-          isRecording={storeIsRecording}
-          onToggleRecording={handleToggleRecording}
-        />
+        {!isEasterEggOpen && (
+          <TopCenterToolbar
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            modes={modes}
+            isRecording={storeIsRecording}
+            onToggleRecording={handleToggleRecording}
+          />
+        )}
 
         {/* Layers Panel */}
         <LayersPanel
@@ -3103,12 +3135,14 @@ export default function EffectEditor() {
         />
 
         {/* Bottom Status Bar */}
-        <BottomStatusBar
-          onLayersClick={() => setLayersPanelOpen(!layersPanelOpen)}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          zoomLevel={Math.round(canvasScale * 100)}
-        />
+        {!isEasterEggOpen && (
+          <BottomStatusBar
+            onLayersClick={() => setLayersPanelOpen(!layersPanelOpen)}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            zoomLevel={Math.round(canvasScale * 100)}
+          />
+        )}
 
         <div className="flex h-screen">
           <div className="flex-1 relative flex flex-col">
@@ -3153,6 +3187,7 @@ export default function EffectEditor() {
         {/* Duyurular artık toast olarak gösteriliyor */}
 
       </div>
+
       {showGettingStarted && (
         <GettingStarted
           openPanels={openPanels}

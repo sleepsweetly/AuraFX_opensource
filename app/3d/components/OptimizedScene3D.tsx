@@ -6,7 +6,7 @@ import { use3DStore } from "../store/use3DStore"
 import { VertexRenderer } from "./VertexRenderer"
 import { SceneAxes } from "./SceneAxes"
 import { BlenderCameraControls } from "./BlenderCameraControls"
-import { ZoomControls, ZoomLogic } from "./ZoomControls"
+import { ZoomLogic } from "./ZoomControls"
 import { SelectionBox } from "./SelectionBox"
 import { TransformControlsManager } from "./TransformControlsManager"
 import * as THREE from "three"
@@ -14,7 +14,7 @@ import { useLayerStore } from "@/store/useLayerStore"
 import type { Layer, Element } from "@/types"
 import { InstancedMesh, Object3D, Color } from "three"
 import { Button } from "@/components/ui/button"
-import { Eye, EyeOff } from "lucide-react"
+
 import { FloatingPropertiesPanel } from "./FloatingPropertiesPanel"
 
 // Optimized Instanced Elements (VR modu gibi)
@@ -254,28 +254,8 @@ export function OptimizedScene3D() {
                 <ZoomLogic />
             </Canvas>
 
-            {/* Zoom Controls - Same as Scene3DEditor */}
-            <ZoomControls />
-            
-            {/* X-Ray Mode Toggle - Scene Overlay */}
-            <div className="absolute bottom-4 right-4 z-30">
-                <Button
-                    size="sm"
-                    onClick={() => setXrayMode(!xrayMode)}
-                    className={`h-12 w-12 p-0 rounded-full shadow-lg transition-all duration-200 ${
-                        xrayMode 
-                            ? "bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/30" 
-                            : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 border border-zinc-600"
-                    }`}
-                    title={`X-Ray Mode: ${xrayMode ? "ON" : "OFF"} (Alt+Z)`}
-                >
-                    {xrayMode ? (
-                        <Eye className="h-5 w-5" />
-                    ) : (
-                        <EyeOff className="h-5 w-5" />
-                    )}
-                </Button>
-            </div>
+
+
 
             {/* Floating Properties Panel */}
             {showPropertiesPanel && (

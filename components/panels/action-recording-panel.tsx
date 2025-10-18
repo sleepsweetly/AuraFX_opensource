@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, memo } from "react"
+import { useState, useMemo, useCallback, memo, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -82,6 +82,87 @@ const ACTION_COLORS = {
 
 
 
+// Virtual Scrolling Action List Component
+function VirtualActionList({ actions }: { actions: ActionRecord[] }) {
+  const [scrollTop, setScrollTop] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+  
+  // Virtual scrolling parameters
+  const ITEM_HEIGHT = 48 // Height of each action item in pixels (more compact)
+  const CONTAINER_HEIGHT = 256 // max-h-64 = 16rem = 256px
+  const VISIBLE_ITEMS = Math.ceil(CONTAINER_HEIGHT / ITEM_HEIGHT)
+  const BUFFER_SIZE = 5 // Extra items to render for smooth scrolling
+  
+  // Calculate which items to render
+  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE)
+  const endIndex = Math.min(actions.length, startIndex + VISIBLE_ITEMS + (BUFFER_SIZE * 2))
+  const visibleActions = actions.slice(startIndex, endIndex)
+  
+  // Total height for scrollbar
+  const totalHeight = actions.length * ITEM_HEIGHT
+  
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop)
+  }
+
+  if (actions.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-sm text-gray-500">No actions found</p>
+      </div>
+    )
+  }
+
+  return (
+    <div 
+      ref={containerRef}
+      className="overflow-auto compact-scrollbar bg-white rounded-lg border border-gray-200"
+      onScroll={handleScroll}
+      style={{ height: CONTAINER_HEIGHT }}
+    >
+      <div style={{ height: totalHeight, position: 'relative' }}>
+        <div 
+          style={{ 
+            position: 'absolute',
+            top: startIndex * ITEM_HEIGHT,
+            width: '100%'
+          }}
+          className="space-y-1 p-2"
+        >
+          {visibleActions.map((record, index) => {
+            const actualIndex = startIndex + index
+            return (
+              <div key={record.id} style={{ height: ITEM_HEIGHT }}>
+                <ActionItem record={record} index={actualIndex} />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      
+      <style jsx>{`
+        .compact-scrollbar::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        .compact-scrollbar::-webkit-scrollbar-track {
+          background: #ffffff;
+        }
+        .compact-scrollbar::-webkit-scrollbar-thumb {
+          background: #e5e7eb;
+          border-radius: 3px;
+        }
+        .compact-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #d1d5db;
+        }
+        .compact-scrollbar::-webkit-scrollbar-corner {
+          background: #ffffff;
+        }
+      `}</style>
+    </div>
+  )
+}
+
 const ActionItem = memo(({ record, index }: { record: ActionRecord; index: number }) => {
   const Icon = ACTION_ICONS[record.type as keyof typeof ACTION_ICONS] || Clock
   const colorClass = ACTION_COLORS[record.type as keyof typeof ACTION_COLORS] || "bg-gray-50 text-gray-600 border-gray-200"
@@ -97,36 +178,36 @@ const ActionItem = memo(({ record, index }: { record: ActionRecord; index: numbe
 
   return (
     <motion.div
-      className="flex items-center justify-between text-sm bg-white rounded-lg p-3 border border-gray-200 hover:border-gray-300 transition-colors"
+      className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group"
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: Math.min(index * 0.02, 0.3) }}
     >
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
-          <Icon className="w-4 h-4 text-gray-600" />
-        </div>
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-xs px-2 py-1 rounded border font-medium ${colorClass}`}>
-              {ACTION_LABELS[record.type as keyof typeof ACTION_LABELS] || record.type}
-            </span>
-            <span className="text-xs text-gray-500 w-7 font-mono font-semibold bg-gray-50 px-2 py-1 rounded border border-gray-200">
-              #{index + 1}
-            </span>
-          </div>
-          <span className="text-sm text-gray-900 font-medium">
-            {record.elementIds.length} element{record.elementIds.length !== 1 ? "s" : ""}
+      {/* Icon */}
+      <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-gray-200 transition-colors">
+        <Icon className="w-3.5 h-3.5 text-gray-600" />
+      </div>
+      
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${colorClass}`}>
+            {ACTION_LABELS[record.type as keyof typeof ACTION_LABELS] || record.type}
+          </span>
+          <span className="text-xs text-gray-500 font-mono">
+            #{index + 1}
           </span>
         </div>
+        <div className="flex items-center gap-2 text-xs text-gray-600">
+          <span>{record.elementIds.length} element{record.elementIds.length !== 1 ? "s" : ""}</span>
+          <span className="text-gray-400">•</span>
+          <span className="font-mono">{formatDelay(record.delayTicks)}</span>
+        </div>
       </div>
-      <div className="flex items-center gap-2 text-gray-600">
-        <span className="font-mono text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded border border-gray-200 font-medium">
-          {formatDelay(record.delayTicks)}
-        </span>
-        <span className="font-mono text-xs bg-gray-50 px-2 py-1 rounded border border-gray-200">
-          {formatTime(record.timestamp)}
-        </span>
+      
+      {/* Time */}
+      <div className="text-xs text-gray-500 font-mono flex-shrink-0">
+        {formatTime(record.timestamp)}
       </div>
     </motion.div>
   )
@@ -194,7 +275,7 @@ export function ActionRecordingPanel({
   )
 
   return (
-    <div className="w-full max-w-md mx-auto h-full flex flex-col bg-white p-4 overflow-y-auto">
+    <div className="w-full max-w-md mx-auto h-full flex flex-col bg-white p-4 overflow-y-auto scrollbar-hidden">
       {/* Header */}
       <div className="flex-shrink-0 mb-6">
         <div className="flex items-center gap-3">
@@ -474,22 +555,8 @@ export function ActionRecordingPanel({
                   </div>
 
                   {/* Actions List */}
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {filteredRecords.length === 0 ? (
-                      <div className="text-center py-4">
-                        <p className="text-sm text-gray-500">No actions found</p>
-                      </div>
-                    ) : (
-                      <AnimatePresence mode="popLayout">
-                        {filteredRecords.map((record, index) => (
-                          <ActionItem
-                            key={record.id}
-                            record={record}
-                            index={index}
-                          />
-                        ))}
-                      </AnimatePresence>
-                    )}
+                  <div className="mt-2">
+                    <VirtualActionList actions={filteredRecords} />
                   </div>
                 </div>
               </motion.div>
@@ -523,3 +590,13 @@ export function ActionRecordingPanel({
     </div>
   )
 }
+
+      <style jsx>{`
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hidden {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>

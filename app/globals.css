@@ -508,3 +508,44 @@ input, textarea, [contenteditable="true"], [contenteditable=""],
   -ms-user-select: text;
   user-select: text;
 }
+
+/* Enhanced Scrollbar Hiding for Panels - Brave Browser Compatible */
+.scrollbar-hidden {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+  overflow: -moz-scrollbars-none !important; /* Old Firefox */
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera, Brave */
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+.scrollbar-hidden::-webkit-scrollbar-track {
+  display: none !important;
+  background: transparent !important;
+}
+
+.scrollbar-hidden::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
+}
+
+.scrollbar-hidden::-webkit-scrollbar-corner {
+  display: none !important;
+  background: transparent !important;
+}
+
+/* Force hide scrollbars on panel containers */
+.panel-container {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.panel-container::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
