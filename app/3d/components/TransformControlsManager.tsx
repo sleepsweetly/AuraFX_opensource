@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useEffect, useState, useCallback } from "react"
+import { useRef, useEffect, useState, useCallback, useMemo } from "react"
 import { TransformControls } from "@react-three/drei"
 import { Vector3, Object3D, Euler } from "three"
 import { use3DStore } from "../store/use3DStore"
@@ -33,6 +33,10 @@ export function TransformControlsManager() {
   const [startScales, setStartScales] = useState<Map<string, Vector3>>(new Map())
   const [startCenter, setStartCenter] = useState<Vector3 | null>(null)
   const [startDummyTransform, setStartDummyTransform] = useState<{position: Vector3, rotation: Vector3, scale: Vector3} | null>(null)
+  
+  // Convert arrays to Sets for performance
+  const selectedVerticesSet = useMemo(() => new Set(selectedVertices), [selectedVertices])
+  const selectedShapesSet = useMemo(() => new Set(selectedShapes), [selectedShapes])
   
   const hasSelection = selectedVertices.length > 0 || selectedShapes.length > 0
 
@@ -141,7 +145,7 @@ export function TransformControlsManager() {
       
       // Vertex'lerin geçici pozisyonlarını hesapla
       startPositions.forEach((startPos, id) => {
-        if (selectedVertices.includes(id)) {
+        if (selectedVerticesSet.has(id)) {
           const newPos = startPos.clone().add(delta)
           newTempPositions.set(id, newPos)
         }
@@ -149,7 +153,7 @@ export function TransformControlsManager() {
 
       // Shape'lerin geçici pozisyonlarını hesapla ve içindeki vertex'leri de hesapla
       startPositions.forEach((startPos, id) => {
-        if (selectedShapes.includes(id)) {
+        if (selectedShapesSet.has(id)) {
           const newPos = startPos.clone().add(delta)
           newTempPositions.set(id, newPos)
           
@@ -177,7 +181,7 @@ export function TransformControlsManager() {
 
       // Vertex'lerin geçici pozisyonlarını hesapla
       startPositions.forEach((startPos, id) => {
-        if (selectedVertices.includes(id)) {
+        if (selectedVerticesSet.has(id)) {
           const relativePos = startPos.clone().sub(startCenter)
           const rotatedPos = relativePos.clone().applyEuler(new Euler(deltaRotation.x, deltaRotation.y, deltaRotation.z))
           const newPos = startCenter.clone().add(rotatedPos)
@@ -187,7 +191,7 @@ export function TransformControlsManager() {
 
       // Shape'lerin geçici pozisyonlarını hesapla ve içindeki vertex'leri de hesapla
       startPositions.forEach((startPos, id) => {
-        if (selectedShapes.includes(id)) {
+        if (selectedShapesSet.has(id)) {
           const relativePos = startPos.clone().sub(startCenter)
           const rotatedPos = relativePos.clone().applyEuler(new Euler(deltaRotation.x, deltaRotation.y, deltaRotation.z))
           const newPos = startCenter.clone().add(rotatedPos)
@@ -227,7 +231,7 @@ export function TransformControlsManager() {
 
       // Vertex'lerin geçici pozisyonlarını hesapla
       startPositions.forEach((startPos, id) => {
-        if (selectedVertices.includes(id)) {
+        if (selectedVerticesSet.has(id)) {
           const relativePos = startPos.clone().sub(startCenter)
           const scaledPos = relativePos.clone().multiply(scaleFactor)
           const newPos = startCenter.clone().add(scaledPos)
@@ -237,7 +241,7 @@ export function TransformControlsManager() {
 
       // Shape'lerin geçici pozisyonlarını hesapla ve içindeki vertex'leri de hesapla
       startPositions.forEach((startPos, id) => {
-        if (selectedShapes.includes(id)) {
+        if (selectedShapesSet.has(id)) {
           const relativePos = startPos.clone().sub(startCenter)
           const scaledPos = relativePos.clone().multiply(scaleFactor)
           const newPos = startCenter.clone().add(scaledPos)

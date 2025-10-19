@@ -78,16 +78,22 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
   const isDraggingRef = useRef(false)
   const dragOffsetRef = useRef({ x: 0, y: 0 })
 
-  const selectedVertex = selectedVertices.length === 1 ? Array.from(vertices.values()).find((v) => v.id === selectedVertices[0]) : null
-  const selectedShape = selectedShapes.length === 1 ? shapes.find((s) => s.id === selectedShapes[0]) : null
-  const allSelectedVertices = Array.from(vertices.values()).filter((v) => selectedVertices.includes(v.id))
+  // Convert arrays from store to Sets for O(1) performance
+  const selectedVerticesSet = new Set(selectedVertices)
+  const selectedShapesSet = new Set(selectedShapes)
+
+  const selectedVerticesArray = selectedVertices
+  const selectedShapesArray = selectedShapes
+  const selectedVertex = selectedVerticesArray.length === 1 ? Array.from(vertices.values()).find((v) => v.id === selectedVerticesArray[0]) : null
+  const selectedShape = selectedShapesArray.length === 1 ? shapes.find((s) => s.id === selectedShapesArray[0]) : null
+  const allSelectedVertices = Array.from(vertices.values()).filter((v) => selectedVerticesSet.has(v.id))
 
   // Local state for multi-position editing
   const [localMultiPosition, setLocalMultiPosition] = useState<{ x: string; y: string; z: string }>({ x: "", y: "", z: "" })
 
   // Calculate initial multi-position values
   const calculatedMultiPosition = useMemo(() => {
-    if (selectedVertices.length > 1 && allSelectedVertices.length > 0) {
+    if (selectedVerticesArray.length > 1 && allSelectedVertices.length > 0) {
       const first = allSelectedVertices[0]
       const allSame = (axis: "x" | "y" | "z") => {
         const baseValue = first.position[axis]
@@ -101,7 +107,7 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
       }
     }
     return { x: "", y: "", z: "" }
-  }, [selectedVertices.length, selectedVertices.join(',')])
+  }, [selectedVerticesArray.length, selectedVerticesArray.join(',')])
 
   // Update local state when selection changes
   useEffect(() => {
@@ -156,12 +162,12 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
   // Shape panel logic
   let showShapePanel = false;
   let shapeForPanel = null;
-  if (selectedVertices.length > 0 && shapes.length > 0) {
+  if (selectedVerticesArray.length > 0 && shapes.length > 0) {
     for (const shape of shapes) {
       if (
-        shape.vertices.length === selectedVertices.length &&
-        shape.vertices.every(id => selectedVertices.includes(id)) &&
-        selectedVertices.every(id => shape.vertices.includes(id))
+        shape.vertices.length === selectedVerticesArray.length &&
+        shape.vertices.every(id => selectedVerticesSet.has(id)) &&
+        selectedVerticesArray.every(id => shape.vertices.includes(id))
       ) {
         showShapePanel = true;
         shapeForPanel = shape;
@@ -209,7 +215,7 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
     }
   }, [handleMouseMove, handleMouseUp])
 
-  if (!selectedVertex && !selectedShape && selectedVertices.length === 0) {
+  if (!selectedVertex && !selectedShape && selectedVerticesArray.length === 0) {
     return null
   }
 
@@ -251,8 +257,8 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
             <div>
               <span className="text-white font-semibold text-sm">Properties</span>
               <div className="text-white/60 text-xs">
-                {selectedVertices.length > 1
-                  ? `${selectedVertices.length} elements selected`
+                {selectedVerticesArray.length > 1
+                  ? `${selectedVerticesArray.length} elements selected`
                   : selectedShape
                     ? `${getShapeTypeInfo(selectedShape.type).name}`
                     : "Element settings"
@@ -273,7 +279,7 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
         {/* Content */}
         <div className="p-4 space-y-4">
           {/* Single Element */}
-          {selectedVertex && selectedVertices.length === 1 && !selectedShape && (
+          {selectedVertex && selectedVerticesArray.length === 1 && !selectedShape && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -327,7 +333,7 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
           )}
 
           {/* Shape Properties */}
-          {(selectedShape || showShapePanel) && !(selectedVertex && selectedVertices.length === 1) && (
+          {(selectedShape || showShapePanel) && !(selectedVertex && selectedVerticesArray.length === 1) && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -483,7 +489,7 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
           )}
 
           {/* Multi Selection */}
-          {selectedVertices.length > 1 && (
+          {selectedVerticesArray.length > 1 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -492,7 +498,7 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
               <div className="flex items-center gap-2 mb-4">
                 <Box className="w-4 h-4 text-green-400" />
                 <span className="text-white font-medium">
-                  {selectedVertices.length} Elements Selected
+                  {selectedVerticesArray.length} Elements Selected
                 </span>
               </div>
 

@@ -59,7 +59,8 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
 
             // Renk ayarla - seçili elementler için özel renk
             const { selectedVertices } = use3DStore.getState()
-            const isSelected = selectedVertices.includes(element.id)
+            const selectedVerticesSet = new Set(selectedVertices)
+            const isSelected = selectedVerticesSet.has(element.id)
             
             const color = isSelected 
                 ? new Color("#00ff00") // Bright green for selected

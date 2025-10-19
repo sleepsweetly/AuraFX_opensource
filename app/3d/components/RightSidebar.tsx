@@ -5,7 +5,7 @@ import { Slider } from "@/components/ui/slider"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { Hexagon } from "lucide-react"
 import { use3DStore } from "../store/use3DStore"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 
 export function RightSidebar() {
   const {
@@ -18,11 +18,15 @@ export function RightSidebar() {
     clearShapeVertices,
   } = use3DStore()
 
-  const selectedVertex = selectedVertices.length === 1 ? Array.from(vertices.values()).find((v) => v.id === selectedVertices[0]) : null
-  const selectedShape = selectedShapes.length === 1 ? shapes.find((s) => s.id === selectedShapes[0]) : null
+  const selectedVerticesArray = Array.from(selectedVertices)
+  const selectedShapesArray = Array.from(selectedShapes)
+  const selectedVertex = selectedVerticesArray.length === 1 ? Array.from(vertices.values()).find((v) => v.id === selectedVerticesArray[0]) : null
+  const selectedShape = selectedShapesArray.length === 1 ? shapes.find((s) => s.id === selectedShapesArray[0]) : null
 
-  const allSelectedVertices = Array.from(vertices.values()).filter((v) => selectedVertices.includes(v.id))
-  const allSelectedShapes = shapes.filter((s) => selectedShapes.includes(s.id))
+  const selectedVerticesSet = useMemo(() => new Set(selectedVertices), [selectedVertices])
+  const selectedShapesSet = useMemo(() => new Set(selectedShapes), [selectedShapes])
+  const allSelectedVertices = Array.from(vertices.values()).filter((v) => selectedVerticesSet.has(v.id))
+  const allSelectedShapes = shapes.filter((s) => selectedShapesSet.has(s.id))
 
 
 
@@ -44,7 +48,7 @@ export function RightSidebar() {
   }, [selectedShape]);
 
   useEffect(() => {
-    if (selectedVertices.length > 1 && allSelectedVertices.length > 0) {
+    if (selectedVerticesArray.length > 1 && allSelectedVertices.length > 0) {
       const first = allSelectedVertices[0]
       const allSame = (axis: "x" | "y" | "z") => {
         const baseValue = first.position[axis]
@@ -69,12 +73,12 @@ export function RightSidebar() {
   // Shape panelini göstermek için sağlam kontrol
   let showShapePanel = false;
   let shapeForPanel = null;
-  if (selectedVertices.length > 0 && shapes.length > 0) {
+  if (selectedVerticesArray.length > 0 && shapes.length > 0) {
     for (const shape of shapes) {
       if (
-        shape.vertices.length === selectedVertices.length &&
-        shape.vertices.every(id => selectedVertices.includes(id)) &&
-        selectedVertices.every(id => shape.vertices.includes(id))
+        shape.vertices.length === selectedVerticesArray.length &&
+        shape.vertices.every(id => selectedVerticesSet.has(id)) &&
+        selectedVerticesArray.every(id => shape.vertices.includes(id))
       ) {
         showShapePanel = true;
         shapeForPanel = shape;
@@ -85,7 +89,7 @@ export function RightSidebar() {
 
 
 
-  if (!selectedVertex && !selectedShape && selectedVertices.length === 0) {
+  if (!selectedVertex && !selectedShape && selectedVerticesArray.length === 0) {
     return (
       <div className="w-80 bg-[#000000] border-l border-zinc-800 h-full max-h-screen overflow-y-auto">
         <div className="flex items-center justify-center h-full">
@@ -104,7 +108,7 @@ export function RightSidebar() {
   return (
     <div className="min-w-80 w-80 bg-[#000000] border-l border-zinc-800 h-full max-h-screen overflow-y-auto flex flex-col items-center py-8 px-2">
       {/* Single Element Panel - Highest Priority */}
-      {selectedVertex && selectedVertices.length === 1 && !selectedShape && (
+      {selectedVertex && selectedVerticesArray.length === 1 && !selectedShape && (
         <div className="w-full max-w-xs bg-black rounded-lg shadow-lg p-4 mb-4 border border-zinc-700 flex flex-col gap-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
@@ -166,7 +170,7 @@ export function RightSidebar() {
       )}
 
       {/* Shape Properties Panel */}
-      {(selectedShape || showShapePanel) && !(selectedVertex && selectedVertices.length === 1) && (
+      {(selectedShape || showShapePanel) && !(selectedVertex && selectedVerticesArray.length === 1) && (
         <div className="w-full max-w-xs m-3 bg-black border border-zinc-700/50 rounded-lg shadow-lg">
           {/* Header */}
           <div className="p-4 border-b border-zinc-700/30">
@@ -377,11 +381,11 @@ export function RightSidebar() {
 
 
       {/* Multi-Element Panel */}
-      {selectedVertices.length > 1 && (
+      {selectedVerticesArray.length > 1 && (
         <div className="w-full max-w-xs bg-black rounded-lg shadow-lg p-4 mb-4 border border-zinc-700 flex flex-col gap-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-            <span className="text-white font-medium">{selectedVertices.length} Vertices Selected</span>
+            <span className="text-white font-medium">{selectedVerticesArray.length} Vertices Selected</span>
           </div>
           {/* Position */}
           <div className="bg-black border border-zinc-700/30 rounded-lg p-3">

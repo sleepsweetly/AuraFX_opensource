@@ -15,7 +15,9 @@ export function VertexRenderer({ vertex }: VertexRendererProps) {
   const { selectVertex, selectedVertices, currentTool, camera, shapes, isTransforming, tempPositions, xrayMode } = use3DStore()
   const { gl } = useThree()
 
-  const isSelected = selectedVertices.includes(vertex.id)
+  // Convert array to Set for O(1) performance
+  const selectedVerticesSet = useMemo(() => new Set(selectedVertices), [selectedVertices])
+  const isSelected = selectedVerticesSet.has(vertex.id)
 
   // Enhanced animation for selected vertices
   useFrame((state) => {

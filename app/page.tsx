@@ -23,6 +23,7 @@ import type { Layer, Element, Tool, ActionRecord } from "@/types"
 import { Toaster } from "@/components/toast-system"
 import { v4 as uuidv4 } from "uuid"
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
+import { useSelectionStore } from "@/store/useSelectionStore"
 import { generateEffectCode } from "./generate-effect-code"
 import { ElementSettingsPanel } from "@/components/panels/element-settings-panel"
 import { AnimatePresence, motion } from 'framer-motion'
@@ -988,7 +989,10 @@ export default function EffectEditor() {
   const [manualFrameCount, setManualFrameCount] = useState<number | undefined>(undefined);
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
-  const [selectedElementIds, setSelectedElementIds] = useState<string[]>([]);
+  
+  // Use selection store instead of local state
+  const selectedElementIds = useSelectionStore((state) => state.selectedElementIds);
+  const setSelectedElementIds = useSelectionStore((state) => state.setSelectedElementIds);
   const [expandedModes, setExpandedModes] = useState<Record<string, boolean>>({});
   const [chainSequence, setChainSequence] = useState<string[]>([]);
   const [chainItems, setChainItems] = useState<Array<{ type: 'element' | 'delay', id: string, elementId?: string, elementIds?: string[], delay?: number }>>([]);
@@ -3076,7 +3080,7 @@ export default function EffectEditor() {
           setOptimize={setOptimize}
           chainSequence={chainSequence}
           onChainSequenceChange={setChainSequence}
-          selectedElementIds={selectedElementIds}
+          // selectedElementIds now handled by store directly
           chainItems={chainItems}
           onChainItemsChange={setChainItems}
           currentLineCount={performanceAnalysis.originalLines}
@@ -3161,8 +3165,7 @@ export default function EffectEditor() {
               onAddElement={handleAddElement}
               onClearCanvas={handleClearCanvas}
               onUpdateLayer={updateLayer}
-              selectedElementIds={selectedElementIds}
-              setSelectedElementIds={setSelectedElementIds}
+              // selectedElementIds and setSelectedElementIds now handled by store directly
               performanceMode={settings.performanceMode}
               chainSequence={chainSequence}
               onChainSequenceChange={setChainSequence}

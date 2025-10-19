@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef, useImperativeHandle, forwardRef, useEffect, useState, useMemo, useLayoutEffect } from "react"
+import React, { useRef, useImperativeHandle, forwardRef, useEffect, useState, useMemo, useLayoutEffect, useCallback } from "react"
 import type { Element, Layer, Tool } from "@/types"
 import { Trash2, Settings, Palette, Hash, Grid3X3, Zap } from "lucide-react"
 import { ColorPicker } from "@/components/ui/color-picker"
@@ -12,6 +12,7 @@ import { RotateCw, MoveDiagonal } from "lucide-react"
 
 import { Pencil, MousePointerClick, Eraser, Circle, Square, Slash, Triangle } from "lucide-react"
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
+import { useSelectionStore } from "@/store/useSelectionStore"
 import { useToast } from "@/components/toast-system"
 
 interface CanvasProps {
@@ -25,8 +26,8 @@ interface CanvasProps {
   onAddElement: (element: Element | Element[]) => void
   onClearCanvas: () => void
   onUpdateLayer?: (layerId: string, updates: Partial<Layer>) => void
-  selectedElementIds: string[]
-  setSelectedElementIds: (ids: string[]) => void
+  selectedElementIds?: string[] // Optional - canvas can use store directly
+  setSelectedElementIds?: (ids: string[]) => void // Optional - canvas can use store directly
   performanceMode?: boolean;
   onShapeCreated?: (type: string) => void;
   onStartBatchMode?: () => void;
@@ -67,6 +68,14 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   const { toast } = useToast()
   useImperativeHandle(ref, () => canvasRef.current as HTMLCanvasElement)
 
+  // Selection Store - Use store directly instead of props
+  const selectedElementIdsFromStore = useSelectionStore((state) => state.selectedElementIds)
+  const setSelectedElementIdsFromStore = useSelectionStore((state) => state.setSelectedElementIds)
+
+  // Use store values if props are not provided (backward compatibility)
+  const actualSelectedElementIds = selectedElementIds ?? selectedElementIdsFromStore
+  const actualSetSelectedElementIds = setSelectedElementIds ?? setSelectedElementIdsFromStore
+
   // Action Recording Store
   const {
     recordRotate,
@@ -89,10 +98,10 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
   // Helper: Determine current particle count for selected shape/group
   const getCurrentParticleCount = () => {
-    if (selectedElementIds.length > 0) {
+    if (actualSelectedElementIds.length > 0) {
       const currentLayer = layers.find(layer => layer.id === currentLayerId)
       if (currentLayer) {
-        const selectedElement = currentLayer.elements.find(el => selectedElementIds.includes(el.id))
+        const selectedElement = currentLayer.elements.find(el => actualSelectedElementIds.includes(el.id))
         if (selectedElement && selectedElement.groupId) {
           // Daha güvenilir: grup boyutunu say
           const groupCount = currentLayer.elements.filter(el => el.groupId === selectedElement.groupId).length
@@ -105,10 +114,10 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
   // Helper: Determine current shape type if any
   const getCurrentShapeType = (): "circle" | "square" | "line" | null => {
-    if (selectedElementIds.length > 0) {
+    if (actualSelectedElementIds.length > 0) {
       const currentLayer = layers.find(layer => layer.id === currentLayerId)
       if (currentLayer) {
-        const el = currentLayer.elements.find(e => selectedElementIds.includes(e.id))
+        const el = currentLayer.elements.find(e => actualSelectedElementIds.includes(e.id))
         if (el && (el.type === "circle" || el.type === "square" || el.type === "line")) return el.type
       }
     }
@@ -287,6 +296,18 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   const [showParticleModal, setShowParticleModal] = useState(false)
   const isMouseOverUIRef = useRef(false)
   const [sliderValue, setSliderValue] = useState<number | null>(null)
+
+  // === PERFORMANCE OPTIMIZATION: Delta-based manipulation ===
+  // Sürüklemenin ne kadar değiştiğini tutan LOKAL state (React'i yormaz)
+  const [dragDelta, setDragDelta] = useState<{ x: number, z: number, yOffset: number } | null>(null);
+
+  // Sürükleme başladığındaki orijinal pozisyonları saklamak için ref
+  const dragStartInfoRef = useRef<{
+    mouseX: number, // Farenin başladığı X (canvas koordinatı)
+    mouseY: number, // Farenin başladığı Y (canvas koordinatı)
+    positions: Map<string, { x: number, z: number, yOffset: number }> // Elementlerin orijinal pozisyonları (Hızlı lookup için Map)
+  } | null>(null);
+
   // State for worker-based selection
   const [workerSelection, setWorkerSelection] = useState<{
     selectedIds: string[];
@@ -354,7 +375,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     const handleResize = () => {
       // Canvas boyutu değiştiğinde hemen yeniden hesapla
-      if (selectedElementIds.length > 0 && currentLayer) {
+      if (actualSelectedElementIds.length > 0 && currentLayer) {
         const bounds = getSelectionBoxBounds()
         if (bounds) {
           setCurrentSelectionBounds(bounds)
@@ -367,7 +388,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     resizeObserver.observe(canvas)
 
     return () => resizeObserver.disconnect()
-  }, [selectedElementIds, currentLayer, viewMode, scale, offset])
+  }, [actualSelectedElementIds, currentLayer, viewMode, scale, offset])
 
   // Scale ve offset değiştiğinde fixed selection box'ı güncelle
   useEffect(() => {
@@ -470,7 +491,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       canvas.height = rect.height
 
       // Canvas boyutu değiştiğinde selection box koordinatlarını yeniden hesapla
-      if (selectedElementIds.length > 0 && currentLayer) {
+      if (actualSelectedElementIds.length > 0 && currentLayer) {
         setForceUpdate(prev => prev + 1)
         // Selection box'ı yeniden hesapla
         setTimeout(() => {
@@ -485,7 +506,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
     return () => window.removeEventListener('resize', resizeCanvas)
-  }, [selectedElementIds, currentLayer])
+  }, [actualSelectedElementIds, currentLayer])
 
   // Canvas boyutu değiştiğinde mouse position'ı güncelle
   useEffect(() => {
@@ -525,10 +546,10 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         const r = parseInt(hex.substr(0, 2), 16);
         const g = parseInt(hex.substr(2, 2), 16);
         const b = parseInt(hex.substr(4, 2), 16);
-        
+
         // Calculate luminance (0-255)
         const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
-        
+
         // If background is dark, use light grid; if light, use dark grid
         if (luminance < 128) {
           // Dark background - use light grid
@@ -538,7 +559,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           return `rgba(0, 0, 0, 0.1)`;
         }
       };
-      
+
       ctx.strokeStyle = getGridColor(backgroundColor);
       ctx.lineWidth = 1;
       const gridSize = 20 * scale;
@@ -580,7 +601,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         const g = parseInt(hex.substr(2, 2), 16);
         const b = parseInt(hex.substr(4, 2), 16);
         const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
-        
+
         if (luminance < 128) {
           // Dark background - use lighter center lines
           return `rgba(255, 255, 255, 0.25)`;
@@ -589,7 +610,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           return `rgba(0, 0, 0, 0.15)`;
         }
       };
-      
+
       ctx.strokeStyle = getCenterLineColor(backgroundColor);
       ctx.lineWidth = 1;
 
@@ -607,7 +628,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     // Draw grid coordinates (Desmos style) - User toggleable
     if (showGridCoordinates) {
       const gridSize = 20 * scale; // Grid koordinatları için gridSize tanımla
-      
+
       // Calculate text color based on background
       const getTextColor = (bgColor: string) => {
         const hex = bgColor.replace('#', '');
@@ -615,7 +636,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         const g = parseInt(hex.substr(2, 2), 16);
         const b = parseInt(hex.substr(4, 2), 16);
         const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
-        
+
         if (luminance < 128) {
           // Dark background - use light text
           return `rgba(255, 255, 255, 0.6)`;
@@ -624,7 +645,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           return `rgba(0, 0, 0, 0.5)`;
         }
       };
-      
+
       ctx.fillStyle = getTextColor(backgroundColor);
       ctx.font = "11px -apple-system, system-ui, sans-serif";
       ctx.textAlign = "center";
@@ -713,35 +734,52 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           ctx.fillStyle = color;
           ctx.beginPath();
           (arr as { element: Element; idx: number }[]).forEach(({ element }) => {
+            // === YENİ KOD BAŞLANGIÇ: Delta-based positioning ===
+            // Orijinal pozisyonları al
+            let elementX = element.position.x;
+            let elementZ = element.position.z;
+            let elementYOffset = typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0);
+
+            // Eğer bu element şu an seçili ve sürükleniyorsa ('hayalet' mod)
+            if (draggingSelection && dragDelta && dragStartInfoRef.current?.positions.has(element.id)) {
+              // Orijinal pozisyonu ref'ten al (hızlı)
+              const startPos = dragStartInfoRef.current.positions.get(element.id)!;
+              // Çizim pozisyonunu 'delta' kadar kaydır
+              elementX = startPos.x + dragDelta.x;
+              elementZ = startPos.z + dragDelta.z;
+              elementYOffset = startPos.yOffset + dragDelta.yOffset;
+            }
+            // === YENİ KOD BİTİŞ ===
+
             let screenX: number, screenY: number;
             if (viewMode === 'top') {
-              screenX = centerX + element.position.x * 10 * scale;
-              screenY = centerY + element.position.z * 10 * scale;
+              screenX = centerX + elementX * 10 * scale; // Değişti
+              screenY = centerY + elementZ * 10 * scale; // Değişti
             } else if (viewMode === 'side') {
-              screenX = centerX + element.position.x * 10 * scale;
-              const yVal = typeof element.position.y === 'number' ? element.position.y : (element.yOffset || 0);
+              screenX = centerX + elementX * 10 * scale; // Değişti
+              const yVal = elementYOffset; // Değişti
               screenY = centerY - yVal * 10 * scale;
             } else if (viewMode === 'diagonal') {
               // 45° diagonal view
-              const worldX = element.position.x;
-              const worldZ = element.position.z;
+              const worldX = elementX; // Değişti
+              const worldZ = elementZ; // Değişti
               screenX = centerX + (worldX * 0.707 + worldZ * 0.707) * 10 * scale;
               screenY = centerY + (worldX * 0.707 - worldZ * 0.707) * 10 * scale;
             } else if (viewMode === 'isometric') {
               // Isometric view
-              const worldX = element.position.x;
-              const worldZ = element.position.z;
+              const worldX = elementX; // Değişti
+              const worldZ = elementZ; // Değişti
               screenX = centerX + (worldX * 0.866 + worldZ * 0.5) * 10 * scale;
               screenY = centerY + (worldX * 0.5 - worldZ * 0.866) * 10 * scale;
             } else if (viewMode === 'front') {
               // Front view
-              const yVal = typeof element.position.y === 'number' ? element.position.y : (element.yOffset || 0);
+              const yVal = elementYOffset; // Değişti
               screenX = centerX + yVal * 10 * scale;
-              screenY = centerY + element.position.z * 10 * scale;
+              screenY = centerY + elementZ * 10 * scale; // Değişti
             } else {
               // Default to top view
-              screenX = centerX + element.position.x * 10 * scale;
-              screenY = centerY + element.position.z * 10 * scale;
+              screenX = centerX + elementX * 10 * scale; // Değişti
+              screenY = centerY + elementZ * 10 * scale; // Değişti
             }
             const isPng = element.type === 'image';
             ctx.moveTo(screenX + (isPng ? 0.6 : 3 * scale), screenY);
@@ -763,8 +801,25 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         : currentLayer.elements;
 
       elementsToRender.forEach((element, idx) => {
+        // === YENİ KOD BAŞLANGIÇ: Delta-based positioning ===
+        // Orijinal pozisyonları al
+        let elementX = element.position.x;
+        let elementZ = element.position.z;
+        let elementYOffset = typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0);
+
+        // Eğer bu element şu an seçili ve sürükleniyorsa ('hayalet' mod)
+        if (draggingSelection && dragDelta && dragStartInfoRef.current?.positions.has(element.id)) {
+          // Orijinal pozisyonu ref'ten al (hızlı)
+          const startPos = dragStartInfoRef.current.positions.get(element.id)!;
+          // Çizim pozisyonunu 'delta' kadar kaydır
+          elementX = startPos.x + dragDelta.x;
+          elementZ = startPos.z + dragDelta.z;
+          elementYOffset = startPos.yOffset + dragDelta.yOffset;
+        }
+        // === YENİ KOD BİTİŞ ===
+
         const posY = typeof element.position.y === 'number' ? element.position.y : 0;
-        const { x: screenX, y: screenY } = project3DTo2D(element.position.x, posY, element.position.z)
+        const { x: screenX, y: screenY } = project3DTo2D(elementX, elementYOffset, elementZ) // Değişti: elementX, elementZ, elementYOffset kullan
         let color = element.color || currentLayer.color
         if (modes.rainbowMode) {
           // Dynamic rainbow - tüm elementler aynı renkte, zamana göre değişir
@@ -996,7 +1051,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     // Draw selection rectangle if active (only when dragging with select tool)
     // NOT: Element seçildikten sonra bu box gizlenir, sadece çizgili box kalır
-    if (currentTool === "select" && selectionBox && selectedElementIds.length === 0) {
+    if (currentTool === "select" && selectionBox && actualSelectedElementIds.length === 0) {
       // Selection box'ı her zaman çiz
       const dx = Math.abs(selectionBox.end.x - selectionBox.start.x)
       const dy = Math.abs(selectionBox.end.y - selectionBox.start.y)
@@ -1018,12 +1073,12 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     // Draw bounding box around selected elements (only when not dragging a selection)
     const MIN_BOX_SIZE = 80
-    if (currentTool === "select" && ((selectedElementIds?.length ?? 0) > 0 && currentLayer)) {
+    if (currentTool === "select" && ((actualSelectedElementIds?.length ?? 0) > 0 && currentLayer)) {
       const canvas = canvasRef.current
       if (canvas) {
         const centerX = canvas.width / 2 + offset.x
         const centerY = canvas.height / 2 + offset.y
-        const selectedEls = currentLayer.elements.filter(element => selectedElementIds.includes(element.id))
+        const selectedEls = currentLayer.elements.filter(element => actualSelectedElementIds.includes(element.id))
         if (selectedEls.length > 0) {
           const xs = selectedEls.map(element => centerX + element.position.x * 10 * scale)
           const ys = selectedEls.map(element => {
@@ -1070,7 +1125,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       ctx.restore();
     }
 
-  }, [layers, performanceMode, modes, scale, offset, viewMode, currentLayer, dragStart, dragEnd, isDragging, currentTool, selectionBox, selectedElementIds, isRotating, isScaling, scaleStart, chainItems, animationTick, forceUpdate, mousePosition, showGridCoordinates, settings, backgroundColor]);
+  }, [layers, performanceMode, modes, scale, offset, viewMode, currentLayer, dragStart, dragEnd, isDragging, currentTool, selectionBox, actualSelectedElementIds, isRotating, isScaling, scaleStart, chainItems, animationTick, forceUpdate, mousePosition, showGridCoordinates, settings, backgroundColor, dragDelta]);
 
   // Chain Animation Web Worker - Kaldırıldı
   // useEffect(() => {
@@ -1205,18 +1260,18 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   // Handle keydown for delete
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (currentTool === "select" && selectedElementIds.length > 0 && (e.key === "Backspace" || e.key === "Delete")) {
+      if (currentTool === "select" && actualSelectedElementIds.length > 0 && (e.key === "Backspace" || e.key === "Delete")) {
         if (!currentLayer || !onUpdateLayer) return
-        const newElements = currentLayer.elements.filter(element => !selectedElementIds.includes(element.id))
+        const newElements = currentLayer.elements.filter(element => !actualSelectedElementIds.includes(element.id))
         onUpdateLayer(currentLayer.id, { elements: newElements })
-        setSelectedElementIds([])
+        actualSetSelectedElementIds([])
         setFixedSelectionBox(null) // Fixed selection box'ı da temizle
         setWorkerSelection(null) // Seçim silindiğinde workerSelection'ı da temizle
       }
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [currentTool, selectedElementIds, currentLayer, onUpdateLayer])
+  }, [currentTool, actualSelectedElementIds, currentLayer, onUpdateLayer])
 
   // Icon hit area padding
   const ICON_HIT_PADDING = 12
@@ -1343,7 +1398,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     }
 
     const MIN_BOX_SIZE = 80;
-    if (currentTool === "select" && ((selectedElementIds?.length ?? 0) > 0 && currentLayer)) {
+    if (currentTool === "select" && ((actualSelectedElementIds?.length ?? 0) > 0 && currentLayer)) {
       const canvas = canvasRef.current
       if (!canvas) return
       const rect = canvas.getBoundingClientRect()
@@ -1351,7 +1406,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       const mouseY = e.clientY - rect.top
       const centerX = canvas.width / 2 + offset.x
       const centerY = canvas.height / 2 + offset.y
-      const selectedEls = currentLayer.elements.filter(element => selectedElementIds.includes(element.id))
+      const selectedEls = currentLayer.elements.filter(element => actualSelectedElementIds.includes(element.id))
       if (selectedEls.length > 0) {
         const xs = selectedEls.map(element => centerX + element.position.x * 10 * scale)
         const ys = selectedEls.map(element => centerY + element.position.z * 10 * scale)
@@ -1450,76 +1505,20 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       let clickedOnSelected = false
       let clickedOnSelectionBox = false
 
-      if ((selectedElementIds?.length ?? 0) > 0) {
-        // Önce fixed selection box kontrolü yap
-        if (fixedSelectionBox) {
-          const bounds = (() => {
-            const canvas = canvasRef.current
-            if (!canvas || !currentLayer) return null
+      if ((actualSelectedElementIds?.length ?? 0) > 0) {
+        // === YENİ KOD BAŞLANGIÇ: Basitleştirilmiş Tıklama Tespiti ===
+        // 1. Görünen seçim kutusunun (mavi alan) koordinatlarını al
+        //    Bu fonksiyon zaten 30px dolgu payı (padding) içeriyor.
+        const bounds = getSelectionBoxBounds();
 
-            // Seçili elementlerin merkez noktasını hesapla
-            const selectedElements = currentLayer.elements.filter(el => selectedElementIds.includes(el.id))
-            if (selectedElements.length === 0) return null
-
-            const centerX = canvas.width / 2 + offset.x
-            const centerY = canvas.height / 2 + offset.y
-
-            // Elementlerin piksel koordinatlarındaki merkez noktasını bul
-            let totalX = 0, totalY = 0
-            selectedElements.forEach(element => {
-              const ex = centerX + element.position.x * 10 * scale
-              const ey = viewMode === 'side'
-                ? centerY - (typeof element.yOffset === 'number' ? element.yOffset : 0) * 10 * scale
-                : centerY + element.position.z * 10 * scale
-              totalX += ex
-              totalY += ey
-            })
-
-            const elementsCenterX = totalX / selectedElements.length
-            const elementsCenterY = totalY / selectedElements.length
-
-            // Orijinal selection box boyutlarını elementlerin merkezine yerleştir
-            const halfWidth = (fixedSelectionBox as any).originalWidth / 2
-            const halfHeight = (fixedSelectionBox as any).originalHeight / 2
-
-            return {
-              minX: elementsCenterX - halfWidth,
-              minY: elementsCenterY - halfHeight,
-              maxX: elementsCenterX + halfWidth,
-              maxY: elementsCenterY + halfHeight
-            }
-          })()
-
-          if (bounds && x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY) {
-            clickedOnSelectionBox = true
-          }
+        // 2. Kutunun içine tıklandı mı? (x, y mouse koordinatlarıdır)
+        if (bounds && x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY) {
+          clickedOnSelectionBox = true; // Evet, kutunun içindeyiz
         }
 
-        // Calculate selection box bounds (fallback)
-        const selectedEls = currentLayer.elements.filter(el => selectedElementIds.includes(el.id))
-        if (selectedEls.length > 0 && !clickedOnSelectionBox) {
-          const xs = selectedEls.map(el => centerX + el.position.x * 10 * scale)
-          const ys = selectedEls.map(el => {
-            if (viewMode === 'side') {
-              const yVal = typeof el.yOffset === 'number' ? el.yOffset : (typeof el.position.y === 'number' ? el.position.y : 0)
-              return centerY - yVal * 10 * scale
-            } else {
-              return centerY + el.position.z * 10 * scale
-            }
-          })
-
-          const minX = Math.min(...xs)
-          const minY = Math.min(...ys)
-          const maxX = Math.max(...xs)
-          const maxY = Math.max(...ys)
-
-          // Add padding to selection box for easier clicking
-          const padding = 20
-          if (x >= minX - padding && x <= maxX + padding && y >= minY - padding && y <= maxY + padding) {
-            clickedOnSelectionBox = true
-          }
-
-          // Check if clicking on any selected element
+        // 3. Kutunun içindeysek, spesifik bir elemente mi tıkladık? (Cursor için)
+        if (clickedOnSelectionBox) {
+          const selectedEls = currentLayer.elements.filter(el => actualSelectedElementIds.includes(el.id))
           for (const element of selectedEls) {
             let elementX, elementY
             if (viewMode === 'side') {
@@ -1531,19 +1530,43 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
               elementY = centerY + element.position.z * 10 * scale
             }
             const distance = Math.sqrt(Math.pow(x - elementX, 2) + Math.pow(y - elementY, 2))
-            if (distance <= 7 * scale) {
+            if (distance <= 7 * scale) { // 7 piksellik bir element tıklama alanı
               clickedOnSelected = true
               break
             }
           }
         }
+        // === YENİ KOD BİTİŞ ===
       }
 
-      // If clicking inside selection box but not on an element, start dragging the box
-      if (clickedOnSelectionBox && !clickedOnSelected) {
+      // If clicking inside selection box (on element OR empty space), start dragging
+      // (Kutunun içine tıklandıysa (boşluk veya element fark etmez) sürüklemeyi başlat)
+      if (clickedOnSelectionBox) {
         setDraggingSelection(true)
-        setDragOffset({ x, y })
-        return
+
+        // === YENİ KOD BAŞLANGIÇ: Delta-based dragging ===
+        // Sürükleme başladığında tüm seçili elementlerin orijinal pozisyonlarını kaydet
+        const positions = new Map<string, { x: number, z: number, yOffset: number }>();
+        const selectedEls = currentLayer.elements.filter(el => actualSelectedElementIds.includes(el.id));
+        selectedEls.forEach(el => {
+          positions.set(el.id, {
+            x: el.position.x,
+            z: el.position.z,
+            yOffset: typeof el.yOffset === 'number' ? el.yOffset : (typeof el.position.y === 'number' ? el.position.y : 0)
+          });
+        });
+
+        // Farenin ve elementlerin başlangıç durumunu ref'e kaydet
+        dragStartInfoRef.current = {
+          mouseX: x, // canvas koordinatı (snapToGrid'den gelen 'x')
+          mouseY: y, // canvas koordinatı (snapToGrid'den gelen 'y')
+          positions: positions
+        };
+        setDragDelta(null); // Deltayı sıfırla
+        // === YENİ KOD BİTİŞ ===
+
+        setDragOffset({ x, y }) // Eski kod - şimdilik bırakıyoruz backward compatibility için
+        return // Sürüklemeyi başlat
       }
 
 
@@ -1586,36 +1609,17 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         }
       }
 
-      // If not clicking on selection box or selected element, start new selection
-      if (!clickedOnSelectionBox && !clickedOnSelected) {
+      // If not clicking on selection box, start new selection
+      // (Kutunun DIŞINA tıklandıysa, yeni seçim başlat)
+      if (!clickedOnSelectionBox) { // !clickedOnSelected kontrolünü kaldırdık
         // Önce mevcut selectionBox'ı temizle
         setSelectionBox(null)
         setSelectionBox({ start: { x, y }, end: { x, y } })
-        setSelectedElementIds([])
+        actualSetSelectedElementIds([])
         setFixedSelectionBox(null) // Fixed selection box'ı da temizle
         setWorkerSelection(null) // Seçim iptalinde workerSelection'ı da temizle
 
         // Action Recording: Clear selection - gereksiz, sadece UI durumu
-      } else if (clickedOnSelected) {
-        // Start dragging selected element
-        setDraggingSelection(true)
-        setDragOffset({ x, y })
-
-        // Action Recording: Move start
-        if (modes.actionRecordingMode && selectedElementIds.length > 0 && currentLayer) {
-          const initialPositions = selectedElementIds.map(id => {
-            const element = currentLayer.elements.find(el => el.id === id);
-            if (!element) return { id, x: 0, z: 0, yOffset: 0 };
-            return {
-              id,
-              x: element.position.x,
-              z: element.position.z,
-              yOffset: typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0)
-            };
-          });
-
-          // Action Recording: Move start - gereksiz, sadece update ve end yeterli
-        }
       }
       return
     }
@@ -1735,13 +1739,13 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       scaleFactor = Math.max(0.1, Math.min(5, scaleFactor)); // 0.1x - 5x arası sınırla
 
       // Action Recording: Scale update (throttled)
-      if (modes.actionRecordingMode && selectedElementIds.length > 0) {
+      if (modes.actionRecordingMode && actualSelectedElementIds.length > 0) {
         const currentTime = Date.now()
         if (!lastScaleRecordTime || currentTime - lastScaleRecordTime > 16) { // 16ms throttle (~60fps)
           // Minimum ölçeklendirme threshold'u (çok küçük değişiklikleri kaydetme)
           const minScaleChange = 0.01 // %1 minimum ölçeklendirme değişikliği
           if (Math.abs(scaleFactor - 1) > minScaleChange) {
-            const currentPositions = selectedElementIds.map(id => {
+            const currentPositions = actualSelectedElementIds.map(id => {
               const element = currentLayer.elements.find(el => el.id === id);
               if (!element) return { id, x: 0, z: 0, yOffset: 0 };
               return {
@@ -1752,7 +1756,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
               };
             });
 
-            recordTransformUpdate(selectedElementIds, 'scale', currentPositions, undefined,
+            recordTransformUpdate(actualSelectedElementIds, 'scale', currentPositions, undefined,
               currentPositions.map(p => ({ id: p.id, scale: scaleFactor })));
             setLastScaleRecordTime(currentTime)
           }
@@ -1818,13 +1822,13 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         : 1
 
       // Action Recording: Rotate update (throttled)
-      if (modes.actionRecordingMode && selectedElementIds.length > 0) {
+      if (modes.actionRecordingMode && actualSelectedElementIds.length > 0) {
         const currentTime = Date.now()
         if (!lastRotateRecordTime || currentTime - lastRotateRecordTime > 16) { // 16ms throttle (~60fps)
           // Minimum döndürme threshold'u (çok küçük döndürmeleri kaydetme)
           const minRotation = 0.01 // ~0.57 derece minimum döndürme
           if (Math.abs(deltaAngle) > minRotation) {
-            const currentPositions = selectedElementIds.map(id => {
+            const currentPositions = actualSelectedElementIds.map(id => {
               const element = currentLayer.elements.find(el => el.id === id);
               if (!element) return { id, x: 0, z: 0, yOffset: 0 };
               return {
@@ -1835,7 +1839,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
               };
             });
 
-            recordTransformUpdate(selectedElementIds, 'rotate', currentPositions,
+            recordTransformUpdate(actualSelectedElementIds, 'rotate', currentPositions,
               currentPositions.map(p => ({ id: p.id, rotation: deltaAngle })), undefined);
             setLastRotateRecordTime(currentTime)
           }
@@ -1904,66 +1908,62 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       return;
     }
 
-    if (currentTool === "select" && draggingSelection && dragOffset && currentLayer) {
-      const dx = (x - dragOffset.x) / (10 * scale)
-      const dy = viewMode === 'side'
-        ? -(y - dragOffset.y) / (10 * scale)  // Invert Y for side view
-        : (y - dragOffset.y) / (10 * scale)
+    if (currentTool === "select" && draggingSelection && dragStartInfoRef.current && currentLayer) {
+      // === ÇÖKÜŞÜ DURDURAN YENİ KOD ===
+      // Farenin pixel koordinatlarını al (snap'siz)
+      let { x: mouseX, y: mouseY } = getCanvasCoordinates(e);
 
-      const updatedElements = currentLayer.elements.map(element => {
-        if (!selectedElementIds.includes(element.id)) return element
+      // Başlangıca göre toplam DÜNYA (world) deltasını hesapla
+      const worldDx = (mouseX - dragStartInfoRef.current.mouseX) / (10 * scale);
+      const worldDy = (mouseY - dragStartInfoRef.current.mouseY) / (10 * scale);
 
-        // yOffset'i koruyarak güncelle
-        const currentYOffset = typeof element.yOffset === 'number' ? element.yOffset : 0
-
-        return {
-          ...element,
-          position: {
-            x: element.position.x + dx,
-            z: element.position.z + (viewMode === 'side' ? 0 : dy)
-          },
-          yOffset: viewMode === 'side'
-            ? currentYOffset + dy
-            : currentYOffset  // Side view dışında da yOffset'i koru
-        }
-      })
-
-      if (onUpdateLayer) {
-        onUpdateLayer(currentLayer.id, { elements: updatedElements })
+      let delta: { x: number, z: number, yOffset: number };
+      if (viewMode === 'side') {
+        delta = { x: worldDx, yOffset: -worldDy, z: 0 }; // Side view Y eksenini etkiler
+      } else {
+        delta = { x: worldDx, yOffset: 0, z: worldDy }; // Top view Z eksenini etkiler
       }
 
-      // Action Recording: Sürekli move kayıt (throttled)
-      if (modes.actionRecordingMode && selectedElementIds.length > 0) {
+      // === ÇÖZÜMÜN ANAHTARI ===
+      // Global state'i (onUpdateLayer) güncellemek yerine SADECE LOKAL state'i güncelle.
+      // Bu, sadece canvas'ın yeniden çizilmesini tetikler, tüm uygulamanın değil.
+      setDragDelta(delta);
+
+      // !!! ESKİ YAVAŞ KODU SİLDİK !!!
+      // const updatedElements = currentLayer.elements.map(...)
+      // if (onUpdateLayer) { onUpdateLayer(currentLayer.id, { elements: updatedElements }) }
+
+      // Action Recording: Sürekli move kayıt (throttled) - Delta tabanlı
+      if (modes.actionRecordingMode && actualSelectedElementIds.length > 0) {
         const currentTime = Date.now()
         if (!lastMoveRecordTime || currentTime - lastMoveRecordTime > 16) { // 16ms throttle (~60fps)
-          const positions = selectedElementIds.map(id => {
-            const element = updatedElements.find(el => el.id === id)
-            if (!element) return null
+          // Delta'dan geçici pozisyonları hesapla (action recording için)
+          const positions = actualSelectedElementIds.map(id => {
+            const startPos = dragStartInfoRef.current?.positions.get(id);
+            if (!startPos) return null;
             return {
               id,
-              x: element.position.x,
-              z: element.position.z,
-              yOffset: typeof element.yOffset === 'number' ? element.yOffset : 0
+              x: startPos.x + delta.x,
+              z: startPos.z + delta.z,
+              yOffset: startPos.yOffset + delta.yOffset
             }
           }).filter(Boolean) as { id: string, x: number, z: number, yOffset: number }[]
 
           // Minimum hareket threshold'u (çok küçük hareketleri kaydetme)
           const minMovement = 0.01 // 0.01 birim minimum hareket
-          const hasSignificantMovement = positions.some(pos =>
-            Math.abs(pos.x) > minMovement || Math.abs(pos.z) > minMovement || Math.abs(pos.yOffset) > minMovement
-          )
+          const hasSignificantMovement = Math.abs(delta.x) > minMovement || Math.abs(delta.z) > minMovement || Math.abs(delta.yOffset) > minMovement;
 
           if (hasSignificantMovement) {
-            recordMoveContinuous(selectedElementIds, positions)
+            recordMoveContinuous(actualSelectedElementIds, positions)
             setLastMoveRecordTime(currentTime)
           }
         }
       }
 
-      // Fixed selection box'ı da aynı miktarda hareket ettir
-      if (fixedSelectionBox) {
-        const pixelDx = x - dragOffset.x
-        const pixelDy = y - dragOffset.y
+      // Fixed selection box'ı da delta'ya göre hareket ettir (opsiyonel - görsel feedback için)
+      if (fixedSelectionBox && dragOffset) {
+        const pixelDx = mouseX - dragOffset.x
+        const pixelDy = mouseY - dragOffset.y
 
         setFixedSelectionBox({
           start: {
@@ -1977,7 +1977,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         })
       }
 
-      setDragOffset({ x, y })
+      if (dragOffset) {
+        setDragOffset({ x: mouseX, y: mouseY }) // Eski sistemi güncelle (backward compatibility)
+      }
       return
     }
 
@@ -2048,52 +2050,67 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     if (currentTool === "select") {
       if (selectionBox && currentLayer) {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        const centerX = canvas.width / 2 + offset.x
-        const centerY = canvas.height / 2 + offset.y
-        const x1 = Math.min(selectionBox.start.x, selectionBox.end.x)
-        const y1 = Math.min(selectionBox.start.y, selectionBox.end.y)
-        const x2 = Math.max(selectionBox.start.x, selectionBox.end.x)
-        const y2 = Math.max(selectionBox.start.y, selectionBox.end.y)
+        // === YENİ KOD: Worker'ı çağır - selection otomatik olarak uygulanacak ===
+        calculateSelectionWithWorker(selectionBox);
 
-        // Free draw'lar da dahil tüm elementler seçilebilsin
-        let selected: string[] = [];
-        if (viewMode === 'side') {
-          selected = currentLayer.elements.filter(element => {
-            const ex = centerX + element.position.x * 10 * scale;
-            const yVal = typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0);
-            const ey = centerY - yVal * 10 * scale;
-            return ex >= x1 && ex <= x2 && ey >= y1 && ey <= y2;
-          }).map(element => element.id);
-        } else {
-          selected = currentLayer.elements.filter(element => {
-            const ex = centerX + element.position.x * 10 * scale;
-            const ez = centerY + element.position.z * 10 * scale;
-            return ex >= x1 && ex <= x2 && ez >= y1 && ez <= y2;
-          }).map(element => element.id);
-        }
-
-        // Selection box'ı sabit konumda sakla, sonra element'leri seç
+        // Selection box'ı sabit konumda sakla
         setFixedSelectionBox(selectionBox)
         setSelectionBox(null)
-        setSelectedElementIds(selected)
-
-        // Element seçildiğinde select tool'una geç
-        if (selected.length > 0) {
-          setCurrentTool("select")
-        }
-
-        // Action Recording: Selection box ile seçim yapıldığında kaydet - SADECE transform işlemi yapılacaksa
-        // Sadece seçim yapmak action recording'e eklenmemeli
-
-        if (selected.length === 0) {
-          setWorkerSelection(null) // Seçim kutusu boşsa workerSelection'ı da temizle
-        }
       }
 
       if (draggingSelection) {
         setDraggingSelection(false)
+
+        // === YENİ KOD BAŞLANGIÇ: Nihai kayıt ===
+        // Sürükleme bittiyse ve bir delta varsa, değişikliği global state'e KAYDET
+        if (dragDelta && dragStartInfoRef.current && currentLayer && onUpdateLayer) {
+          const startPositions = dragStartInfoRef.current.positions;
+
+          // O(N) optimizasyonu: Tüm katmanı map'le, O(1) hızında Map'ten kontrol et
+          const updatedElements = currentLayer.elements.map(element => {
+            const startPos = startPositions.get(element.id); // Hızlı O(1) lookup
+
+            // Eğer element seçili değilse, dokunma
+            if (!startPos) {
+              return element;
+            }
+
+            // Eğer seçiliyse, nihai pozisyonunu hesapla ve güncelle
+            return {
+              ...element,
+              position: {
+                ...element.position, // 'y' gibi diğer pozisyonları koru
+                x: startPos.x + dragDelta.x,
+                z: startPos.z + dragDelta.z
+              },
+              yOffset: startPos.yOffset + dragDelta.yOffset
+            };
+          });
+
+          // Global state'i SADECE 1 KEZ güncelle
+          onUpdateLayer(currentLayer.id, { elements: updatedElements });
+
+          // Action Recording 'end' (mevcut kodunuzdan taşıyabilirsiniz)
+          if (modes.actionRecordingMode) {
+            const finalPositions = actualSelectedElementIds.map(id => {
+              const startPos = startPositions.get(id);
+              if (!startPos) return { id, x: 0, z: 0, yOffset: 0 };
+              return {
+                id,
+                x: startPos.x + dragDelta.x,
+                z: startPos.z + dragDelta.z,
+                yOffset: startPos.yOffset + dragDelta.yOffset
+              };
+            });
+            recordTransformEnd(actualSelectedElementIds, 'translate', finalPositions, undefined, undefined);
+          }
+        }
+
+        // Lokal state'leri temizle
+        setDragDelta(null);
+        dragStartInfoRef.current = null;
+        // === YENİ KOD BİTİŞ ===
+
         setDragOffset(null)
       }
 
@@ -2564,13 +2581,13 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
               return ex >= x1 && ex <= x2 && ez >= y1 && ez <= y2
             }).map(element => element.id)
           }
-          setSelectedElementIds(selected)
+          actualSetSelectedElementIds(selected)
         }
         setSelectionBox(null)
 
         // Action Recording: Move end
-        if (modes.actionRecordingMode && draggingSelection && selectedElementIds.length > 0 && currentLayer) {
-          const finalPositions = selectedElementIds.map(id => {
+        if (modes.actionRecordingMode && draggingSelection && actualSelectedElementIds.length > 0 && currentLayer) {
+          const finalPositions = actualSelectedElementIds.map(id => {
             const element = currentLayer.elements.find(el => el.id === id);
             if (!element) return { id, x: 0, z: 0, yOffset: 0 };
             return {
@@ -2581,7 +2598,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             };
           });
 
-          recordTransformEnd(selectedElementIds, 'translate', finalPositions, undefined, undefined);
+          recordTransformEnd(actualSelectedElementIds, 'translate', finalPositions, undefined, undefined);
         }
 
         setDraggingSelection(false)
@@ -2591,7 +2608,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       setIsDragging(false)
       if (isRotating || rotateStart) {
         // Action Recording: Rotate işlemini kaydet
-        if (modes.actionRecordingMode && rotateStart && selectedElementIds.length > 0 && mousePosition) {
+        if (modes.actionRecordingMode && rotateStart && actualSelectedElementIds.length > 0 && mousePosition) {
           const currentAngle = Math.atan2(
             mousePosition.y - rotateStart.boxCenter.y,
             mousePosition.x - rotateStart.boxCenter.x
@@ -2600,7 +2617,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           const angleDegrees = (angleDiff * 180) / Math.PI
 
           // Final positions for transform end
-          const finalPositions = selectedElementIds.map(id => {
+          const finalPositions = actualSelectedElementIds.map(id => {
             const element = currentLayer?.elements.find(el => el.id === id);
             if (!element) return { id, x: 0, z: 0, yOffset: 0 };
             return {
@@ -2611,7 +2628,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             };
           });
 
-          recordTransformEnd(selectedElementIds, 'rotate', finalPositions,
+          recordTransformEnd(actualSelectedElementIds, 'rotate', finalPositions,
             finalPositions.map(p => ({ id: p.id, rotation: angleDiff })), undefined);
         }
 
@@ -2622,7 +2639,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     window.addEventListener('mouseup', handleGlobalMouseUp)
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp)
-  }, [currentTool, selectionBox, currentLayer, viewMode, scale, offset, isRotating, rotateStart, selectedElementIds])
+  }, [currentTool, selectionBox, currentLayer, viewMode, scale, offset, isRotating, rotateStart, actualSelectedElementIds])
 
   // Canvas'ta gösterilecek minimal şekil listesi
   const canvasShapesList = useMemo(() => {
@@ -2677,7 +2694,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     function handleGlobalMouseUp() {
       if (isScaling) {
         // Action Recording: Scale işlemini kaydet
-        if (modes.actionRecordingMode && scaleStart && selectedElementIds.length > 0 && mousePosition) {
+        if (modes.actionRecordingMode && scaleStart && actualSelectedElementIds.length > 0 && mousePosition) {
           const currentMouseX = mousePosition.x
           const currentMouseY = mousePosition.y
           const deltaX = currentMouseX - scaleStart.mouseX
@@ -2686,7 +2703,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           const scaleFactor = 1 + (distance / 100) // Basit scale hesaplama
 
           // Final positions for transform end
-          const finalPositions = selectedElementIds.map(id => {
+          const finalPositions = actualSelectedElementIds.map(id => {
             const element = currentLayer?.elements.find(el => el.id === id);
             if (!element) return { id, x: 0, z: 0, yOffset: 0 };
             return {
@@ -2697,7 +2714,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             };
           });
 
-          recordTransformEnd(selectedElementIds, 'scale', finalPositions, undefined,
+          recordTransformEnd(actualSelectedElementIds, 'scale', finalPositions, undefined,
             finalPositions.map(p => ({ id: p.id, scale: scaleFactor })));
         }
 
@@ -2707,18 +2724,18 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     }
     window.addEventListener('mouseup', handleGlobalMouseUp)
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp)
-  }, [isScaling, selectedElementIds, currentLayer])
+  }, [isScaling, actualSelectedElementIds, currentLayer])
 
   // Quick Settings açıldığında veya seçim değiştiğinde slider başlangıç değerini güncelle
   useEffect(() => {
     if (showQuickSettings) {
       setSliderValue(getCurrentParticleCount())
     }
-  }, [showQuickSettings, selectedElementIds])
+  }, [showQuickSettings, actualSelectedElementIds])
 
   // Selection box koordinatlarını hesapla
   function getSelectionBoxBounds() {
-    if (!currentLayer || !selectedElementIds || selectedElementIds.length === 0) return null;
+    if (!currentLayer || !actualSelectedElementIds || actualSelectedElementIds.length === 0) return null;
     const canvas = canvasRef.current;
     if (!canvas) return null;
 
@@ -2727,7 +2744,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     const centerX = canvas.width / 2 + offset.x;
     const centerY = canvas.height / 2 + offset.y;
-    const selectedEls = currentLayer.elements.filter(element => selectedElementIds.includes(element.id));
+    const selectedEls = currentLayer.elements.filter(element => actualSelectedElementIds.includes(element.id));
     if (selectedEls.length === 0) return null;
 
     const xs = selectedEls.map(element => centerX + element.position.x * 10 * scale);
@@ -2761,7 +2778,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     return { minX, minY, maxX, maxY };
   }
   // Fixed selection box varsa onu kullan, yoksa element bounds'ını hesapla
-  const selectionBounds = fixedSelectionBox && selectedElementIds.length > 0
+  const selectionBounds = fixedSelectionBox && actualSelectedElementIds.length > 0
     ? {
       minX: Math.min(fixedSelectionBox.start.x, fixedSelectionBox.end.x),
       minY: Math.min(fixedSelectionBox.start.y, fixedSelectionBox.end.y),
@@ -2773,9 +2790,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   // Overlay butonları için event handler'ları
   const handleDeleteClick = () => {
     if (!currentLayer || !onUpdateLayer) return;
-    const newElements = currentLayer.elements.filter(element => !selectedElementIds.includes(element.id));
+    const newElements = currentLayer.elements.filter(element => !actualSelectedElementIds.includes(element.id));
     onUpdateLayer(currentLayer.id, { elements: newElements });
-    setSelectedElementIds([]);
+    actualSetSelectedElementIds([]);
     setFixedSelectionBox(null); // Fixed selection box'ı da temizle
     setWorkerSelection(null); // Seçim silindiğinde workerSelection'ı da temizle
   };
@@ -2783,14 +2800,14 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   const handleRotateMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!currentLayer || selectedElementIds.length === 0) return;
+    if (!currentLayer || actualSelectedElementIds.length === 0) return;
 
     const bounds = getSelectionBoxBounds();
     if (!bounds) return;
 
     setIsRotating(true);
     const boxCenter = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
-    const selectedEls = currentLayer.elements.filter(element => selectedElementIds.includes(element.id));
+    const selectedEls = currentLayer.elements.filter(element => actualSelectedElementIds.includes(element.id));
 
     // Canvas koordinatlarına dönüştür
     const canvas = canvasRef.current;
@@ -2828,14 +2845,14 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   const handleScaleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!currentLayer || selectedElementIds.length === 0) return;
+    if (!currentLayer || actualSelectedElementIds.length === 0) return;
 
     const bounds = getSelectionBoxBounds();
     if (!bounds) return;
 
     setIsScaling(true);
     const boxCenter = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
-    const selectedEls = currentLayer.elements.filter(element => selectedElementIds.includes(element.id));
+    const selectedEls = currentLayer.elements.filter(element => actualSelectedElementIds.includes(element.id));
     const initialPositions = selectedEls.map(el => ({
       id: el.id,
       x: el.position.x,
@@ -2900,21 +2917,32 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   // useEffect içindeki kutu çizimini güncelle:
   // if (rotatedBox) { ctx.beginPath(); ctx.moveTo(...); ... ctx.closePath(); ctx.stroke(); } else { ...eski rect çizimi... }
 
-  // Worker message handler
+  // Worker message handler - automatically apply selection when worker completes
   useEffect(() => {
     if (!selectionWorker) return;
     const handler = (e: MessageEvent) => {
-      setWorkerSelection(e.data);
+      const result = e.data;
+      setWorkerSelection(result);
+
+      // Automatically apply the selection if we're in the middle of a selection operation
+      if (currentTool === "select" && result.selectedIds) {
+        actualSetSelectedElementIds(result.selectedIds);
+
+        // Element seçildiğinde select tool'una geç
+        if (result.selectedIds.length > 0) {
+          setCurrentTool("select")
+        }
+      }
     };
     selectionWorker.addEventListener('message', handler);
     return () => selectionWorker.removeEventListener('message', handler);
-  }, []);
+  }, [currentTool, actualSetSelectedElementIds]);
 
-  // Offload selection calculation to worker
-  useEffect(() => {
+  // Offload selection calculation to worker - only when selection is finalized
+  const calculateSelectionWithWorker = useCallback((finalSelectionBox: any) => {
     if (
       !selectionWorker ||
-      !selectionBox ||
+      !finalSelectionBox ||
       !currentLayer ||
       !canvasRef.current ||
       !canvasRef.current.width ||
@@ -2922,6 +2950,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       canvasRef.current.width === 0 ||
       canvasRef.current.height === 0
     ) return;
+
     const elements = currentLayer.elements.map(el => ({
       id: el.id,
       x: el.position.x,
@@ -2931,25 +2960,17 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     }));
     selectionWorker.postMessage({
       elements,
-      selectionBox,
+      selectionBox: finalSelectionBox,
       viewMode,
       offset,
       scale,
       canvasWidth: canvasRef.current.width,
       canvasHeight: canvasRef.current.height,
     });
-  }, [
-    selectionBox,
-    currentLayer,
-    viewMode,
-    offset,
-    scale,
-    canvasRef.current?.width,
-    canvasRef.current?.height
-  ]);
+  }, [currentLayer, viewMode, offset, scale]);
 
   // Use worker result for selection (optional: fallback to old logic if workerSelection is null)
-  const selectedElementIdsOptimized = workerSelection?.selectedIds || selectedElementIds;
+  const selectedElementIdsOptimized = workerSelection?.selectedIds || actualSelectedElementIds;
   const selectionBoundsOptimized = workerSelection
     ? { minX: workerSelection.minX, minY: workerSelection.minY, maxX: workerSelection.maxX, maxY: workerSelection.maxY }
     : selectionBounds;
@@ -3018,7 +3039,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
 
       {/* --- Modern overlay kutusu ve butonlar --- */}
-      {selectionBounds && selectedElementIds.length > 0 && (
+      {selectionBounds && actualSelectedElementIds.length > 0 && (
         <div
           className="absolute z-20 pointer-events-none"
           style={{

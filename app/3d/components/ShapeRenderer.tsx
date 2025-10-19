@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef } from "react"
+import { useRef, useMemo } from "react"
 import type { Mesh } from "three"
 import { use3DStore, type Shape } from "../store/use3DStore"
 
@@ -12,7 +12,9 @@ export function ShapeRenderer({ shape }: ShapeRendererProps) {
   const meshRef = useRef<Mesh>(null)
   const { selectShape, selectedShapes, currentTool, isTransforming, tempPositions, tempRotations, tempScales, xrayMode } = use3DStore()
 
-  const isSelected = selectedShapes.includes(shape.id)
+  // Convert array to Set for O(1) performance
+  const selectedShapesSet = useMemo(() => new Set(selectedShapes), [selectedShapes])
+  const isSelected = selectedShapesSet.has(shape.id)
 
   // Transform sırasında geçici pozisyonları kullan
   const position = isTransforming && tempPositions.has(shape.id) 

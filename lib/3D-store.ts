@@ -3,7 +3,7 @@ import { subscribeWithSelector } from "zustand/middleware"
 import type { Element } from "../types"
 import { useElementStore } from "../store/useElementStore"
 
-export type EffectType = 
+export type EffectType =
   | "particles"
   | "particlelinehelix"
   | "particleorbital"
@@ -322,10 +322,14 @@ export const use3DStore = create<Store3D>()(
       set((state) => {
         if (multi) {
           const isSelected = state.selectedVertices.includes(elementId)
+          let newSelectedVertices = [...state.selectedVertices]
+          if (isSelected) {
+            newSelectedVertices = newSelectedVertices.filter(id => id !== elementId)
+          } else {
+            newSelectedVertices.push(elementId)
+          }
           return {
-            selectedVertices: isSelected
-              ? state.selectedVertices.filter((id) => id !== elementId)
-              : [...state.selectedVertices, elementId],
+            selectedVertices: newSelectedVertices,
           }
         } else {
           return { selectedVertices: [elementId] }

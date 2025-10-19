@@ -1759,8 +1759,8 @@ function ImportTypeSection({
       <motion.div
         layout
         className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-300 relative border ${isExpanded
-            ? "bg-slate-900 text-white shadow-lg border-slate-800"
-            : "text-slate-700 hover:border-slate-300 shadow-sm border-transparent"
+          ? "bg-slate-900 text-white shadow-lg border-slate-800"
+          : "text-slate-700 hover:border-slate-300 shadow-sm border-transparent"
           }`}
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
@@ -1793,8 +1793,8 @@ function ImportTypeSection({
           whileTap={{ scale: 0.95 }}
           onClick={onImport}
           className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isExpanded
-              ? "bg-white text-slate-900 hover:bg-slate-100"
-              : "bg-slate-900 text-white hover:bg-slate-800"
+            ? "bg-white text-slate-900 hover:bg-slate-100"
+            : "bg-slate-900 text-white hover:bg-slate-800"
             }`}
         >
           Import

@@ -73,7 +73,8 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
     
     for (let i = 0; i < count; i++) {
       const element = elements[i]
-      const isSelected = selectedVertices.includes(element.id)
+      const selectedVerticesSet = new Set(selectedVertices)
+      const isSelected = selectedVerticesSet.has(element.id)
       
       // Seçili elementler için parlak yeşil, diğerleri için normal renk
       let r = 1.0, g = 1.0, b = 1.0 // Default beyaz

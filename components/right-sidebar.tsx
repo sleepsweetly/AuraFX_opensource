@@ -1,6 +1,7 @@
 "use client"
 
 import { Wrench, Zap, FolderOpen, Settings, Code, Link, Video, Gauge, Minimize2, Maximize2, Sparkles, Bell } from "lucide-react"
+import { useSelectionStore } from "@/store/useSelectionStore"
 import { ToolsPanel } from "@/components/panels/tools-panel"
 import { ModesPanel } from "@/components/panels/modes-panel"
 import { ImportPanel } from "@/components/panels/import-panel"
@@ -39,7 +40,7 @@ interface RightSidebarProps {
   setOptimize?: (v: boolean) => void
   chainSequence?: string[]
   onChainSequenceChange?: (sequence: string[]) => void
-  selectedElementIds?: string[]
+  selectedElementIds?: string[] // Optional - will use store if not provided
   chainItems?: any[]
   onChainItemsChange?: (items: any[]) => void
   currentLineCount?: number
@@ -113,11 +114,15 @@ export function RightSidebar({
   settings, onSettingsChange, currentTool, onToolChange, modes, onModesChange, modeSettings, onModeSettingsChange,
   currentLayer, onUpdateLayer, layers, onShowCode, updateSelectedElementsParticle, updateSelectedElementsColor, generatedCode, onGenerateCode,
   isGeneratingCode, onFrameSettingsChange, optimize, setOptimize, chainSequence, onChainSequenceChange,
-  selectedElementIds, chainItems, onChainItemsChange, currentLineCount, onOptimize, onApplyTemplate,
+  selectedElementIds: propSelectedElementIds, chainItems, onChainItemsChange, currentLineCount, onOptimize, onApplyTemplate,
   isRecording, onToggleRecording, activeTabOverride, onTabChange, forceExpand
 }: RightSidebarProps) {
   const [activeTab, setActiveTab] = useState(4)
   const [isMinimized, setIsMinimized] = useState(true)
+  
+  // Use store if prop is not provided
+  const selectedElementIdsFromStore = useSelectionStore((state) => state.selectedElementIds)
+  const selectedElementIds = propSelectedElementIds ?? selectedElementIdsFromStore
 
   // Force expand sidebar when forceExpand prop is true
   React.useEffect(() => {

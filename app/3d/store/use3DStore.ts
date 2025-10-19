@@ -69,7 +69,7 @@ interface Store3D {
   shapes: Shape[]
   layers: Layer[]
 
-  // Selection & UI State
+  // Selection & UI State - Using arrays for persistence, converted to Sets in components
   selectedVertices: string[]
   selectedShapes: string[]
   currentTool: "select" | "move" | "rotate" | "scale"
@@ -111,6 +111,14 @@ interface Store3D {
   selectVertex: (id: string, multi?: boolean) => void
   selectMultipleVertices: (ids: string[], multi?: boolean) => void
   clearVertexSelection: () => void
+
+  // Helper methods for Set compatibility
+  isVertexSelected: (id: string) => boolean
+  isShapeSelected: (id: string) => boolean
+  getSelectedVerticesArray: () => string[]
+  getSelectedShapesArray: () => string[]
+  getSelectedVerticesSet: () => Set<string>
+  getSelectedShapesSet: () => Set<string>
 
   // Actions - Shape Management
   addShape: (shape: Omit<Shape, "id" | "vertices">) => string
@@ -221,6 +229,7 @@ export const use3DStore = create<Store3D>()(
   persist(
     subscribeWithSelector(
       immer<Store3D>((set, get) => ({
+        // Initial State
         // Initial State
         vertices: new Map<string, Vertex>(),
         shapes: [] as Shape[],
@@ -355,7 +364,7 @@ export const use3DStore = create<Store3D>()(
           set((state) => {
             state.vertices.delete(id)
             state.vertices = new Map(state.vertices)
-            state.selectedVertices = state.selectedVertices.filter((vid: string) => vid !== id)
+            state.selectedVertices = state.selectedVertices.filter(vid => vid !== id)
             state.vertexCount = state.vertices.size
 
             // Update shapes and layers
@@ -374,41 +383,24 @@ export const use3DStore = create<Store3D>()(
 
         selectVertex: (id, multi = false) => {
           set((state) => {
+            // Array-based selection in store, converted to Set in components
+            let newSelected: string[]
+
             if (multi) {
-              const isSelected = state.selectedVertices.includes(id)
-              if (isSelected) {
-                state.selectedVertices = state.selectedVertices.filter((vid: string) => vid !== id)
+              const currentIndex = state.selectedVertices.indexOf(id)
+              if (currentIndex >= 0) {
+                // Remove if already selected
+                newSelected = state.selectedVertices.filter(vid => vid !== id)
               } else {
-                state.selectedVertices.push(id)
-              }
-              const vertex = state.vertices.get(id)
-              if (vertex) {
-                state.vertices.set(id, { ...vertex, selected: !isSelected })
+                // Add if not selected
+                newSelected = [...state.selectedVertices, id]
               }
             } else {
-              state.selectedVertices = [id]
-              // OPTIMIZED: Batch update - avoid forEach for large datasets
-              if (state.vertices.size > 500) {
-                // For large datasets, use requestIdleCallback for non-blocking updates
-                const updateBatch = () => {
-                  const updates = new Map()
-                  state.vertices.forEach((vertex: Vertex) => {
-                    updates.set(vertex.id, { ...vertex, selected: vertex.id === id })
-                  })
-                  state.vertices = updates
-                }
-                if (typeof requestIdleCallback !== 'undefined') {
-                  requestIdleCallback(updateBatch)
-                } else {
-                  setTimeout(updateBatch, 0)
-                }
-              } else {
-                // For smaller datasets, update immediately
-                state.vertices.forEach((vertex: Vertex) => {
-                  state.vertices.set(vertex.id, { ...vertex, selected: vertex.id === id })
-                })
-              }
+              // Replace selection
+              newSelected = [id]
             }
+
+            state.selectedVertices = newSelected
 
             // AUTO-SELECT SHAPE: If all vertices of a shape are selected, select the shape too
             state.shapes.forEach((shape: Shape) => {
@@ -416,12 +408,12 @@ export const use3DStore = create<Store3D>()(
                 shape.vertices.every(vertexId => state.selectedVertices.includes(vertexId))
 
               if (allVerticesSelected && !state.selectedShapes.includes(shape.id)) {
-                state.selectedShapes.push(shape.id)
+                state.selectedShapes = [...state.selectedShapes, shape.id]
                 state.shapes = state.shapes.map((s: Shape) =>
                   s.id === shape.id ? { ...s, selected: true } : s
                 )
               } else if (!allVerticesSelected && state.selectedShapes.includes(shape.id)) {
-                state.selectedShapes = state.selectedShapes.filter((sid: string) => sid !== shape.id)
+                state.selectedShapes = state.selectedShapes.filter(sid => sid !== shape.id)
                 state.shapes = state.shapes.map((s: Shape) =>
                   s.id === shape.id ? { ...s, selected: false } : s
                 )
@@ -432,55 +424,74 @@ export const use3DStore = create<Store3D>()(
 
         selectMultipleVertices: (ids, multi = false) => {
           set((state) => {
-            const uniqueIds = Array.from(new Set(ids))
+            // Array-based selection with unique IDs
+            const uniqueIds = [...new Set(ids)]
 
             if (multi) {
+              let newSelected = [...state.selectedVertices]
               uniqueIds.forEach((id) => {
-                const isSelected = state.selectedVertices.includes(id)
-                if (isSelected) {
-                  state.selectedVertices = state.selectedVertices.filter((vid: string) => vid !== id)
+                const currentIndex = newSelected.indexOf(id)
+                if (currentIndex >= 0) {
+                  newSelected = newSelected.filter(vid => vid !== id) // Toggle off
                 } else {
-                  state.selectedVertices.push(id)
-                }
-                const vertex = state.vertices.get(id)
-                if (vertex) {
-                  state.vertices.set(id, { ...vertex, selected: !isSelected })
+                  newSelected.push(id) // Toggle on
                 }
               })
+              state.selectedVertices = newSelected
             } else {
+              // Replace selection with new IDs
               state.selectedVertices = uniqueIds
-              state.vertices.forEach((vertex: Vertex) => {
-                state.vertices.set(vertex.id, { ...vertex, selected: uniqueIds.includes(vertex.id) })
-              })
             }
 
+            // !!! CRITICAL: Vertex'lerin .selected özelliğini GÜNCELLEMEYECEĞIZ !!!
+            // state.vertices.forEach(...) KISMINI TAMAMEN SİLDİK
+            // Bu, 40 saniyelik beklemeye neden olan kısımdı.
+
             // AUTO-SELECT SHAPE: If all vertices of a shape are selected, select the shape too
+            let newSelectedShapes = [...state.selectedShapes]
             state.shapes.forEach((shape: Shape) => {
               const allVerticesSelected = shape.vertices.length > 0 &&
                 shape.vertices.every(vertexId => state.selectedVertices.includes(vertexId))
 
-              if (allVerticesSelected && !state.selectedShapes.includes(shape.id)) {
-                state.selectedShapes.push(shape.id)
-                state.shapes = state.shapes.map((s: Shape) =>
-                  s.id === shape.id ? { ...s, selected: true } : s
-                )
-              } else if (!allVerticesSelected && state.selectedShapes.includes(shape.id)) {
-                state.selectedShapes = state.selectedShapes.filter((sid: string) => sid !== shape.id)
-                state.shapes = state.shapes.map((s: Shape) =>
-                  s.id === shape.id ? { ...s, selected: false } : s
-                )
+              if (allVerticesSelected && !newSelectedShapes.includes(shape.id)) {
+                newSelectedShapes.push(shape.id)
+              } else if (!allVerticesSelected && newSelectedShapes.includes(shape.id)) {
+                newSelectedShapes = newSelectedShapes.filter(sid => sid !== shape.id)
               }
             })
+            state.selectedShapes = newSelectedShapes
           })
         },
 
         clearVertexSelection: () => {
           set((state) => {
             state.selectedVertices = []
-            state.vertices.forEach((vertex: Vertex) => {
-              state.vertices.set(vertex.id, { ...vertex, selected: false })
-            })
           })
+        },
+
+        // Helper methods - arrays in store, Sets in components for performance
+        isVertexSelected: (id: string) => {
+          return get().selectedVertices.includes(id)
+        },
+
+        isShapeSelected: (id: string) => {
+          return get().selectedShapes.includes(id)
+        },
+
+        getSelectedVerticesArray: () => {
+          return get().selectedVertices
+        },
+
+        getSelectedShapesArray: () => {
+          return get().selectedShapes
+        },
+
+        getSelectedVerticesSet: () => {
+          return new Set(get().selectedVertices)
+        },
+
+        getSelectedShapesSet: () => {
+          return new Set(get().selectedShapes)
         },
 
         // Shape Management - FIXED ROTATION
@@ -1589,14 +1600,14 @@ export const use3DStore = create<Store3D>()(
             // Add to selected vertices if it's a vertex
             if (state.vertices.has(id)) {
               if (!state.selectedVertices.includes(id)) {
-                state.selectedVertices.push(id)
+                state.selectedVertices = [...state.selectedVertices, id]
               }
             }
             // Add to selected shapes if it's a shape
             const shapeIndex = state.shapes.findIndex(s => s.id === id)
             if (shapeIndex !== -1) {
               if (!state.selectedShapes.includes(id)) {
-                state.selectedShapes.push(id)
+                state.selectedShapes = [...state.selectedShapes, id]
               }
             }
           })
@@ -1639,67 +1650,31 @@ export const use3DStore = create<Store3D>()(
         setIsTransforming: (transforming: boolean) => set({ isTransforming: transforming }),
         clearTempPositions: () => set({ tempPositions: new Map(), tempRotations: new Map(), tempScales: new Map(), isTransforming: false }),
 
-        // OPTIMIZED: Batch vertex updates for performance
+        // OPTIMIZED: Batch vertex updates for performance - NO MAP COPYING
         updateVerticesBatch: (updates: Array<{ id: string; updates: Partial<Vertex> }>) => {
           if (updates.length === 0) return
 
-          console.log('🚀 Batch updating', updates.length, 'vertices')
+          console.log('🚀 OPTIMIZED: Batch updating', updates.length, 'vertices')
           const startTime = performance.now()
 
-          // Use requestIdleCallback for non-blocking updates on large datasets
-          if (updates.length > 100) {
-            const batchSize = 50
-            let currentIndex = 0
-
-            const processBatch = () => {
-              const endIndex = Math.min(currentIndex + batchSize, updates.length)
-              const batch = updates.slice(currentIndex, endIndex)
-
-              set((state) => {
-                batch.forEach(({ id, updates: vertexUpdates }) => {
-                  const vertex = state.vertices.get(id)
-                  if (vertex) {
-                    state.vertices.set(id, { ...vertex, ...vertexUpdates })
-                  }
-                })
-                // Only recreate Map once per batch
-                state.vertices = new Map(state.vertices)
-              })
-
-              currentIndex = endIndex
-
-              if (currentIndex < updates.length) {
-                if (typeof requestIdleCallback !== 'undefined') {
-                  requestIdleCallback(processBatch, { timeout: 16 }) // 16ms timeout for 60fps
-                } else {
-                  setTimeout(processBatch, 0)
-                }
-              } else {
-                const duration = performance.now() - startTime
-                console.log('✅ Batch vertex update completed in', duration.toFixed(2), 'ms')
+          // immer kullandığımız için state'i doğrudan GÜVENLE değiştirebiliriz.
+          // Kopyalamaya (new Map()) gerek YOKTUR.
+          set((state) => {
+            updates.forEach(({ id, updates: vertexUpdates }) => {
+              const vertex = state.vertices.get(id)
+              if (vertex) {
+                // Sadece var olanı güncelle. Immer gerisini halleder.
+                state.vertices.set(id, { ...vertex, ...vertexUpdates })
               }
-            }
-
-            if (typeof requestIdleCallback !== 'undefined') {
-              requestIdleCallback(processBatch, { timeout: 16 })
-            } else {
-              setTimeout(processBatch, 0)
-            }
-          } else {
-            // Small updates can be processed immediately
-            set((state) => {
-              updates.forEach(({ id, updates: vertexUpdates }) => {
-                const vertex = state.vertices.get(id)
-                if (vertex) {
-                  state.vertices.set(id, { ...vertex, ...vertexUpdates })
-                }
-              })
-              state.vertices = new Map(state.vertices)
             })
+            // !!! CRITICAL: Map kopyalamayı kaldırdık !!!
+            // state.vertices = new Map(state.vertices) // BU SATIRI SİLDİK
+          })
 
-            const duration = performance.now() - startTime
-            console.log('✅ Small batch vertex update completed in', duration.toFixed(2), 'ms')
-          }
+          const duration = performance.now() - startTime
+          console.log('✅ OPTIMIZED: Batch vertex update completed in', duration.toFixed(2), 'ms')
+          // `set` bittiğinde, immer değişiklikleri algılar ve state'i GÜNCEL bir şekilde
+          // sadece BİR KEZ günceller.
         },
 
         // OPTIMIZED: Batch shape updates for performance
@@ -1722,14 +1697,14 @@ export const use3DStore = create<Store3D>()(
           console.log('✅ Batch shape update completed in', duration.toFixed(2), 'ms')
         },
 
-        // OPTIMIZED: Apply all temporary transforms at once
+        // OPTIMIZED: Apply all temporary transforms at once - DIRECT IMMER MUTATION
         applyTempTransforms: () => {
           const state = get()
           const { tempPositions, tempRotations, tempScales, selectedVertices, selectedShapes } = state
 
           if (tempPositions.size === 0) return
 
-          console.log('🚀 Applying temp transforms:', {
+          console.log('🚀 OPTIMIZED: Applying temp transforms:', {
             tempPositions: tempPositions.size,
             selectedVertices: selectedVertices.length,
             selectedShapes: selectedShapes.length
@@ -1737,73 +1712,70 @@ export const use3DStore = create<Store3D>()(
 
           const startTime = performance.now()
 
-          // Prepare batch updates
-          const vertexUpdates: Array<{ id: string; updates: Partial<Vertex> }> = []
-          const shapeUpdates: Array<{ id: string; updates: Partial<Shape> }> = []
+          // immer kullandığımız için 'set' içinde doğrudan mutasyon yapacağız
+          set((state) => {
+            // 1. Vertex'leri güncelle
+            tempPositions.forEach((newPos, id) => {
+              if (selectedVertices.includes(id)) {
+                const vertex = state.vertices.get(id)
+                if (vertex) {
+                  vertex.position = { x: newPos.x, y: newPos.y, z: newPos.z } // Doğrudan mutasyon (immer sayesinde)
+                }
+              }
+            })
 
-          // Collect vertex updates
-          tempPositions.forEach((newPos, id) => {
-            if (selectedVertices.includes(id)) {
-              vertexUpdates.push({
-                id,
-                updates: { position: { x: newPos.x, y: newPos.y, z: newPos.z } }
-              })
-            }
+            // 2. Shape'leri güncelle
+            state.shapes.forEach((shape, index) => {
+              if (selectedShapes.includes(shape.id)) {
+                const newPos = tempPositions.get(shape.id)
+                const newRot = tempRotations.get(shape.id)
+                const newScale = tempScales.get(shape.id)
+
+                if (newPos) state.shapes[index].position = { x: newPos.x, y: newPos.y, z: newPos.z }
+                if (newRot) state.shapes[index].rotation = { x: newRot.x, y: newRot.y, z: newRot.z }
+                if (newScale) state.shapes[index].scale = { x: newScale.x, y: newScale.y, z: newScale.z }
+              }
+            })
           })
-
-          // Collect shape updates
-          tempPositions.forEach((newPos, id) => {
-            if (selectedShapes.includes(id)) {
-              const updates: any = {
-                position: { x: newPos.x, y: newPos.y, z: newPos.z }
-              }
-
-              // Add rotation if exists
-              const newRotation = tempRotations.get(id)
-              if (newRotation) {
-                updates.rotation = { x: newRotation.x, y: newRotation.y, z: newRotation.z }
-              }
-
-              // Add scale if exists
-              const newScale = tempScales.get(id)
-              if (newScale) {
-                updates.scale = { x: newScale.x, y: newScale.y, z: newScale.z }
-              }
-
-              shapeUpdates.push({ id, updates })
-            }
-          })
-
-          // Apply batch updates
-          if (vertexUpdates.length > 0) {
-            get().updateVerticesBatch(vertexUpdates)
-          }
-
-          if (shapeUpdates.length > 0) {
-            get().updateShapesBatch(shapeUpdates)
-          }
 
           const duration = performance.now() - startTime
-          console.log('✅ Temp transforms applied in', duration.toFixed(2), 'ms')
+          console.log('✅ OPTIMIZED: Temp transforms (IMMER) applied in', duration.toFixed(2), 'ms')
+
+          // Geçici state'i temizle
+          get().clearTempPositions()
+
+          // Transform bittiğinde tarihi kaydet
+          get().saveToHistory()
         }
+
       }))
     ),
     {
       name: "3d-editor-storage",
-      partialize: (state) => ({
-        vertices: Array.from(state.vertices.entries()),
-        shapes: state.shapes,
-        layers: state.layers,
-        camera: state.camera,
-        scene: state.scene,
-      }),
+      partialize: (state) => {
+        // Explicitly exclude selectedVertices and selectedShapes from persistence
+        return {
+          vertices: Array.from(state.vertices.entries()),
+          shapes: state.shapes,
+          layers: state.layers,
+          camera: state.camera,
+          scene: state.scene,
+          // selectedVertices and selectedShapes are intentionally excluded
+        }
+      },
       onRehydrateStorage: () => (state) => {
         if (state) {
+          console.log('Rehydrating store, state before:', state)
+
           // Convert vertices array back to Map
           state.vertices = new Map(state.vertices as any)
           state.vertexCount = state.vertices.size
 
+          // CRITICAL: Always reset selections to arrays (don't persist them)
+          state.selectedVertices = []
+          state.selectedShapes = []
 
+          console.log('Rehydrating store, state after:', state)
         }
       }
     }

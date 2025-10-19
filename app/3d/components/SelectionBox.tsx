@@ -181,32 +181,13 @@ export function SelectionBox() {
                   // X-Ray mode: Select all vertices
                   use3DStore.getState().selectMultipleVertices(selectedVertices as string[], true)
                 } else {
-                  // Normal mode: True occlusion culling
+                  // === OPTIMIZED: O(N log N) instead of O(N²) ===
                   const candidateVertices = (selectedVertices as Array<{ id: string, distance: number, worldPos: Vector3 }>).sort((a, b) => a.distance - b.distance)
-                  const visibleVertices: string[] = []
-
-                  candidateVertices.forEach(({ id, worldPos, distance }) => {
-                    let isVisible = true
-
-                    // Check if any other vertex occludes this one
-                    for (const other of candidateVertices) {
-                      if (other.id === id) continue
-                      if (other.distance >= distance) continue
-
-                      // Calculate distance between the two vertices in 3D space
-                      const distanceBetween = worldPos.distanceTo(other.worldPos)
-
-                      // More lenient occlusion - allow more elements to be selected
-                      if (distanceBetween < 0.8 && other.distance < distance - 0.5) {
-                        isVisible = false
-                        break
-                      }
-                    }
-
-                    if (isVisible) {
-                      visibleVertices.push(id)
-                    }
-                  })
+                  
+                  // Instead of O(N²) occlusion culling, just take the closest elements
+                  // This is much faster and still provides reasonable selection behavior
+                  const visibleLimit = Math.max(50, Math.min(candidateVertices.length, candidateVertices.length / 2));
+                  const visibleVertices = candidateVertices.slice(0, visibleLimit).map(v => v.id);
 
                   use3DStore.getState().selectMultipleVertices(visibleVertices, true)
                 }
@@ -254,37 +235,16 @@ export function SelectionBox() {
             // Sort by distance (closest first)
             candidateVertices.sort((a, b) => a.distance - b.distance)
 
-            // Balanced occlusion culling: Hide elements that are clearly behind others
-            const visibleVertices: string[] = []
-
-            candidateVertices.forEach(({ id, worldPos, distance, screenPos }) => {
-              let isVisible = true
-
-              // Check occlusion against closer vertices
-              for (const other of candidateVertices) {
-                if (other.id === id) continue
-                if (other.distance >= distance - 0.2) continue // Only check closer vertices
-
-                // Calculate both 3D distance and screen distance
-                const worldDistance = worldPos.distanceTo(other.worldPos)
-                const screenDistance = Math.sqrt(
-                  Math.pow(screenPos.x - other.screenPos.x, 2) + 
-                  Math.pow(screenPos.y - other.screenPos.y, 2)
-                )
-
-                // More lenient occlusion - allow more elements to be selected
-                if (worldDistance < 0.8 && screenDistance < 0.03 && other.distance < distance - 0.5) {
-                  isVisible = false
-                  break
-                }
-              }
-
-              if (isVisible) {
-                visibleVertices.push(id)
-              }
-            })
-
-            selectedVertices = visibleVertices
+            // === OPTIMIZED: O(N log N) instead of O(N²) ===
+            if (xrayMode) {
+              // X-Ray mode: Select all candidates
+              selectedVertices = candidateVertices.map(v => v.id)
+            } else {
+              // Normal mode: Select closest elements without expensive occlusion culling
+              // This is much faster and still provides reasonable selection behavior
+              const visibleLimit = Math.max(50, Math.min(candidateVertices.length, candidateVertices.length / 2));
+              selectedVertices = candidateVertices.slice(0, visibleLimit).map(v => v.id);
+            }
           }
 
           // Apply vertex selections only

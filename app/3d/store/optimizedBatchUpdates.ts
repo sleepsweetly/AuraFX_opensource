@@ -94,7 +94,8 @@ export function applyTransformsBatch(
 
   // Collect vertex updates
   tempPositions.forEach((newPos, id) => {
-    if (selectedVertices.includes(id)) {
+    const selectedVerticesSet = new Set(selectedVertices)
+    if (selectedVerticesSet.has(id)) {
       vertexUpdates.push({
         id,
         updates: { position: { x: newPos.x, y: newPos.y, z: newPos.z } }
@@ -104,7 +105,8 @@ export function applyTransformsBatch(
 
   // Collect shape updates
   tempPositions.forEach((newPos, id) => {
-    if (selectedShapes.includes(id)) {
+    const selectedShapesSet = new Set(selectedShapes)
+    if (selectedShapesSet.has(id)) {
       const updates: any = {
         position: { x: newPos.x, y: newPos.y, z: newPos.z }
       }
