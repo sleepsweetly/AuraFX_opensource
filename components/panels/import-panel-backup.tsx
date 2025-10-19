@@ -1553,7 +1553,25 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
     reader.readAsText(file)
   }
 
-
+  const handleFileUpload = (type: "png" | "obj" | "yaml" | "gif") => {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = type === "png" ? "image/png,image/jpg,image/jpeg" : type === "obj" ? ".obj" : type === "gif" ? "image/gif" : ".yaml,.yml"
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      if (type === "png") {
+        loadPngFile(file)
+      } else if (type === "obj") {
+        loadObjFile(file)
+      } else if (type === "yaml") {
+        loadYamlFile(file)
+      } else if (type === "gif") {
+        loadGifWithLibrary(file, settings)
+      }
+    }
+    input.click()
+  }
 
 
 
@@ -1570,32 +1588,32 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
   const handleObjPerformance = (v: boolean) => onSettingsChange({ ...settings, objPerformance: v });
   const objPerformance = settings.objPerformance ?? false;
 
-  // --- ÖZEL SLIDER BİLEŞENİ ---
-  interface CustomSliderProps {
-    value: number
-    onChange: (value: number) => void
-    min: number
-    max: number
-    step: number
-    accentColor?: string
-  }
+// --- ÖZEL SLIDER BİLEŞENİ ---
+interface CustomSliderProps {
+  value: number
+  onChange: (value: number) => void
+  min: number
+  max: number
+  step: number
+  accentColor?: string
+}
 
-  const CustomSlider: React.FC<CustomSliderProps> = ({ value, onChange, min, max, step, accentColor = "#10b981" }) => {
-    return (
-      <div className="relative w-full group">
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-          style={{
-            background: `linear-gradient(to right, ${accentColor} 0%, ${accentColor} ${((value - min) / (max - min)) * 100}%, #e5e7eb ${((value - min) / (max - min)) * 100}%, #e5e7eb 100%)`
-          }}
-        />
-        <style jsx>{`
+const CustomSlider: React.FC<CustomSliderProps> = ({ value, onChange, min, max, step, accentColor = "#10b981" }) => {
+  return (
+    <div className="relative w-full group">
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+        style={{
+          background: `linear-gradient(to right, ${accentColor} 0%, ${accentColor} ${((value - min) / (max - min)) * 100}%, #e5e7eb ${((value - min) / (max - min)) * 100}%, #e5e7eb 100%)`
+        }}
+      />
+      <style jsx>{`
         .slider::-webkit-slider-thumb {
           appearance: none;
           width: 18px;
@@ -1624,116 +1642,92 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
           transform: scale(1.2);
         }
       `}</style>
-      </div>
-    );
-  };
-
-
-  // File upload handler
-  const handleFileUpload = (type: "png" | "obj" | "yaml" | "gif") => {
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = type === "png" ? ".png" : type === "obj" ? ".obj" : type === "yaml" ? ".yml,.yaml" : ".gif"
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (file) {
-        if (type === "png") {
-          loadPngFile(file)
-        } else if (type === "obj") {
-          loadObjFile(file)
-        } else if (type === "yaml") {
-          loadYamlFile(file)
-        } else if (type === "gif") {
-          loadGifWithLibrary(file, settings)
-        }
-      }
-    }
-    input.click()
-  }
-
-  return (
-    // ARKA PLAN KALDIRILDI: bg-slate-50 sınıfı silindi.
-    <div className="h-full w-full flex flex-col text-sm relative">
-      {/* Header */}
-      <div className="flex-shrink-0 p-6 border-b border-slate-200">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-slate-900 rounded-xl shadow-sm">
-            <Download className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900 text-xl">Import Files</h3>
-            <p className="text-sm text-slate-500 mt-1">Convert files to elements</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Import Types List */}
-      <div className="flex-1 overflow-y-auto p-4 scrollbar-hidden">
-        <ImportTypeSection
-          id="png"
-          title="PNG Import"
-          icon={ImageIcon} // ImageIcon'ı import ettiğinizden emin olun
-          description="Convert PNG images to vector elements"
-          onImport={() => handleFileUpload("png")}
-          settings={settings}
-          onSettingsChange={onSettingsChange}
-        />
-
-        <ImportTypeSection
-          id="obj"
-          title="OBJ Import"
-          icon={FileStack} // FileStack'ı import ettiğinizden emin olun
-          description="Convert 3D OBJ files to vector elements"
-          onImport={() => handleFileUpload("obj")}
-          settings={settings}
-          onSettingsChange={onSettingsChange}
-        />
-
-        <ImportTypeSection
-          id="gif"
-          title="GIF Import"
-          icon={Film} // Film'i import ettiğinizden emin olun
-          description="Convert animated GIFs to frame layers"
-          onImport={() => handleFileUpload("gif")}
-          settings={settings}
-          onSettingsChange={onSettingsChange}
-        />
-
-        <ImportTypeSection
-          id="yaml"
-          title="YAML Import"
-          icon={FileText} // FileText'i import ettiğinizden emin olun
-          description="Convert MythicMobs YAML files to elements"
-          onImport={() => handleFileUpload("yaml")}
-          settings={settings}
-          onSettingsChange={onSettingsChange}
-        />
-      </div>
-
-      {/* Drag & Drop Overlay */}
-      <AnimatePresence>
-        {isDragOver && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-white/90 backdrop-blur-sm border-2 border-dashed border-slate-400 rounded-xl flex items-center justify-center z-50"
-          >
-            <div className="text-center p-8">
-              <div className="p-4 bg-slate-900 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                <Download className="w-10 h-10 text-white" />
-              </div>
-              <p className="text-slate-800 font-semibold text-lg mb-2">Drop file here to import</p>
-              <p className="text-slate-500">PNG, OBJ, GIF, YAML supported</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
-}
+};
 
-// --- ImportTypeSection Component (Arka Plan Kaldırıldı) ---
+
+// --- ANA PANEL DÖNÜŞÜ ---
+return (
+  <div className="h-full w-full bg-white flex flex-col text-sm relative">
+    {/* Header (Tools ve Modes panelleri ile tutarlı) */}
+    <div className="flex-shrink-0 p-4 border-b border-gray-200">
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-green-50 rounded-lg">
+          <Download className="w-5 h-5 text-green-600" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-900 text-lg">Import Files</h3>
+          <p className="text-sm text-gray-500">Convert files to elements</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Import Types List */}
+    <div className="flex-1 overflow-y-auto p-1 scrollbar-hidden">
+      <ImportTypeSection
+        id="png"
+        title="PNG Import"
+        icon={ImageIcon}
+        description="Convert PNG images to vector elements"
+        onImport={() => handleFileUpload("png")}
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+      />
+
+      <ImportTypeSection
+        id="obj"
+        title="OBJ Import"
+        icon={FileStack}
+        description="Convert 3D OBJ files to vector elements"
+        onImport={() => handleFileUpload("obj")}
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+      />
+
+      <ImportTypeSection
+        id="gif"
+        title="GIF Import"
+        icon={Film}
+        description="Convert animated GIFs to frame layers"
+        onImport={() => handleFileUpload("gif")}
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+      />
+
+      <ImportTypeSection
+        id="yaml"
+        title="YAML Import"
+        icon={FileText}
+        description="Convert MythicMobs YAML files to elements"
+        onImport={() => handleFileUpload("yaml")}
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+      />
+    </div>
+
+    {/* Drag & Drop Overlay (AnimatePresence ile) */}
+    <AnimatePresence>
+      {isDragOver && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-white/90 backdrop-blur-sm border-2 border-dashed border-green-400 rounded-lg flex items-center justify-center z-50"
+        >
+          <div className="text-center">
+            <Download className="w-12 h-12 text-green-500 mx-auto mb-3" />
+            <p className="text-green-700 font-medium">Drop file here to import</p>
+            <p className="text-green-500 text-sm">PNG, OBJ, GIF, YAML supported</p>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+);
+
+
+// --- ImportTypeSection Component (Yeniden Tasarlandı) ---
 function ImportTypeSection({
   id,
   title,
@@ -1755,36 +1749,34 @@ function ImportTypeSection({
   const hasSettings = id !== 'yaml';
 
   return (
-    <div className="mb-3">
+    <div className="mb-1">
       <motion.div
         layout
-        className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-300 relative border ${isExpanded
-            ? "bg-slate-900 text-white shadow-lg border-slate-800"
-            : "text-slate-700 hover:border-slate-300 shadow-sm border-transparent"
-          }`}
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
+        className={`w-full flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 relative ${
+          isExpanded 
+            ? "bg-green-50 text-green-700" 
+            : "text-gray-700 hover:bg-gray-100"
+        }`}
+        whileHover={{ x: 2 }}
       >
         {isExpanded && (
-          <motion.div
+          <motion.div 
             layoutId="activeImportBar"
-            className="absolute left-0 top-0 bottom-0 w-1 bg-slate-700 rounded-r-xl"
+            className="absolute left-0 w-1 h-8 bg-green-500 rounded-r"
           />
         )}
-        <div className={`p-2 rounded-lg ${isExpanded ? "bg-slate-800" : "bg-slate-100"}`}>
-          <Icon className={`w-5 h-5 ${isExpanded ? "text-white" : "text-slate-700"}`} />
-        </div>
+        <Icon className="w-5 h-5 flex-shrink-0" />
         <div className="flex-1">
-          <span className="font-semibold text-base">{title}</span>
-          <p className={`text-xs mt-1 ${isExpanded ? "text-slate-300" : "text-slate-500"}`}>{description}</p>
+          <span className="font-medium">{title}</span>
+          <p className="text-xs text-gray-500">{description}</p>
         </div>
 
         {hasSettings && (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`p-2 rounded-lg transition-colors ${isExpanded ? "hover:bg-slate-800" : "hover:bg-slate-200"}`}
+            className="p-1 rounded hover:bg-black/10 transition-colors"
           >
-            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         )}
 
@@ -1792,10 +1784,7 @@ function ImportTypeSection({
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onImport}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isExpanded
-              ? "bg-white text-slate-900 hover:bg-slate-100"
-              : "bg-slate-900 text-white hover:bg-slate-800"
-            }`}
+          className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700 transition-colors shadow-sm"
         >
           Import
         </motion.button>
@@ -1811,9 +1800,8 @@ function ImportTypeSection({
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 pl-8">
-              {/* ARKA PLAN KALDIRILDI: bg-white sınıfı silindi. */}
-              <div className="rounded-xl p-5 shadow-sm border border-slate-100">
+            <div className="px-3 pb-3 pl-7">
+              <div className="bg-gray-50 rounded-md p-4 space-y-4 border border-gray-100">
                 {id === 'png' && <PngSettings settings={settings} onSettingsChange={onSettingsChange} />}
                 {id === 'obj' && <ObjSettings settings={settings} onSettingsChange={onSettingsChange} />}
                 {id === 'gif' && <GifSettings settings={settings} onSettingsChange={onSettingsChange} />}
@@ -1826,68 +1814,40 @@ function ImportTypeSection({
   );
 }
 
-// --- PngSettings Component (Slider Sorunu Düzeltildi) ---
+
+// --- PngSettings Component (CustomSlider ile) ---
 function PngSettings({ settings, onSettingsChange }: { settings: any; onSettingsChange: (s: any) => void }) {
   const pngSize = settings.pngSize ?? 300;
   const maxElements = settings.maxElements ?? 50000;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700">PNG Size</span>
-          <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{pngSize}px</span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">PNG Size</span>
+          <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{pngSize}px</span>
         </div>
-        <input
-          type="range"
-          min={32}
-          max={1024}
-          step={8}
-          value={pngSize}
-          // SORUN ÇÖZÜLDÜ: e.stopPropagation() eklendi.
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, pngSize: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
-        />
+        <CustomSlider value={pngSize} onChange={(v) => onSettingsChange({ ...settings, pngSize: v })} min={32} max={1024} step={8} />
       </div>
 
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700">Max Elements</span>
-          <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{maxElements.toLocaleString()}</span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Max Elements</span>
+          <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{maxElements.toLocaleString()}</span>
         </div>
-        <input
-          type="range"
-          min={100}
-          max={20000}
-          step={100}
-          value={maxElements}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, maxElements: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
-        />
+        <CustomSlider value={maxElements} onChange={(v) => onSettingsChange({ ...settings, maxElements: v })} min={100} max={20000} step={100} />
       </div>
 
-      <div className="flex items-center justify-between py-2">
-        <span className="text-sm font-medium text-slate-700">Preserve Colors</span>
-        <button
-          onClick={() => onSettingsChange({ ...settings, imageColorMode: !settings.imageColorMode })}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.imageColorMode ? 'bg-slate-900' : 'bg-slate-300'
-            }`}
-        >
-          <motion.span
-            layout
-            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${settings.imageColorMode ? 'translate-x-5' : 'translate-x-0.5'
-              }`}
-          />
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-700">Preserve Colors</span>
+        <button onClick={() => onSettingsChange({ ...settings, imageColorMode: !settings.imageColorMode })} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${settings.imageColorMode ? 'bg-green-500' : 'bg-gray-300'}`}>
+          <motion.span layout className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.imageColorMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
         </button>
       </div>
 
       <div className="space-y-2">
-        <span className="text-sm font-semibold text-slate-700">Sampling Method</span>
-        <select
-          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-slate-700 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
-          value={settings.samplingMethod || 'legacy'}
-          onChange={e => onSettingsChange({ ...settings, samplingMethod: e.target.value })}
-        >
+        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Sampling Method</span>
+        <select className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm focus:border-green-500 focus:outline-none" value={settings.samplingMethod || 'legacy'} onChange={e => onSettingsChange({ ...settings, samplingMethod: e.target.value })}>
           <option value="legacy">Legacy</option>
           <option value="skeleton">Skeleton</option>
           <option value="contour">Contour</option>
@@ -1898,181 +1858,112 @@ function PngSettings({ settings, onSettingsChange }: { settings: any; onSettings
       </div>
 
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700">Alpha Threshold</span>
-          <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{settings.alphaThreshold ?? 10}</span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Alpha Threshold</span>
+          <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{settings.alphaThreshold ?? 10}</span>
         </div>
-        <input
-          type="range"
-          min={0}
-          max={255}
-          step={5}
-          value={settings.alphaThreshold ?? 10}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, alphaThreshold: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
-        />
+        <CustomSlider value={settings.alphaThreshold ?? 10} onChange={(v) => onSettingsChange({ ...settings, alphaThreshold: v })} min={0} max={255} step={5} />
       </div>
     </div>
   );
 }
 
-// --- ObjSettings Component (Slider Sorunu Düzeltildi) ---
+// --- ObjSettings Component (CustomSlider ile) ---
 function ObjSettings({ settings, onSettingsChange }: { settings: any; onSettingsChange: (s: any) => void }) {
   const objScale = settings.objScale ?? 1;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700">Scale</span>
-          <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{objScale}x</span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Scale</span>
+          <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{objScale}x</span>
         </div>
-        <input
-          type="range"
-          min={0.01}
-          max={10}
-          step={0.01}
-          value={objScale}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, objScale: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
-        />
+        <CustomSlider value={objScale} onChange={(v) => onSettingsChange({ ...settings, objScale: v })} min={0.01} max={10} step={0.01} />
       </div>
 
-      <div className="flex items-center justify-between py-2">
-        <span className="text-sm font-medium text-slate-700">Optimize Performance</span>
-        <button
-          onClick={() => onSettingsChange({ ...settings, objPerformance: !settings.objPerformance })}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.objPerformance ? 'bg-slate-900' : 'bg-slate-300'
-            }`}
-        >
-          <motion.span
-            layout
-            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${settings.objPerformance ? 'translate-x-5' : 'translate-x-0.5'
-              }`}
-          />
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-700">Optimize Performance</span>
+        <button onClick={() => onSettingsChange({ ...settings, objPerformance: !settings.objPerformance })} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${settings.objPerformance ? 'bg-green-500' : 'bg-gray-300'}`}>
+          <motion.span layout className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.objPerformance ? 'translate-x-4' : 'translate-x-0.5'}`} />
         </button>
       </div>
     </div>
   );
 }
 
-// --- GifSettings Component (Slider Sorunu Düzeltildi) ---
+// --- GifSettings Component (CustomSlider ile) ---
 function GifSettings({ settings, onSettingsChange }: { settings: any; onSettingsChange: (s: any) => void }) {
   const maxElements = settings.maxElements ?? 50000;
   const gifFrameDelay = settings.gifFrameDelay ?? 2;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700">Frame Delay</span>
-          <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{gifFrameDelay} ticks</span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Frame Delay</span>
+          <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{gifFrameDelay} ticks</span>
         </div>
-        <input
-          type="range"
-          min={1}
-          max={20}
-          step={1}
-          value={gifFrameDelay}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, gifFrameDelay: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
-        />
+        <CustomSlider value={gifFrameDelay} onChange={(v) => onSettingsChange({ ...settings, gifFrameDelay: v })} min={1} max={20} step={1} />
       </div>
 
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700">Max Elements</span>
-          <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{maxElements.toLocaleString()}</span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Max Elements</span>
+          <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{maxElements.toLocaleString()}</span>
         </div>
-        <input
-          type="range"
-          min={10000}
-          max={200000}
-          step={5000}
-          value={maxElements}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, maxElements: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
-        />
+        <CustomSlider value={maxElements} onChange={(v) => onSettingsChange({ ...settings, maxElements: v })} min={10000} max={200000} step={5000} />
       </div>
 
-      <div className="flex items-center justify-between py-2">
-        <span className="text-sm font-medium text-slate-700">Preserve Colors</span>
-        <button
-          onClick={() => onSettingsChange({ ...settings, imageColorMode: !settings.imageColorMode })}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.imageColorMode ? 'bg-slate-900' : 'bg-slate-300'
-            }`}
-        >
-          <motion.span
-            layout
-            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${settings.imageColorMode ? 'translate-x-5' : 'translate-x-0.5'
-              }`}
-          />
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-700">Preserve Colors</span>
+        <button onClick={() => onSettingsChange({ ...settings, imageColorMode: !settings.imageColorMode })} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${settings.imageColorMode ? 'bg-green-500' : 'bg-gray-300'}`}>
+          <motion.span layout className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.imageColorMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
         </button>
       </div>
 
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700">Particle Density</span>
-          <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{settings.gifScaleFactor ?? 25}</span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Particle Density</span>
+          <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{settings.gifScaleFactor ?? 25}</span>
         </div>
-        <input
-          type="range"
-          min={1}
-          max={100}
-          step={1}
-          value={settings.gifScaleFactor ?? 25}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, gifScaleFactor: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
-        />
+        <CustomSlider value={settings.gifScaleFactor ?? 25} onChange={(v) => onSettingsChange({ ...settings, gifScaleFactor: v })} min={1} max={100} step={1} />
       </div>
 
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700">Particle Spacing</span>
-          <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{settings.particleDensity ?? 2}</span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Particle Spacing</span>
+          <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{settings.particleDensity ?? 2}</span>
         </div>
-        <input
-          type="range"
-          min={1}
-          max={5}
-          step={1}
-          value={settings.particleDensity ?? 2}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, particleDensity: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
-        />
+        <CustomSlider value={settings.particleDensity ?? 2} onChange={(v) => onSettingsChange({ ...settings, particleDensity: v })} min={1} max={5} step={1} />
       </div>
 
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700">Color Similarity</span>
-          <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{settings.colorSimilarityThreshold ?? 30}</span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Color Similarity</span>
+          <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{settings.colorSimilarityThreshold ?? 30}</span>
         </div>
-        <input
-          type="range"
-          min={10}
-          max={100}
-          step={10}
-          value={settings.colorSimilarityThreshold ?? 30}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, colorSimilarityThreshold: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
-        />
+        <CustomSlider value={settings.colorSimilarityThreshold ?? 30} onChange={(v) => onSettingsChange({ ...settings, colorSimilarityThreshold: v })} min={10} max={100} step={10} />
       </div>
 
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700">Alpha Threshold</span>
-          <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{settings.alphaThreshold ?? 10}</span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Alpha Threshold</span>
+          <span className="text-xs bg-white text-gray-700 px-2 py-1 rounded font-mono border border-gray-200">{settings.alphaThreshold ?? 10}</span>
         </div>
-        <input
-          type="range"
-          min={0}
-          max={255}
-          step={5}
-          value={settings.alphaThreshold ?? 10}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, alphaThreshold: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
-        />
+        <CustomSlider value={settings.alphaThreshold ?? 10} onChange={(v) => onSettingsChange({ ...settings, alphaThreshold: v })} min={0} max={255} step={5} />
       </div>
     </div>
   );
+}
+
+      <style jsx>{`
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hidden {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
 }
