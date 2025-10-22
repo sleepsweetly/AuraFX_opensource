@@ -23,9 +23,10 @@ interface InstancedElementsProps {
     geometryType: string;
     colorKey?: string;
     geometryArgs?: number[];
+    selectedVertices?: string[]; // Renk güncellemesi için gerekli
 }
 
-function InstancedElements({ elements, geometryType, colorKey = "color", geometryArgs = [] }: InstancedElementsProps) {
+function InstancedElements({ elements, geometryType, colorKey = "color", geometryArgs = [], selectedVertices = [] }: InstancedElementsProps) {
     const meshRef = useRef<InstancedMesh>(null)
     const isTransforming = use3DStore((state) => state.isTransforming)
     const tempPositions = use3DStore((state) => state.tempPositions)
@@ -48,6 +49,9 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
         const mesh = meshRef.current
         const dummy = new THREE.Object3D()
 
+        // !!! DÜZELTME: Set'i SADECE BİR KEZ oluştur !!!
+        const selectedVerticesSet = new Set(selectedVertices) // Artık prop'tan geliyor
+
         elements.forEach((element, index) => {
             const position = isTransforming && tempPositions.has(element.id)
                 ? tempPositions.get(element.id)!
@@ -58,9 +62,7 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
             mesh.setMatrixAt(index, dummy.matrix)
 
             // Renk ayarla - seçili elementler için özel renk
-            const { selectedVertices } = use3DStore.getState()
-            const selectedVerticesSet = new Set(selectedVertices)
-            const isSelected = selectedVerticesSet.has(element.id)
+            const isSelected = selectedVerticesSet.has(element.id) // Sadece Set'i kontrol et
             
             const color = isSelected 
                 ? new Color("#00ff00") // Bright green for selected
@@ -70,7 +72,7 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
 
         mesh.instanceMatrix.needsUpdate = true
         if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-    }, [elements, isTransforming, tempPositions, colorKey, geometry])
+    }, [elements, isTransforming, tempPositions, colorKey, geometry, selectedVertices]) // selectedVertices eklendi!
 
     if (!geometry) return null
 
@@ -86,6 +88,7 @@ function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
     const performanceMode = use3DStore((state) => state.performanceMode)
     const isTransforming = use3DStore((state) => state.isTransforming)
     const tempPositions = use3DStore((state) => state.tempPositions)
+    const selectedVertices = use3DStore((state) => state.selectedVertices) // Renk güncellemesi için gerekli
 
     const visibleVertices = useMemo(() => {
         const allVisible = Array.from(vertices.values()).filter(
@@ -115,6 +118,7 @@ function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
             elements={visibleVertices}
             geometryType="sphere"
             geometryArgs={[0.07, 8, 8]}
+            selectedVertices={selectedVertices} // Prop olarak geçir
         />
     )
 }

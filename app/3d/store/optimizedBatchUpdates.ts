@@ -92,9 +92,13 @@ export function applyTransformsBatch(
   const vertexUpdates: Array<{ id: string; updates: Partial<Vertex> }> = []
   const shapeUpdates: Array<{ id: string; updates: Partial<Shape> }> = []
 
+  // !!! OPTİMİZASYON: Set'leri döngüden ÖNCE BİR KEZ oluştur !!!
+  const selectedVerticesSet = new Set(selectedVertices)
+  const selectedShapesSet = new Set(selectedShapes)
+
   // Collect vertex updates
   tempPositions.forEach((newPos, id) => {
-    const selectedVerticesSet = new Set(selectedVertices)
+    // !!! HIZLI KONTROL (O(1)) !!!
     if (selectedVerticesSet.has(id)) {
       vertexUpdates.push({
         id,
@@ -105,7 +109,7 @@ export function applyTransformsBatch(
 
   // Collect shape updates
   tempPositions.forEach((newPos, id) => {
-    const selectedShapesSet = new Set(selectedShapes)
+    // !!! HIZLI KONTROL (O(1)) !!!
     if (selectedShapesSet.has(id)) {
       const updates: any = {
         position: { x: newPos.x, y: newPos.y, z: newPos.z }

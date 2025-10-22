@@ -507,7 +507,6 @@ export const generateEffectCode = async (
   actionRecordingSettings?: {
     optimizeCircleFrames?: boolean;
     optimizeIdleRepeat?: boolean;
-    debugFrameComments?: boolean;
   }
 ) => {
   const totalElements = layers.reduce((sum, l) => sum + l.elements.length, 0);
@@ -664,10 +663,7 @@ export const generateEffectCode = async (
 
       // Compact frame'leri kullanarak kod üret
       compactFrames.forEach((frame, frameIndex) => {
-        // Debug: frame bilgisi (opsiyonel)
-        if ((actionRecordingSettings?.debugFrameComments ?? false)) {
-          codeLines.push(`  # frame=${frameIndex + 1} type=${frame.sourceType} idle=${frame.isIdle ? 'yes' : 'no'} delay=${frame.delay} repeatx=${frame.repeatCount}`);
-        }
+
 
         // Frame delay ekle (ilk frame hariç)
         // Idle frame'lerde başlangıç delay'ini eklemeyip bloklayıcı toplam delay ile telafi ediyoruz

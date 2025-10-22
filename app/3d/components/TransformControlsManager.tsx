@@ -48,7 +48,7 @@ export function TransformControlsManager() {
 
     // Seçili vertex'leri ekle
     selectedVertices.forEach(id => {
-      const vertex = Array.from(vertices.values()).find(v => v.id === id)
+      const vertex = vertices.get(id) // O(1) - Anında erişim!
       if (vertex) {
         positions.push(new Vector3(vertex.position.x, vertex.position.y || 0, vertex.position.z))
       }
@@ -83,7 +83,7 @@ export function TransformControlsManager() {
 
     // Seçili vertex'lerin başlangıç pozisyonlarını kaydet
     selectedVertices.forEach(id => {
-      const vertex = Array.from(vertices.values()).find(v => v.id === id)
+      const vertex = vertices.get(id) // O(1) - Anında erişim!
       if (vertex) {
         positions.set(id, new Vector3(vertex.position.x, vertex.position.y || 0, vertex.position.z))
       }
@@ -161,7 +161,7 @@ export function TransformControlsManager() {
           const shape = shapes.find(s => s.id === id)
           if (shape && shape.vertices) {
             shape.vertices.forEach(vertexId => {
-              const vertex = Array.from(vertices.values()).find(v => v.id === vertexId)
+              const vertex = vertices.get(vertexId) // O(1) - Anında erişim!
               if (vertex) {
                 const vertexStartPos = new Vector3(vertex.position.x, vertex.position.y || 0, vertex.position.z)
                 const newVertexPos = vertexStartPos.clone().add(delta)
@@ -209,7 +209,7 @@ export function TransformControlsManager() {
           const shape = shapes.find(s => s.id === id)
           if (shape && shape.vertices) {
             shape.vertices.forEach(vertexId => {
-              const vertex = Array.from(vertices.values()).find(v => v.id === vertexId)
+              const vertex = vertices.get(vertexId) // O(1) - Anında erişim!
               if (vertex) {
                 const vertexStartPos = new Vector3(vertex.position.x, vertex.position.y || 0, vertex.position.z)
                 const relativeVertexPos = vertexStartPos.clone().sub(startCenter)
@@ -259,7 +259,7 @@ export function TransformControlsManager() {
           const shape = shapes.find(s => s.id === id)
           if (shape && shape.vertices) {
             shape.vertices.forEach(vertexId => {
-              const vertex = Array.from(vertices.values()).find(v => v.id === vertexId)
+              const vertex = vertices.get(vertexId) // O(1) - Anında erişim!
               if (vertex) {
                 const vertexStartPos = new Vector3(vertex.position.x, vertex.position.y || 0, vertex.position.z)
                 const relativeVertexPos = vertexStartPos.clone().sub(startCenter)

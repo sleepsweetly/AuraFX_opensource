@@ -356,7 +356,6 @@ export const use3DStore = create<Store3D>()(
                 state.vertices.set(id, { ...vertex, ...updates })
               }
             })
-            state.vertices = new Map(state.vertices)
           })
         },
 
@@ -403,16 +402,20 @@ export const use3DStore = create<Store3D>()(
             state.selectedVertices = newSelected
 
             // AUTO-SELECT SHAPE: If all vertices of a shape are selected, select the shape too
+            // !!! OPTİMİZASYON: Set'leri döngüden önce oluştur !!!
+            const selectedVerticesSet = new Set(state.selectedVertices)
+            const selectedShapesSet = new Set(state.selectedShapes)
+            
             state.shapes.forEach((shape: Shape) => {
               const allVerticesSelected = shape.vertices.length > 0 &&
-                shape.vertices.every(vertexId => state.selectedVertices.includes(vertexId))
+                shape.vertices.every(vertexId => selectedVerticesSet.has(vertexId)) // O(1) kontrol!
 
-              if (allVerticesSelected && !state.selectedShapes.includes(shape.id)) {
+              if (allVerticesSelected && !selectedShapesSet.has(shape.id)) { // O(1) kontrol!
                 state.selectedShapes = [...state.selectedShapes, shape.id]
                 state.shapes = state.shapes.map((s: Shape) =>
                   s.id === shape.id ? { ...s, selected: true } : s
                 )
-              } else if (!allVerticesSelected && state.selectedShapes.includes(shape.id)) {
+              } else if (!allVerticesSelected && selectedShapesSet.has(shape.id)) { // O(1) kontrol!
                 state.selectedShapes = state.selectedShapes.filter(sid => sid !== shape.id)
                 state.shapes = state.shapes.map((s: Shape) =>
                   s.id === shape.id ? { ...s, selected: false } : s
@@ -448,15 +451,21 @@ export const use3DStore = create<Store3D>()(
             // Bu, 40 saniyelik beklemeye neden olan kısımdı.
 
             // AUTO-SELECT SHAPE: If all vertices of a shape are selected, select the shape too
+            // !!! OPTİMİZASYON: Set'leri döngüden önce oluştur !!!
+            const selectedVerticesSet = new Set(state.selectedVertices)
             let newSelectedShapes = [...state.selectedShapes]
+            const newSelectedShapesSet = new Set(newSelectedShapes)
+            
             state.shapes.forEach((shape: Shape) => {
               const allVerticesSelected = shape.vertices.length > 0 &&
-                shape.vertices.every(vertexId => state.selectedVertices.includes(vertexId))
+                shape.vertices.every(vertexId => selectedVerticesSet.has(vertexId)) // O(1) kontrol!
 
-              if (allVerticesSelected && !newSelectedShapes.includes(shape.id)) {
+              if (allVerticesSelected && !newSelectedShapesSet.has(shape.id)) { // O(1) kontrol!
                 newSelectedShapes.push(shape.id)
-              } else if (!allVerticesSelected && newSelectedShapes.includes(shape.id)) {
+                newSelectedShapesSet.add(shape.id)
+              } else if (!allVerticesSelected && newSelectedShapesSet.has(shape.id)) { // O(1) kontrol!
                 newSelectedShapes = newSelectedShapes.filter(sid => sid !== shape.id)
+                newSelectedShapesSet.delete(shape.id)
               }
             })
             state.selectedShapes = newSelectedShapes
@@ -471,11 +480,15 @@ export const use3DStore = create<Store3D>()(
 
         // Helper methods - arrays in store, Sets in components for performance
         isVertexSelected: (id: string) => {
-          return get().selectedVertices.includes(id)
+          // !!! OPTİMİZASYON: Set kullan !!!
+          const selectedVerticesSet = new Set(get().selectedVertices)
+          return selectedVerticesSet.has(id)
         },
 
         isShapeSelected: (id: string) => {
-          return get().selectedShapes.includes(id)
+          // !!! OPTİMİZASYON: Set kullan !!!
+          const selectedShapesSet = new Set(get().selectedShapes)
+          return selectedShapesSet.has(id)
         },
 
         getSelectedVerticesArray: () => {
@@ -703,52 +716,34 @@ export const use3DStore = create<Store3D>()(
         selectShape: (id, multi = false) => {
           set((state) => {
             const shape = state.shapes.find(s => s.id === id)
-            if (!shape) return state
+            if (!shape) return // Shape bulunamazsa state'i değiştirme
 
             if (multi) {
               const isSelected = state.selectedShapes.includes(id)
-
               if (isSelected) {
                 // Shape'i ve vertex'lerini seçimden çıkar
-                const updatedVertices = new Map(Array.from(state.vertices.values()).map(vertex => [
-                  vertex.id,
-                  { ...vertex, selected: shape.vertices.includes(vertex.id) ? false : vertex.selected }
-                ]))
-
-                return {
-                  selectedShapes: state.selectedShapes.filter((sid: string) => sid !== id),
-                  selectedVertices: state.selectedVertices.filter(vid => !shape.vertices.includes(vid)),
-                  shapes: state.shapes.map((s: Shape) => (s.id === id ? { ...s, selected: false } : s)),
-                  vertices: updatedVertices,
-                }
+                state.selectedShapes = state.selectedShapes.filter((sid) => sid !== id)
+                const shapeVerticesSet = new Set(shape.vertices)
+                state.selectedVertices = state.selectedVertices.filter(vid => !shapeVerticesSet.has(vid))
               } else {
-                // Shape'i ve vertex'lerini seç
-                const updatedVertices = new Map(Array.from(state.vertices.values()).map(vertex => [
-                  vertex.id,
-                  { ...vertex, selected: shape.vertices.includes(vertex.id) ? true : vertex.selected }
-                ]))
-
-                return {
-                  selectedShapes: [...state.selectedShapes, id],
-                  selectedVertices: [...state.selectedVertices, ...shape.vertices],
-                  shapes: state.shapes.map((s: Shape) => (s.id === id ? { ...s, selected: true } : s)),
-                  vertices: updatedVertices,
-                }
+                // Shape'i ve vertex'lerini seçime ekle
+                state.selectedShapes.push(id)
+                const existingSelectedVertices = new Set(state.selectedVertices)
+                shape.vertices.forEach(vid => existingSelectedVertices.add(vid))
+                state.selectedVertices = Array.from(existingSelectedVertices)
               }
+              // Shape'in .selected durumunu güncelle (immer mutasyonu)
+              state.shapes.find(s => s.id === id)!.selected = !isSelected
             } else {
-              // Tek seçim: sadece bu shape'i ve vertex'lerini seç
-              const updatedVertices = new Map(Array.from(state.vertices.values()).map(vertex => [
-                vertex.id,
-                { ...vertex, selected: shape.vertices.includes(vertex.id) }
-              ]))
-
-              return {
-                selectedShapes: [id],
-                selectedVertices: shape.vertices,
-                shapes: state.shapes.map((s: Shape) => ({ ...s, selected: s.id === id })),
-                vertices: updatedVertices,
-              }
+              // Tek seçim
+              state.selectedShapes = [id]
+              state.selectedVertices = [...shape.vertices] // Sadece ID dizisini güncelle
+              // 'shapes' dizisini immer ile mutate et
+              state.shapes.forEach(s => {
+                s.selected = (s.id === id)
+              })
             }
+            // !!! vertices Map'ine dokunma !!!
           })
         },
 
@@ -761,78 +756,72 @@ export const use3DStore = create<Store3D>()(
 
         // Selection Actions
         selectAllObjects: () => {
-          set((state) => ({
-            selectedVertices: Array.from(state.vertices.values()).map((v: Vertex) => v.id),
-            selectedShapes: state.shapes.map((s: Shape) => s.id),
-            vertices: new Map(Array.from(state.vertices.values()).map((v: Vertex) => [v.id, { ...v, selected: true }])),
-            shapes: state.shapes.map((s: Shape) => ({ ...s, selected: true })),
-          }))
+          set((state) => {
+            // !!! OPTİMİZASYON: Sadece key'leri al, çok daha hızlı !!!
+            state.selectedVertices = Array.from(state.vertices.keys()) // ÇOK DAHA HIZLI!
+            state.selectedShapes = state.shapes.map((s: Shape) => s.id)
+            // Shapes dizisini immer ile mutate et
+            state.shapes.forEach(s => {
+              s.selected = true
+            })
+            // !!! vertices Map'ine dokunma !!!
+          })
         },
 
         clearAllSelections: () => {
           set((state) => {
-            // Clear vertex selections
-            const updatedVertices = new Map(Array.from(state.vertices.values()).map((vertex: Vertex) => [vertex.id, { ...vertex, selected: false }]))
-
-            return {
-              selectedVertices: [],
-              selectedShapes: [],
-              vertices: updatedVertices,
-              shapes: state.shapes.map((s: Shape) => ({ ...s, selected: false }))
-            }
+            // Sadece ID dizilerini temizle
+            state.selectedVertices = []
+            state.selectedShapes = []
+            // Shapes dizisini immer ile mutate et
+            state.shapes.forEach(s => {
+              s.selected = false
+            })
+            // !!! vertices Map'ine dokunma !!!
           })
         },
 
         deleteSelectedObjects: () => {
           const { selectedVertices, selectedShapes } = get()
+          if (selectedVertices.length === 0 && selectedShapes.length === 0) return
 
-          // Store the selected items before clearing selections
-          const shapesToDelete = [...selectedShapes]
-          const verticesToDelete = [...selectedVertices]
+          set((state) => {
+            const verticesToDelete = new Set(selectedVertices)
+            const shapesToDelete = new Set(selectedShapes)
 
-          // Clear selections first to prevent any side effects during deletion
-          get().clearAllSelections()
+            // 1. Silinecek shape'lere ait vertex'leri de silme set'ine ekle
+            state.shapes.forEach(shape => {
+              if (shapesToDelete.has(shape.id)) {
+                shape.vertices.forEach(vid => verticesToDelete.add(vid))
+              }
+            })
 
-          // Delete shapes
-          shapesToDelete.forEach((shapeId) => {
-            get().deleteShape(shapeId)
-          })
+            // 2. İşaretlenen tüm shape'leri FİLTRELE (en hızlı yol)
+            state.shapes = state.shapes.filter(s => !shapesToDelete.has(s.id))
 
-          // Delete vertices and update shape elementCount
-          verticesToDelete.forEach((vertexId) => {
-            const vertex = get().vertices.get(vertexId)
-            if (vertex) {
-              set((state) => {
-                // Remove vertex
-                const newVertices = new Map(Array.from(state.vertices.values()).filter((v: Vertex) => v.id !== vertexId).map(v => [v.id, v]))
+            // 3. İşaretlenen tüm vertex'leri SİL (immer mutasyonu)
+            verticesToDelete.forEach(id => {
+              state.vertices.delete(id)
+            })
 
-                // Update shapes that contain this vertex
-                const updatedShapes = state.shapes.map(shape => {
-                  if (shape.vertices.includes(vertexId)) {
-                    // Convert procedural shapes to "edited" when manually modified
-                    const isProcedural = ['cube', 'sphere', 'circle', 'line'].includes(shape.type)
-                    const newVertices = shape.vertices.filter(id => id !== vertexId)
+            // 4. Kalan shape'lerin vertex listelerini temizle
+            state.shapes.forEach(shape => {
+              const originalVertexCount = shape.vertices.length
+              // Kalan vertex'leri filtrele
+              shape.vertices = shape.vertices.filter(vid => !verticesToDelete.has(vid))
 
-                    return {
-                      ...shape,
-                      // Convert to "edited" type to freeze procedural generation
-                      type: isProcedural ? 'edited' as const : shape.type,
-                      // Update name to indicate manual editing
-                      name: isProcedural ? `${shape.name || 'Shape'} (Edited)` : shape.name,
-                      vertices: newVertices,
-                      // elementCount remains unchanged - it's the shape's definition, not actual count
-                    }
-                  }
-                  return shape
-                })
+              // Eğer vertex'ler manuel olarak silindiyse (ve shape'in kendisi silinmediyse)
+              // ve shape prosedürel ise, onu "edited" tipine çevir
+              if (shape.vertices.length < originalVertexCount && ['cube', 'sphere', 'circle', 'line'].includes(shape.type)) {
+                shape.type = 'edited'
+                shape.name = `${shape.name || 'Shape'} (Edited)`
+              }
+            })
 
-                return {
-                  vertices: newVertices,
-                  shapes: updatedShapes,
-                  vertexCount: state.vertexCount - 1,
-                }
-              })
-            }
+            // 5. State'in geri kalanını güncelle
+            state.vertexCount = state.vertices.size
+            state.selectedVertices = []
+            state.selectedShapes = []
           })
 
           get().saveToHistory()
@@ -1714,9 +1703,14 @@ export const use3DStore = create<Store3D>()(
 
           // immer kullandığımız için 'set' içinde doğrudan mutasyon yapacağız
           set((state) => {
+            // !!! DÜZELTME: Set'leri döngüden önce BİR KEZ oluştur !!!
+            const selectedVerticesSet = new Set(selectedVertices)
+            const selectedShapesSet = new Set(selectedShapes)
+
             // 1. Vertex'leri güncelle
             tempPositions.forEach((newPos, id) => {
-              if (selectedVertices.includes(id)) {
+              // !!! ÇOK HIZLI KONTROL (O(1)) !!!
+              if (selectedVerticesSet.has(id)) {
                 const vertex = state.vertices.get(id)
                 if (vertex) {
                   vertex.position = { x: newPos.x, y: newPos.y, z: newPos.z } // Doğrudan mutasyon (immer sayesinde)
@@ -1726,7 +1720,8 @@ export const use3DStore = create<Store3D>()(
 
             // 2. Shape'leri güncelle
             state.shapes.forEach((shape, index) => {
-              if (selectedShapes.includes(shape.id)) {
+              // !!! ÇOK HIZLI KONTROL (O(1)) !!!
+              if (selectedShapesSet.has(shape.id)) {
                 const newPos = tempPositions.get(shape.id)
                 const newRot = tempRotations.get(shape.id)
                 const newScale = tempScales.get(shape.id)

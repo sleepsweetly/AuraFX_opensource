@@ -25,9 +25,10 @@ interface InstancedElementsProps {
   geometryType: string;
   colorKey?: string;
   geometryArgs?: number[];
+  selectedVertices?: string[]; // Renk güncellemesi için gerekli
 }
 
-function InstancedElements({ elements, geometryType, colorKey = "color", geometryArgs = [] }: InstancedElementsProps) {
+function InstancedElements({ elements, geometryType, colorKey = "color", geometryArgs = [], selectedVertices = [] }: InstancedElementsProps) {
   const meshRef = useRef<InstancedMesh>(null)
   const isTransforming = use3DStore((state) => state.isTransforming)
   const tempPositions = use3DStore((state) => state.tempPositions)
@@ -67,13 +68,15 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
     mesh.instanceMatrix.needsUpdate = true
     
     // 2) Renk buffer'ını hazırla - seçili elementler için özel renk
-    const { selectedVertices } = use3DStore.getState()
     const count = elements.length
+    
+    // !!! DÜZELTME: Set'i SADECE BİR KEZ döngüden önce oluştur !!!
+    const selectedVerticesSet = new Set(selectedVertices) // Artık prop'tan geliyor
     const colorArray = new Float32Array(count * 3)
     
     for (let i = 0; i < count; i++) {
       const element = elements[i]
-      const selectedVerticesSet = new Set(selectedVertices)
+      // !!! HIZLI KONTROL: Sadece Set'i kullan !!!
       const isSelected = selectedVerticesSet.has(element.id)
       
       // Seçili elementler için parlak yeşil, diğerleri için normal renk
@@ -118,7 +121,7 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
     instancedColors.needsUpdate = true
     mesh.count = elements.length
     
-  }, [elements, geometry, isTransforming, tempPositions])
+  }, [elements, geometry, isTransforming, tempPositions, selectedVertices]) // selectedVertices eklendi!
 
   if (!geometry) return null
 
@@ -134,6 +137,7 @@ function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
   const performanceMode = use3DStore((state) => state.performanceMode)
   const isTransforming = use3DStore((state) => state.isTransforming)
   const tempPositions = use3DStore((state) => state.tempPositions)
+  const selectedVertices = use3DStore((state) => state.selectedVertices) // Renk güncellemesi için gerekli
 
   const visibleVertices = useMemo(() => {
     const allVisible = Array.from(vertices.values()).filter(
@@ -158,12 +162,12 @@ function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
   }
 
   // Çok element varsa instanced render kullan (VR modu gibi)
-  // InstancedElements kendi içinde geçici pozisyonları kontrol edecek
   return (
     <InstancedElements 
       elements={visibleVertices} 
       geometryType="sphere" 
-      geometryArgs={[0.07, 8, 8]} 
+      geometryArgs={[0.07, 8, 8]}
+      selectedVertices={selectedVertices} // Prop olarak geçir
     />
   )
 }

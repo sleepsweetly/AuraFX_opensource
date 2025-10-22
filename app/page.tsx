@@ -923,11 +923,13 @@ export default function EffectEditor() {
     records: actionRecords,
     optimizeCircleFrames,
     optimizeIdleRepeat,
-    debugFrameComments,
+
     startRecording,
     stopRecording,
     isRecording: storeIsRecording
   } = useActionRecordingStore();
+
+
 
 
 
@@ -1638,8 +1640,7 @@ export default function EffectEditor() {
         actionRecords, // Action Recording'ı gönder
         {
           optimizeCircleFrames,
-          optimizeIdleRepeat,
-          debugFrameComments
+          optimizeIdleRepeat
         }
       );
       setGeneratedCode(code);

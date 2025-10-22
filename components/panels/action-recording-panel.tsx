@@ -20,8 +20,7 @@ import {
   Settings,
   Activity,
   ChevronDown,
-  Download,
-  Upload,
+
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
@@ -50,7 +49,7 @@ const ACTION_ICONS = {
 
 const ACTION_LABELS = {
   rotate: "Rotate",
-  scale: "Scale", 
+  scale: "Scale",
   move: "Move",
   color: "Color",
   particle_count: "Particle Count",
@@ -86,21 +85,21 @@ const ACTION_COLORS = {
 function VirtualActionList({ actions }: { actions: ActionRecord[] }) {
   const [scrollTop, setScrollTop] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
-  
+
   // Virtual scrolling parameters
   const ITEM_HEIGHT = 48 // Height of each action item in pixels (more compact)
   const CONTAINER_HEIGHT = 256 // max-h-64 = 16rem = 256px
   const VISIBLE_ITEMS = Math.ceil(CONTAINER_HEIGHT / ITEM_HEIGHT)
   const BUFFER_SIZE = 5 // Extra items to render for smooth scrolling
-  
+
   // Calculate which items to render
   const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE)
   const endIndex = Math.min(actions.length, startIndex + VISIBLE_ITEMS + (BUFFER_SIZE * 2))
   const visibleActions = actions.slice(startIndex, endIndex)
-  
+
   // Total height for scrollbar
   const totalHeight = actions.length * ITEM_HEIGHT
-  
+
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop)
   }
@@ -114,15 +113,15 @@ function VirtualActionList({ actions }: { actions: ActionRecord[] }) {
   }
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className="overflow-auto compact-scrollbar bg-white rounded-lg border border-gray-200"
       onScroll={handleScroll}
       style={{ height: CONTAINER_HEIGHT }}
     >
       <div style={{ height: totalHeight, position: 'relative' }}>
-        <div 
-          style={{ 
+        <div
+          style={{
             position: 'absolute',
             top: startIndex * ITEM_HEIGHT,
             width: '100%'
@@ -139,7 +138,7 @@ function VirtualActionList({ actions }: { actions: ActionRecord[] }) {
           })}
         </div>
       </div>
-      
+
       <style jsx>{`
         .compact-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -187,7 +186,7 @@ const ActionItem = memo(({ record, index }: { record: ActionRecord; index: numbe
       <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-gray-200 transition-colors">
         <Icon className="w-3.5 h-3.5 text-gray-600" />
       </div>
-      
+
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
@@ -204,7 +203,7 @@ const ActionItem = memo(({ record, index }: { record: ActionRecord; index: numbe
           <span className="font-mono">{formatDelay(record.delayTicks)}</span>
         </div>
       </div>
-      
+
       {/* Time */}
       <div className="text-xs text-gray-500 font-mono flex-shrink-0">
         {formatTime(record.timestamp)}
@@ -233,9 +232,9 @@ export function ActionRecordingPanel({
     toggleOptimizeIdleRepeat,
     optimizeCircleFrames,
     toggleOptimizeCircleFrames,
-    debugFrameComments,
-    toggleDebugFrameComments,
   } = useActionRecordingStore()
+
+
 
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
@@ -269,8 +268,8 @@ export function ActionRecordingPanel({
     return filtered
   }, [records, searchTerm, filterType])
 
-  const actionTypes = useMemo(() => 
-    Array.from(new Set(records.map(r => r.type))), 
+  const actionTypes = useMemo(() =>
+    Array.from(new Set(records.map(r => r.type))),
     [records]
   )
 
@@ -335,11 +334,10 @@ export function ActionRecordingPanel({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleToggleRecording}
-                  className={`w-full py-3 px-4 font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-                    isRecording
-                      ? "bg-red-600 hover:bg-red-700 text-white"
-                      : "bg-gray-900 hover:bg-gray-800 text-white"
-                  }`}
+                  className={`w-full py-3 px-4 font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${isRecording
+                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    : "bg-gray-900 hover:bg-gray-800 text-white"
+                    }`}
                 >
                   {isRecording ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                   {isRecording ? "Stop Recording" : "Start Recording"}
@@ -448,44 +446,9 @@ export function ActionRecordingPanel({
                   />
                 </div>
 
-                {/* Debug Comments */}
-                <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                  <div className="flex-1">
-                    <Label htmlFor="opt-debug-frame" className="text-sm font-medium text-gray-900">
-                      Debug Comments
-                    </Label>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Adds frame index, source type, idle flag, delay and repeat info
-                    </p>
-                  </div>
-                  <Switch
-                    id="opt-debug-frame"
-                    checked={debugFrameComments}
-                    onCheckedChange={toggleDebugFrameComments}
-                  />
-                </div>
 
-                {/* Export/Import */}
-                <div className="pt-3 border-t border-gray-200">
-                  <div className="grid grid-cols-2 gap-2">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm"
-                    >
-                      <Download className="w-4 h-4" />
-                      Export
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm"
-                    >
-                      <Upload className="w-4 h-4" />
-                      Import
-                    </motion.button>
-                  </div>
-                </div>
+
+
               </div>
             </motion.div>
           )}
@@ -539,7 +502,7 @@ export function ActionRecordingPanel({
                         className="pl-10 h-9 bg-white border-gray-200 text-sm"
                       />
                     </div>
-                    
+
                     <select
                       value={filterType}
                       onChange={(e) => setFilterType(e.target.value)}
@@ -591,7 +554,7 @@ export function ActionRecordingPanel({
   )
 }
 
-      <style jsx>{`
+<style jsx>{`
         .scrollbar-hidden::-webkit-scrollbar {
           display: none;
         }
