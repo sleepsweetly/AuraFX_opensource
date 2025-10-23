@@ -1,60 +1,8 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
-// Custom Slider to avoid CSS issues
 import { ColorPicker } from "@/components/ui/color-picker"
-
-// Custom Slider Component
-interface CustomSliderProps {
-  min: number
-  max: number
-  step: number
-  value: number
-  onChange: (value: number) => void
-  className?: string
-}
-
-function CustomSlider({ min, max, step, value, onChange, className = "" }: CustomSliderProps) {
-  const percentage = ((value - min) / (max - min)) * 100
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(Number(e.target.value))
-  }
-
-  const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
-    onChange(Number((e.target as HTMLInputElement).value))
-  }
-
-  return (
-    <div className={`relative py-2 ${className}`}>
-      <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
-        <div
-          className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-200"
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={handleChange}
-        onInput={handleInput}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        style={{
-          WebkitAppearance: 'none',
-          appearance: 'none',
-          background: 'transparent',
-        }}
-      />
-      <div
-        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 border-blue-500 transition-all duration-200 hover:scale-110 pointer-events-none"
-        style={{ left: `calc(${percentage}% - 8px)` }}
-      />
-    </div>
-  )
-}
+import { ElasticSlider } from "@/components/ui/elastic-slider"
 import { X, Settings, Trash2, Box, Layers, Edit3, Lock, AlertTriangle, Info, RotateCcw } from "lucide-react"
 import { use3DStore } from "../store/use3DStore"
 import { motion, AnimatePresence } from "framer-motion"
@@ -399,18 +347,24 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
 
                     {shapeInfo.canModifyCount ? (
                       <>
-                        <CustomSlider
-                          value={selectedShape.elementCount || 8}
-                          onChange={(value) => {
-                            if (value !== selectedShape.elementCount) {
-                              updateShape(selectedShape.id, { elementCount: value })
-                            }
-                          }}
-                          min={3}
-                          max={1000}
-                          step={1}
-                          className="mb-3"
-                        />
+                        <div className="mb-3">
+                          <ElasticSlider
+                            key={selectedShape.id}
+                            defaultValue={selectedShape.elementCount || 8}
+                            startingValue={3}
+                            maxValue={1000}
+                            isStepped={true}
+                            stepSize={1}
+                            size="lg"
+                            onChange={(value) => {
+                              if (value !== selectedShape.elementCount) {
+                                updateShape(selectedShape.id, { elementCount: value })
+                              }
+                            }}
+                            leftIcon={<span className="text-xs">3</span>}
+                            rightIcon={<span className="text-xs">1K</span>}
+                          />
+                        </div>
 
                         <input
                           type="number"

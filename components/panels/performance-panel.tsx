@@ -1,10 +1,11 @@
 "use client"
 
 import React, { useState } from "react"
+import { ElasticSlider } from "@/components/ui/elastic-slider"
 import { motion, AnimatePresence } from "framer-motion"
-import { 
-  Gauge, 
-  AlertTriangle, 
+import {
+  Gauge,
+  AlertTriangle,
   Settings,
   BarChart3,
   TrendingUp,
@@ -36,10 +37,10 @@ interface OptimizationSettings {
   stepValue?: number
 }
 
-export function PerformancePanel({ 
-  currentLineCount = 0, 
-  onOptimize = () => {}, 
-  onApplyTemplate = () => {} 
+export function PerformancePanel({
+  currentLineCount = 0,
+  onOptimize = () => { },
+  onApplyTemplate = () => { }
 }: PerformancePanelProps) {
   const [settings, setSettings] = useState<OptimizationSettings>({
     maxLines: 1000,
@@ -56,36 +57,36 @@ export function PerformancePanel({
   const [templatesExpanded, setTemplatesExpanded] = useState(false)
 
   const getPerformanceLevel = (lines: number) => {
-    if (lines <= 10) return { 
-      level: "excellent", 
-      color: "text-green-600", 
+    if (lines <= 10) return {
+      level: "excellent",
+      color: "text-green-600",
       bgColor: "bg-green-50",
       borderColor: "border-green-200",
       text: "Excellent",
       icon: <CheckCircle className="h-5 w-5 text-green-600" />,
       description: "Perfect performance"
     }
-    if (lines <= 25) return { 
-      level: "good", 
-      color: "text-blue-600", 
+    if (lines <= 25) return {
+      level: "good",
+      color: "text-blue-600",
       bgColor: "bg-blue-50",
       borderColor: "border-blue-200",
       text: "Good",
       icon: <ThumbsUp className="h-5 w-5 text-blue-600" />,
       description: "Good performance"
     }
-    if (lines <= 50) return { 
-      level: "warning", 
-      color: "text-yellow-600", 
+    if (lines <= 50) return {
+      level: "warning",
+      color: "text-yellow-600",
       bgColor: "bg-yellow-50",
       borderColor: "border-yellow-200",
       text: "Warning",
       icon: <AlertCircle className="h-5 w-5 text-yellow-600" />,
       description: "Performance warning"
     }
-    return { 
-      level: "danger", 
-      color: "text-red-600", 
+    return {
+      level: "danger",
+      color: "text-red-600",
       bgColor: "bg-red-50",
       borderColor: "border-red-200",
       text: "Danger",
@@ -150,7 +151,7 @@ export function PerformancePanel({
             <ChevronDown className="h-4 w-4 text-gray-400" />
           </motion.div>
         </motion.button>
-        
+
         <AnimatePresence>
           {statusExpanded && (
             <motion.div
@@ -219,7 +220,7 @@ export function PerformancePanel({
             <ChevronDown className="h-4 w-4 text-gray-400" />
           </motion.div>
         </motion.button>
-        
+
         <AnimatePresence>
           {optimizationExpanded && (
             <motion.div
@@ -232,18 +233,20 @@ export function PerformancePanel({
               <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 {/* Max Lines */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-gray-700">Max Lines</span>
                     <span className="text-xs text-gray-500">{settings.maxLines.toLocaleString()}</span>
                   </div>
-                  <input
-                    type="range"
-                    min={50}
-                    max={10000}
-                    step={50}
-                    value={settings.maxLines}
-                    onChange={(e) => setSettings(prev => ({ ...prev, maxLines: Number(e.target.value) }))}
-                    className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer slider-modern"
+                  <ElasticSlider
+                    defaultValue={settings.maxLines}
+                    startingValue={50}
+                    maxValue={10000}
+                    stepSize={50}
+                    isStepped={true}
+                    size="lg"
+                    onChange={(value) => setSettings(prev => ({ ...prev, maxLines: value }))}
+                    leftIcon={<span className="text-xs">50</span>}
+                    rightIcon={<span className="text-xs">10K</span>}
                   />
                 </div>
 
@@ -255,11 +258,10 @@ export function PerformancePanel({
                       <button
                         key={level.id}
                         onClick={() => setSettings(prev => ({ ...prev, compressionLevel: level.id as any }))}
-                        className={`p-2 rounded-lg border transition-all text-xs font-medium ${
-                          settings.compressionLevel === level.id
-                            ? "border-gray-300 bg-gray-100 text-gray-900"
-                            : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                        }`}
+                        className={`p-2 rounded-lg border transition-all text-xs font-medium ${settings.compressionLevel === level.id
+                          ? "border-gray-300 bg-gray-100 text-gray-900"
+                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                          }`}
                       >
                         {level.name}
                       </button>
@@ -275,11 +277,10 @@ export function PerformancePanel({
                       <button
                         key={method.id}
                         onClick={() => setSettings(prev => ({ ...prev, samplingMethod: method.id as any }))}
-                        className={`p-2 rounded-lg border transition-all text-xs font-medium ${
-                          settings.samplingMethod === method.id
-                            ? "border-gray-300 bg-gray-100 text-gray-900"
-                            : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                        }`}
+                        className={`p-2 rounded-lg border transition-all text-xs font-medium ${settings.samplingMethod === method.id
+                          ? "border-gray-300 bg-gray-100 text-gray-900"
+                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                          }`}
                       >
                         {method.name}
                       </button>
@@ -293,14 +294,12 @@ export function PerformancePanel({
                     <span className="text-sm font-medium text-gray-700">Merge Similar Effects</span>
                     <div
                       onClick={() => setSettings(prev => ({ ...prev, mergeSimilarEffects: !prev.mergeSimilarEffects }))}
-                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${
-                        settings.mergeSimilarEffects ? 'bg-gray-900' : 'bg-gray-200'
-                      }`}
+                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${settings.mergeSimilarEffects ? 'bg-gray-900' : 'bg-gray-200'
+                        }`}
                     >
                       <div
-                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${
-                          settings.mergeSimilarEffects ? 'left-5' : 'left-0.5'
-                        }`}
+                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${settings.mergeSimilarEffects ? 'left-5' : 'left-0.5'
+                          }`}
                       />
                     </div>
                   </div>
@@ -309,14 +308,12 @@ export function PerformancePanel({
                     <span className="text-sm font-medium text-gray-700">Increase Interval</span>
                     <div
                       onClick={() => setSettings(prev => ({ ...prev, increaseInterval: !prev.increaseInterval }))}
-                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${
-                        settings.increaseInterval ? 'bg-gray-900' : 'bg-gray-200'
-                      }`}
+                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${settings.increaseInterval ? 'bg-gray-900' : 'bg-gray-200'
+                        }`}
                     >
                       <div
-                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${
-                          settings.increaseInterval ? 'left-5' : 'left-0.5'
-                        }`}
+                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${settings.increaseInterval ? 'left-5' : 'left-0.5'
+                          }`}
                       />
                     </div>
                   </div>
@@ -325,14 +322,12 @@ export function PerformancePanel({
                     <span className="text-sm font-medium text-gray-700">Auto Optimize</span>
                     <div
                       onClick={() => setSettings(prev => ({ ...prev, autoOptimize: !prev.autoOptimize }))}
-                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${
-                        settings.autoOptimize ? 'bg-gray-900' : 'bg-gray-200'
-                      }`}
+                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${settings.autoOptimize ? 'bg-gray-900' : 'bg-gray-200'
+                        }`}
                     >
                       <div
-                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${
-                          settings.autoOptimize ? 'left-5' : 'left-0.5'
-                        }`}
+                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-sm ${settings.autoOptimize ? 'left-5' : 'left-0.5'
+                          }`}
                       />
                     </div>
                   </div>
@@ -378,7 +373,7 @@ export function PerformancePanel({
             <ChevronDown className="h-4 w-4 text-gray-400" />
           </motion.div>
         </motion.button>
-        
+
         <AnimatePresence>
           {templatesExpanded && (
             <motion.div

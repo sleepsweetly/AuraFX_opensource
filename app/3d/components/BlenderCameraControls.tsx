@@ -6,7 +6,7 @@ import { Vector2, Vector3, Spherical } from "three"
 import { use3DStore } from "../store/use3DStore"
 
 export function BlenderCameraControls() {
-  const { gl, camera } = useThree()
+  const { gl, camera, set } = useThree()
   const { updateCamera } = use3DStore()
 
   const isOrbiting = useRef(false)
@@ -14,6 +14,61 @@ export function BlenderCameraControls() {
   const isZooming = useRef(false)
   const lastMouse = useRef(new Vector2())
   const cameraTarget = useRef(new Vector3(0, 0, 0))
+
+  // GizmoHelper için fake controls objesi oluştur
+  const controlsRef = useRef({
+    getTarget: () => cameraTarget.current,
+    target: cameraTarget.current,
+    object: camera,
+    enabled: true,
+    update: () => {},
+    dispose: () => {},
+    addEventListener: () => {},
+    hasEventListener: () => false,
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+    setPosition: (x: number, y: number, z: number) => {
+      camera.position.set(x, y, z)
+      camera.lookAt(cameraTarget.current)
+      updateCamera({
+        position: { x, y, z },
+        target: { x: cameraTarget.current.x, y: cameraTarget.current.y, z: cameraTarget.current.z }
+      })
+    },
+    setLookAt: (x: number, y: number, z: number) => {
+      cameraTarget.current.set(x, y, z)
+      camera.lookAt(cameraTarget.current)
+      updateCamera({
+        position: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+        target: { x, y, z }
+      })
+    },
+    // OrbitControls benzeri özellikler
+    minDistance: 0,
+    maxDistance: Infinity,
+    minPolarAngle: 0,
+    maxPolarAngle: Math.PI,
+    minAzimuthAngle: -Infinity,
+    maxAzimuthAngle: Infinity,
+    enableDamping: false,
+    dampingFactor: 0.05,
+    enableZoom: true,
+    zoomSpeed: 1.0,
+    enableRotate: true,
+    rotateSpeed: 1.0,
+    enablePan: true,
+    panSpeed: 1.0,
+    screenSpacePanning: true,
+    keyPanSpeed: 7.0,
+    autoRotate: false,
+    autoRotateSpeed: 2.0
+  })
+
+  // Controls'ü drei state'ine kaydet
+  useEffect(() => {
+    set({ controls: controlsRef.current })
+    return () => set({ controls: null })
+  }, [set])
 
   useEffect(() => {
     const canvas = gl.domElement

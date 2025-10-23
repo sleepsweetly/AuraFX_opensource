@@ -4,6 +4,7 @@
 
 import { MousePointer, Pencil, Circle, Square, Triangle, Minus, Eraser, Palette, ChevronDown, ChevronUp } from "lucide-react"
 import { ColorPicker } from "@/components/ui/color-picker"
+import { ElasticSlider } from "@/components/ui/elastic-slider"
 import { motion, AnimatePresence } from "framer-motion"
 import { useState } from "react"
 
@@ -112,21 +113,23 @@ export function ToolsPanel({
 
                 {currentTool === 'eraser' && (
                   <div>
-                    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Eraser Size</label>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs text-gray-500">1</span>
+                    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2 block">Eraser Size</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-gray-500">Size</span>
                       <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono">
                         {settings?.eraserSize || 20}px
                       </span>
-                      <span className="text-xs text-gray-500">100</span>
                     </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="100"
-                      value={settings?.eraserSize || 20}
-                      onChange={(e) => onSettingsChange?.({ ...settings, eraserSize: Number(e.target.value) })}
-                      className="w-full mt-2 accent-blue-500"
+                    <ElasticSlider
+                      defaultValue={settings?.eraserSize || 20}
+                      startingValue={1}
+                      maxValue={100}
+                      stepSize={1}
+                      isStepped={true}
+                      size="lg"
+                      onChange={(value) => onSettingsChange?.({ ...settings, eraserSize: value })}
+                      leftIcon={<span className="text-xs">1</span>}
+                      rightIcon={<span className="text-xs">100</span>}
                     />
                   </div>
                 )}
@@ -181,25 +184,23 @@ export function ToolsPanel({
                         transition={{ duration: 0.2 }}
                         className="pl-4 border-l-2 border-blue-200 space-y-2"
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-2">
                           <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Grid Size</label>
                           <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono">
                             {settings?.gridSize || 20}px
                           </span>
                         </div>
-                        <input
-                          type="range"
-                          min={5}
-                          max={100}
-                          step={1}
-                          value={settings?.gridSize || 20}
-                          onChange={(e) => onSettingsChange?.({ ...settings, gridSize: Number(e.target.value) })}
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                        <ElasticSlider
+                          defaultValue={settings?.gridSize || 20}
+                          startingValue={5}
+                          maxValue={100}
+                          stepSize={1}
+                          isStepped={true}
+                          size="lg"
+                          onChange={(value) => onSettingsChange?.({ ...settings, gridSize: value })}
+                          leftIcon={<span className="text-xs">5</span>}
+                          rightIcon={<span className="text-xs">100</span>}
                         />
-                        <div className="flex justify-between text-xs text-gray-400">
-                          <span>5px</span>
-                          <span>100px</span>
-                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>

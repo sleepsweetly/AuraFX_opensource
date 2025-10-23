@@ -11,9 +11,26 @@ interface ChangelogEntry {
   changes: string[]
 }
 
-interface ChangelogPanelProps {}
+interface ChangelogPanelProps { }
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
+  {
+    version: "3.1.0",
+    date: "January 23, 2025",
+    title: "3D Axis Widget & ElasticSlider System",
+    changes: [
+      "�  Added interactive 3D Axis Widget to 3D editor",
+      "🔧 Fixed WebGL Context Lost issues with GizmoHelper integration",
+      "✨ Introduced ElasticSlider component with smooth animations",
+      "🎨 Replaced all traditional sliders with ElasticSlider across panels",
+      "�  Added responsive sizing system (sm/md/lg/xl) for sliders",
+      "🎪 Optimized 3D scene performance and rendering",
+      "🚀 Enhanced user experience with modern slider interactions",
+      "📋 Standardized slider design with gray color theme",
+      "🔮 Prepared foundation for upcoming ActionRecord mode in 3D",
+      "⚡ Improved panel consistency and visual hierarchy"
+    ]
+  },
   {
     version: "3.0.1",
     date: "December 18, 2025",
@@ -145,7 +162,7 @@ const CHANGELOG_DATA: ChangelogEntry[] = [
   }
 ]
 
-export function ChangelogPanel({}: ChangelogPanelProps) {
+export function ChangelogPanel({ }: ChangelogPanelProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [expandedVersions, setExpandedVersions] = useState<Set<number>>(new Set([0])) // First version expanded by default
 
@@ -194,7 +211,7 @@ export function ChangelogPanel({}: ChangelogPanelProps) {
                 </div>
                 <p className="text-sm text-gray-700 font-medium">{entry.title}</p>
               </div>
-              
+
               <div className="flex-shrink-0">
                 {expandedVersions.has(index) ? (
                   <ChevronUp className="w-4 h-4 text-gray-500" />

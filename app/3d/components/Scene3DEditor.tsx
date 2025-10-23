@@ -1,10 +1,10 @@
 "use client"
 
 import { Canvas } from "@react-three/fiber"
-import { Grid, Html, Instances, Instance } from "@react-three/drei"
+import { GizmoHelper, GizmoViewport } from "@react-three/drei"
 import { Suspense, useMemo, useRef, useEffect, useState } from "react"
 import { VertexRenderer } from "./VertexRenderer"
-import { ShapeRenderer } from "./ShapeRenderer"
+
 import { SceneAxes } from "./SceneAxes"
 import { TransformControlsManager } from "./TransformControlsManager"
 import { SelectionBox } from "./SelectionBox"
@@ -12,27 +12,26 @@ import { BlenderCameraControls } from "./BlenderCameraControls"
 import { ZoomLogic } from "./ZoomControls"
 import { use3DStore } from "../store/use3DStore"
 import * as THREE from "three"
-import { useLayerStore } from "@/store/useLayerStore"
-import type { Layer, Element } from "@/types"
-import { InstancedMesh, Object3D, Color } from "three"
-import { Button } from "@/components/ui/button"
+
+import { InstancedMesh } from "three"
+
 
 import { FloatingPropertiesPanel } from "./FloatingPropertiesPanel"
+import { AxisWidget3D } from "./AxisWidget3D"
 
 // Optimized Instanced Elements (VR modu gibi)
 interface InstancedElementsProps {
   elements: any[];
   geometryType: string;
-  colorKey?: string;
   geometryArgs?: number[];
   selectedVertices?: string[]; // Renk güncellemesi için gerekli
 }
 
-function InstancedElements({ elements, geometryType, colorKey = "color", geometryArgs = [], selectedVertices = [] }: InstancedElementsProps) {
+function InstancedElements({ elements, geometryType, geometryArgs = [], selectedVertices = [] }: InstancedElementsProps) {
   const meshRef = useRef<InstancedMesh>(null)
   const isTransforming = use3DStore((state) => state.isTransforming)
   const tempPositions = use3DStore((state) => state.tempPositions)
-  
+
   // Geometry oluştur
   const geometry = useMemo(() => {
     if (geometryType === "sphere") {
@@ -44,44 +43,44 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
     }
     return null
   }, [geometryType, geometryArgs])
-  
+
   useEffect(() => {
     if (!meshRef.current || !geometry) return
-    
+
     const mesh = meshRef.current
     const dummy = new THREE.Object3D()
-    
+
     // 1) Matrisleri ayarla - geçici pozisyonları kullan
     elements.forEach((el: any, i: number) => {
       let position = el.position
-      
+
       // Transform sırasında geçici pozisyonları kullan
       if (isTransforming && tempPositions.has(el.id)) {
         const tempPos = tempPositions.get(el.id)!
         position = { x: tempPos.x, y: tempPos.y, z: tempPos.z }
       }
-      
+
       dummy.position.set(position.x, position.y || 0, position.z)
       dummy.updateMatrix()
       mesh.setMatrixAt(i, dummy.matrix)
     })
     mesh.instanceMatrix.needsUpdate = true
-    
+
     // 2) Renk buffer'ını hazırla - seçili elementler için özel renk
     const count = elements.length
-    
+
     // !!! DÜZELTME: Set'i SADECE BİR KEZ döngüden önce oluştur !!!
     const selectedVerticesSet = new Set(selectedVertices) // Artık prop'tan geliyor
     const colorArray = new Float32Array(count * 3)
-    
+
     for (let i = 0; i < count; i++) {
       const element = elements[i]
       // !!! HIZLI KONTROL: Sadece Set'i kullan !!!
       const isSelected = selectedVerticesSet.has(element.id)
-      
+
       // Seçili elementler için parlak yeşil, diğerleri için normal renk
       let r = 1.0, g = 1.0, b = 1.0 // Default beyaz
-      
+
       if (isSelected) {
         // Bright green for selected elements
         r = 0.0
@@ -89,7 +88,7 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
         b = 0.0
       } else {
         const color = element.color || "#ffffff"
-        
+
         if (color.startsWith('#')) {
           const hex = color.slice(1) // # işaretini kaldır
           if (hex.length === 6) {
@@ -102,25 +101,25 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
             b = parseInt(hex[2] + hex[2], 16) / 255
           }
         }
-        
+
         // NaN kontrolü - eğer dönüşüm başarısızsa beyaz kullan
         if (isNaN(r) || isNaN(g) || isNaN(b)) {
           r = g = b = 1.0
         }
       }
-      
+
       colorArray[i * 3 + 0] = r
       colorArray[i * 3 + 1] = g
       colorArray[i * 3 + 2] = b
     }
     const instancedColors = new THREE.InstancedBufferAttribute(colorArray, 3)
     instancedColors.setUsage(THREE.DynamicDrawUsage)
-    
+
     // 3) Doğrudan mesh'e ata
     mesh.instanceColor = instancedColors
     instancedColors.needsUpdate = true
     mesh.count = elements.length
-    
+
   }, [elements, geometry, isTransforming, tempPositions, selectedVertices]) // selectedVertices eklendi!
 
   if (!geometry) return null
@@ -135,15 +134,13 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
 // Performance optimized vertex list component (Instanced)
 function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
   const performanceMode = use3DStore((state) => state.performanceMode)
-  const isTransforming = use3DStore((state) => state.isTransforming)
-  const tempPositions = use3DStore((state) => state.tempPositions)
   const selectedVertices = use3DStore((state) => state.selectedVertices) // Renk güncellemesi için gerekli
 
   const visibleVertices = useMemo(() => {
     const allVisible = Array.from(vertices.values()).filter(
       (vertex) => vertex.visible
     )
-    
+
     if (performanceMode) {
       return allVisible.filter((_, index) => index % 2 === 0)
     }
@@ -163,9 +160,9 @@ function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
 
   // Çok element varsa instanced render kullan (VR modu gibi)
   return (
-    <InstancedElements 
-      elements={visibleVertices} 
-      geometryType="sphere" 
+    <InstancedElements
+      elements={visibleVertices}
+      geometryType="sphere"
       geometryArgs={[0.07, 8, 8]}
       selectedVertices={selectedVertices} // Prop olarak geçir
     />
@@ -176,7 +173,7 @@ function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
 function DoubleSidedGrid({ size = 50, divisions = 50, color = "#404040" }) {
   const ref = useRef<THREE.Group>(null)
   const xrayMode = use3DStore((state) => state.xrayMode)
-  
+
   useEffect(() => {
     if (!ref.current) return
     const gridHelper = new THREE.GridHelper(size, divisions, color, color)
@@ -194,39 +191,12 @@ function DoubleSidedGrid({ size = 50, divisions = 50, color = "#404040" }) {
   return <group ref={ref} />
 }
 
-// BlenderAxisGizmo: Blender-style clickable axis widget (SVG version)
-function BlenderAxisGizmo({ onAxisClick }: { onAxisClick: (axis: 'x' | 'y' | 'z') => void }) {
-  return (
-    <svg width="72" height="72" viewBox="0 0 72 72" style={{ background: 'rgba(24,24,24,0.7)', borderRadius: 36, boxShadow: '0 2px 8px #0008' }}>
-      {/* Z Axis (Blue, up) */}
-      <g style={{ cursor: 'pointer' }} onClick={() => onAxisClick('z')}>
-        <line x1="36" y1="36" x2="36" y2="12" stroke="#3182ce" strokeWidth="4" />
-        <polygon points="36,6 32,16 40,16" fill="#3182ce" />
-        <text x="36" y="10" textAnchor="middle" fontWeight="bold" fontSize="12" fill="#4dabf7" style={{ pointerEvents: 'none' }}>Z</text>
-      </g>
-      {/* X Axis (Red, right) */}
-      <g style={{ cursor: 'pointer' }} onClick={() => onAxisClick('x')}>
-        <line x1="36" y1="36" x2="60" y2="36" stroke="#e53e3e" strokeWidth="4" />
-        <polygon points="66,36 56,32 56,40" fill="#e53e3e" />
-        <text x="62" y="40" textAnchor="middle" fontWeight="bold" fontSize="12" fill="#ff6b6b" style={{ pointerEvents: 'none' }}>X</text>
-      </g>
-      {/* Y Axis (Green, down) */}
-      <g style={{ cursor: 'pointer' }} onClick={() => onAxisClick('y')}>
-        <line x1="36" y1="36" x2="36" y2="60" stroke="#38a169" strokeWidth="4" />
-        <polygon points="36,66 32,56 40,56" fill="#38a169" />
-        <text x="36" y="64" textAnchor="middle" fontWeight="bold" fontSize="12" fill="#51cf66" style={{ pointerEvents: 'none' }}>Y</text>
-      </g>
-      {/* Center dot */}
-      <circle cx="36" cy="36" r="6" fill="#fff" stroke="#bbb" strokeWidth="2" />
-    </svg>
-  );
-}
+
 
 export function Scene3DEditor() {
-  const { camera, scene, vertices, shapes, performanceMode, currentTool, updateCamera, xrayMode, setXrayMode, selectedVertices, selectedShapes } = use3DStore()
-  const layers: Layer[] = useLayerStore((state) => state.layers)
-  const addElementsToLayer: (layerId: string, elements: Element[]) => void = useLayerStore((state) => state.addElementsToLayer)
-  
+  const { camera, scene, vertices, performanceMode, currentTool, xrayMode, selectedVertices, selectedShapes } = use3DStore()
+
+
   // Floating panel state
   const [showPropertiesPanel, setShowPropertiesPanel] = useState(false)
   const [panelPosition, setPanelPosition] = useState({ x: 100, y: 100 })
@@ -236,13 +206,13 @@ export function Scene3DEditor() {
     const hasSelection = selectedVertices.length > 0 || selectedShapes.length > 0
 
     setShowPropertiesPanel(hasSelection)
-    
+
     // Responsive positioning - adapt to screen size
     if (hasSelection && !showPropertiesPanel) {
       const panelWidth = 320
       const screenWidth = window.innerWidth
-      const screenHeight = window.innerHeight
-      
+
+
       // Position based on screen size
       let x, y
       if (screenWidth > 1200) {
@@ -258,7 +228,7 @@ export function Scene3DEditor() {
         x = Math.max(20, (screenWidth - panelWidth) / 2)
         y = 80
       }
-      
+
       setPanelPosition({ x, y })
     }
   }, [selectedVertices.length, selectedShapes.length])
@@ -291,7 +261,7 @@ export function Scene3DEditor() {
         }}
         dpr={performanceMode ? [0.5, 1] : [1, 2]}
         frameloop="always"
-        style={{ 
+        style={{
           background: xrayMode ? '#0a0a0a' : '#000000',
           filter: xrayMode ? 'contrast(1.2) brightness(0.9)' : 'none'
         }}
@@ -333,23 +303,20 @@ export function Scene3DEditor() {
         {/* Zoom Logic */}
         <ZoomLogic />
 
-        {/* Blender-style Axis Gizmo (bottom-right overlay) */}
-        {/* <Html position={[0, 0, 0]} style={{ pointerEvents: "none" }}>
-          <div style={{ position: "fixed", right: 32, bottom: 32, zIndex: 20, pointerEvents: "auto" }}>
-            <BlenderAxisGizmo onAxisClick={(axis) => {
-              // Kamera pozisyonlarını Blender-style ayarla
-              const dist = 10;
-              if (axis === "x") updateCamera({ position: { x: dist, y: 0, z: 0 }, target: { x: 0, y: 0, z: 0 } });
-              if (axis === "y") updateCamera({ position: { x: 0, y: dist, z: 0 }, target: { x: 0, y: 0, z: 0 } });
-              if (axis === "z") updateCamera({ position: { x: 0, y: 0, z: dist }, target: { x: 0, y: 0, z: 0 } });
-            }} />
-          </div>
-        </Html> */}
+        {/* 3D Axis Widget - GizmoHelper ile tek Canvas içinde */}
+        <GizmoHelper
+          alignment="bottom-right"
+          margin={[80, 80]}
+        >
+          <GizmoViewport>
+            <AxisWidget3D 
+              onAxisClick={(axis) => {
+                console.log(`Axis clicked: ${axis}`)
+              }}
+            />
+          </GizmoViewport>
+        </GizmoHelper>
       </Canvas>
-
-
-
-
       {/* Floating Properties Panel */}
       {showPropertiesPanel && (
         <FloatingPropertiesPanel

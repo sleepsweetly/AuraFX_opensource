@@ -1,6 +1,7 @@
 "use client"
 
 import { Canvas } from "@react-three/fiber"
+import { GizmoHelper, GizmoViewport } from "@react-three/drei"
 import { Suspense, useMemo, useRef, useEffect, useState } from "react"
 import { use3DStore } from "../store/use3DStore"
 import { VertexRenderer } from "./VertexRenderer"
@@ -10,12 +11,12 @@ import { ZoomLogic } from "./ZoomControls"
 import { SelectionBox } from "./SelectionBox"
 import { TransformControlsManager } from "./TransformControlsManager"
 import * as THREE from "three"
+import { InstancedMesh, Color } from "three"
 import { useLayerStore } from "@/store/useLayerStore"
 import type { Layer, Element } from "@/types"
-import { InstancedMesh, Object3D, Color } from "three"
-import { Button } from "@/components/ui/button"
 
 import { FloatingPropertiesPanel } from "./FloatingPropertiesPanel"
+import { AxisWidget3D } from "./AxisWidget3D"
 
 // Optimized Instanced Elements (VR modu gibi)
 interface InstancedElementsProps {
@@ -63,8 +64,8 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
 
             // Renk ayarla - seçili elementler için özel renk
             const isSelected = selectedVerticesSet.has(element.id) // Sadece Set'i kontrol et
-            
-            const color = isSelected 
+
+            const color = isSelected
                 ? new Color("#00ff00") // Bright green for selected
                 : new Color(element[colorKey] || "#ffffff")
             mesh.setColorAt(index, color)
@@ -127,7 +128,7 @@ function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
 function DoubleSidedGrid({ size = 50, divisions = 50, color = "#404040" }) {
     const ref = useRef<THREE.Group>(null)
     const xrayMode = use3DStore((state) => state.xrayMode)
-    
+
     useEffect(() => {
         if (!ref.current) return
         const gridHelper = new THREE.GridHelper(size, divisions, color, color)
@@ -149,7 +150,7 @@ export function OptimizedScene3D() {
     const { camera, scene, vertices, shapes, performanceMode, currentTool, updateCamera, xrayMode, setXrayMode, selectedVertices, selectedShapes } = use3DStore()
     const layers: Layer[] = useLayerStore((state) => state.layers)
     const addElementsToLayer: (layerId: string, elements: Element[]) => void = useLayerStore((state) => state.addElementsToLayer)
-    
+
     // Floating panel state
     const [showPropertiesPanel, setShowPropertiesPanel] = useState(false)
     const [panelPosition, setPanelPosition] = useState({ x: 100, y: 100 })
@@ -159,13 +160,13 @@ export function OptimizedScene3D() {
         const hasSelection = selectedVertices.length > 0 || selectedShapes.length > 0
 
         setShowPropertiesPanel(hasSelection)
-        
+
         // Responsive positioning - adapt to screen size
         if (hasSelection && !showPropertiesPanel) {
             const panelWidth = 320
             const screenWidth = window.innerWidth
             const screenHeight = window.innerHeight
-            
+
             // Position based on screen size
             let x, y
             if (screenWidth > 1200) {
@@ -181,7 +182,7 @@ export function OptimizedScene3D() {
                 x = Math.max(20, (screenWidth - panelWidth) / 2)
                 y = 80
             }
-            
+
             setPanelPosition({ x, y })
         }
     }, [selectedVertices.length, selectedShapes.length])
@@ -257,10 +258,21 @@ export function OptimizedScene3D() {
 
                 {/* Zoom Logic - Same as Scene3DEditor */}
                 <ZoomLogic />
+
+                {/* 3D Axis Widget - GizmoHelper ile tek Canvas içinde */}
+                <GizmoHelper
+                    alignment="bottom-right"
+                    margin={[80, 80]}
+                >
+                    <GizmoViewport>
+                        <AxisWidget3D
+                            onAxisClick={(axis) => {
+                                console.log(`Axis clicked: ${axis}`)
+                            }}
+                        />
+                    </GizmoViewport>
+                </GizmoHelper>
             </Canvas>
-
-
-
 
             {/* Floating Properties Panel */}
             {showPropertiesPanel && (

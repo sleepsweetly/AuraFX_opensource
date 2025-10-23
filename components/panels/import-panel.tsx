@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageIcon, FileStack, Settings2, Download, Info, ChevronDown, ChevronUp, ChevronRight, FileText, Film, Palette, Grid3X3, Layers } from "lucide-react";
 import { ColorPicker } from "@/components/ui/color-picker";
+import { ElasticSlider } from "@/components/ui/elastic-slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DBSCAN } from 'density-clustering';
@@ -1838,15 +1839,16 @@ function PngSettings({ settings, onSettingsChange }: { settings: any; onSettings
           <span className="text-sm font-semibold text-slate-700">PNG Size</span>
           <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{pngSize}px</span>
         </div>
-        <input
-          type="range"
-          min={32}
-          max={1024}
-          step={8}
-          value={pngSize}
-          // SORUN ÇÖZÜLDÜ: e.stopPropagation() eklendi.
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, pngSize: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+        <ElasticSlider
+          defaultValue={pngSize}
+          startingValue={32}
+          maxValue={1024}
+          stepSize={8}
+          isStepped={true}
+          size="lg"
+          onChange={(value) => onSettingsChange({ ...settings, pngSize: value })}
+          leftIcon={<span className="text-xs">32</span>}
+          rightIcon={<span className="text-xs">1K</span>}
         />
       </div>
 
@@ -1855,14 +1857,16 @@ function PngSettings({ settings, onSettingsChange }: { settings: any; onSettings
           <span className="text-sm font-semibold text-slate-700">Max Elements</span>
           <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{maxElements.toLocaleString()}</span>
         </div>
-        <input
-          type="range"
-          min={100}
-          max={20000}
-          step={100}
-          value={maxElements}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, maxElements: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+        <ElasticSlider
+          defaultValue={maxElements}
+          startingValue={100}
+          maxValue={20000}
+          stepSize={100}
+          isStepped={true}
+          size="xl"
+          onChange={(value) => onSettingsChange({ ...settings, maxElements: value })}
+          leftIcon={<span className="text-xs">100</span>}
+          rightIcon={<span className="text-xs">20K</span>}
         />
       </div>
 
@@ -1902,14 +1906,16 @@ function PngSettings({ settings, onSettingsChange }: { settings: any; onSettings
           <span className="text-sm font-semibold text-slate-700">Alpha Threshold</span>
           <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{settings.alphaThreshold ?? 10}</span>
         </div>
-        <input
-          type="range"
-          min={0}
-          max={255}
-          step={5}
-          value={settings.alphaThreshold ?? 10}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, alphaThreshold: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+        <ElasticSlider
+          defaultValue={settings.alphaThreshold ?? 10}
+          startingValue={0}
+          maxValue={255}
+          stepSize={5}
+          isStepped={true}
+          size="lg"
+          onChange={(value) => onSettingsChange({ ...settings, alphaThreshold: value })}
+          leftIcon={<span className="text-xs">0</span>}
+          rightIcon={<span className="text-xs">255</span>}
         />
       </div>
     </div>
@@ -1927,14 +1933,16 @@ function ObjSettings({ settings, onSettingsChange }: { settings: any; onSettings
           <span className="text-sm font-semibold text-slate-700">Scale</span>
           <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{objScale}x</span>
         </div>
-        <input
-          type="range"
-          min={0.01}
-          max={10}
-          step={0.01}
-          value={objScale}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, objScale: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+        <ElasticSlider
+          defaultValue={objScale}
+          startingValue={0.01}
+          maxValue={10}
+          stepSize={0.01}
+          isStepped={true}
+          size="lg"
+          onChange={(value) => onSettingsChange({ ...settings, objScale: value })}
+          leftIcon={<span className="text-xs">0.01</span>}
+          rightIcon={<span className="text-xs">10</span>}
         />
       </div>
 
@@ -1968,14 +1976,16 @@ function GifSettings({ settings, onSettingsChange }: { settings: any; onSettings
           <span className="text-sm font-semibold text-slate-700">Frame Delay</span>
           <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{gifFrameDelay} ticks</span>
         </div>
-        <input
-          type="range"
-          min={1}
-          max={20}
-          step={1}
-          value={gifFrameDelay}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, gifFrameDelay: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+        <ElasticSlider
+          defaultValue={gifFrameDelay}
+          startingValue={1}
+          maxValue={20}
+          stepSize={1}
+          isStepped={true}
+          size="md"
+          onChange={(value) => onSettingsChange({ ...settings, gifFrameDelay: value })}
+          leftIcon={<span className="text-xs">1</span>}
+          rightIcon={<span className="text-xs">20</span>}
         />
       </div>
 
@@ -1984,14 +1994,16 @@ function GifSettings({ settings, onSettingsChange }: { settings: any; onSettings
           <span className="text-sm font-semibold text-slate-700">Max Elements</span>
           <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{maxElements.toLocaleString()}</span>
         </div>
-        <input
-          type="range"
-          min={10000}
-          max={200000}
-          step={5000}
-          value={maxElements}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, maxElements: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+        <ElasticSlider
+          defaultValue={maxElements}
+          startingValue={10000}
+          maxValue={200000}
+          stepSize={5000}
+          isStepped={true}
+          size="xl"
+          onChange={(value) => onSettingsChange({ ...settings, maxElements: value })}
+          leftIcon={<span className="text-xs">10K</span>}
+          rightIcon={<span className="text-xs">200K</span>}
         />
       </div>
 
@@ -2015,14 +2027,16 @@ function GifSettings({ settings, onSettingsChange }: { settings: any; onSettings
           <span className="text-sm font-semibold text-slate-700">Particle Density</span>
           <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{settings.gifScaleFactor ?? 25}</span>
         </div>
-        <input
-          type="range"
-          min={1}
-          max={100}
-          step={1}
-          value={settings.gifScaleFactor ?? 25}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, gifScaleFactor: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+        <ElasticSlider
+          defaultValue={settings.gifScaleFactor ?? 25}
+          startingValue={1}
+          maxValue={100}
+          stepSize={1}
+          isStepped={true}
+          size="lg"
+          onChange={(value) => onSettingsChange({ ...settings, gifScaleFactor: value })}
+          leftIcon={<span className="text-xs">1</span>}
+          rightIcon={<span className="text-xs">100</span>}
         />
       </div>
 
@@ -2031,14 +2045,16 @@ function GifSettings({ settings, onSettingsChange }: { settings: any; onSettings
           <span className="text-sm font-semibold text-slate-700">Particle Spacing</span>
           <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{settings.particleDensity ?? 2}</span>
         </div>
-        <input
-          type="range"
-          min={1}
-          max={5}
-          step={1}
-          value={settings.particleDensity ?? 2}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, particleDensity: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+        <ElasticSlider
+          defaultValue={settings.particleDensity ?? 2}
+          startingValue={1}
+          maxValue={5}
+          stepSize={1}
+          isStepped={true}
+          size="sm"
+          onChange={(value) => onSettingsChange({ ...settings, particleDensity: value })}
+          leftIcon={<span className="text-xs">1</span>}
+          rightIcon={<span className="text-xs">5</span>}
         />
       </div>
 
@@ -2047,14 +2063,16 @@ function GifSettings({ settings, onSettingsChange }: { settings: any; onSettings
           <span className="text-sm font-semibold text-slate-700">Color Similarity</span>
           <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{settings.colorSimilarityThreshold ?? 30}</span>
         </div>
-        <input
-          type="range"
-          min={10}
-          max={100}
-          step={10}
-          value={settings.colorSimilarityThreshold ?? 30}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, colorSimilarityThreshold: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+        <ElasticSlider
+          defaultValue={settings.colorSimilarityThreshold ?? 30}
+          startingValue={10}
+          maxValue={100}
+          stepSize={10}
+          isStepped={true}
+          size="md"
+          onChange={(value) => onSettingsChange({ ...settings, colorSimilarityThreshold: value })}
+          leftIcon={<span className="text-xs">10</span>}
+          rightIcon={<span className="text-xs">100</span>}
         />
       </div>
 
@@ -2063,14 +2081,16 @@ function GifSettings({ settings, onSettingsChange }: { settings: any; onSettings
           <span className="text-sm font-semibold text-slate-700">Alpha Threshold</span>
           <span className="text-sm bg-slate-100 text-slate-700 px-3 py-1 rounded-lg font-mono">{settings.alphaThreshold ?? 10}</span>
         </div>
-        <input
-          type="range"
-          min={0}
-          max={255}
-          step={5}
-          value={settings.alphaThreshold ?? 10}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, alphaThreshold: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+        <ElasticSlider
+          defaultValue={settings.alphaThreshold ?? 10}
+          startingValue={0}
+          maxValue={255}
+          stepSize={5}
+          isStepped={true}
+          size="lg"
+          onChange={(value) => onSettingsChange({ ...settings, alphaThreshold: value })}
+          leftIcon={<span className="text-xs">0</span>}
+          rightIcon={<span className="text-xs">255</span>}
         />
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 "use client"
 import { RotateCw, Link2, Sparkles, Palette, Globe, Move3d, Video, Zap, ChevronDown, ChevronUp } from "lucide-react"
+import { ElasticSlider } from "@/components/ui/elastic-slider"
 import { DirectionWidget, getDirectionLabel } from "@/components/ui/direction-widget"
 import { motion, AnimatePresence } from "framer-motion"
 import React, { useState } from "react"
@@ -16,63 +17,8 @@ interface ModesPanelProps {
   onExpandedModesChange?: (modes: Record<string, boolean>) => void
 }
 
-// --- ÖZEL SLIDER BİLEŞENİ ---
-interface CustomSliderProps {
-  value: number
-  onChange: (value: number) => void
-  min: number
-  max: number
-  step: number
-  accentColor?: string
-}
 
-const CustomSlider: React.FC<CustomSliderProps> = ({ value, onChange, min, max, step, accentColor = "#eab308" }) => {
-  return (
-    <div className="relative w-full group">
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-        style={{
-          background: `linear-gradient(to right, ${accentColor} 0%, ${accentColor} ${((value - min) / (max - min)) * 100}%, #e5e7eb ${((value - min) / (max - min)) * 100}%, #e5e7eb 100%)`
-        }}
-      />
-      <style jsx>{`
-        .slider::-webkit-slider-thumb {
-          appearance: none;
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: #ffffff;
-          cursor: pointer;
-          border: 3px solid ${accentColor};
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-          transition: all 0.2s ease;
-        }
-        .slider::-webkit-slider-thumb:hover {
-          transform: scale(1.2);
-        }
-        .slider::-moz-range-thumb {
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: #ffffff;
-          cursor: pointer;
-          border: 3px solid ${accentColor};
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-          transition: all 0.2s ease;
-        }
-        .slider::-moz-range-thumb:hover {
-          transform: scale(1.2);
-        }
-      `}</style>
-    </div>
-  );
-}
+
 
 
 const MODES = [
@@ -218,8 +164,8 @@ export function ModesPanel({
               <motion.div
                 layout
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 relative ${isActive
-                    ? "bg-yellow-50 text-yellow-700"
-                    : "text-gray-700 hover:bg-gray-100"
+                  ? "bg-yellow-50 text-yellow-700"
+                  : "text-gray-700 hover:bg-gray-100"
                   }`}
                 whileHover={{ x: 2 }}
               >
@@ -291,18 +237,17 @@ export function ModesPanel({
                               </div>
                             ) : (
                               <div className="space-y-1">
-                                <CustomSlider
-                                  value={modeSettings?.[mode.id]?.[setting.key] ?? setting.default}
+                                <ElasticSlider
+                                  defaultValue={modeSettings?.[mode.id]?.[setting.key] ?? setting.default}
                                   onChange={(value) => handleSettingChange(mode.id, setting.key, value)}
-                                  min={setting.min}
-                                  max={setting.max}
-                                  step={setting.step}
-                                  accentColor="#eab308" // Sarı renk teması
+                                  startingValue={setting.min}
+                                  maxValue={setting.max}
+                                  stepSize={setting.step}
+                                  isStepped={true}
+                                  size="lg"
+                                  leftIcon={<span className="text-xs">{setting.min}</span>}
+                                  rightIcon={<span className="text-xs">{setting.max}</span>}
                                 />
-                                <div className="flex justify-between text-xs text-gray-400">
-                                  <span>{setting.min}</span>
-                                  <span>{setting.max}</span>
-                                </div>
                               </div>
                             )}
                           </div>

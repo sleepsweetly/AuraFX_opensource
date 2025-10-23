@@ -10,6 +10,7 @@ import type { Layer } from "@/types"
 import { ParticleSelectModal } from "@/components/particle-select-modal"
 import { TargeterSelectModal } from "@/components/targeter-select-modal"
 import { ColorPicker } from "@/components/ui/color-picker"
+import { ElasticSlider } from "@/components/ui/elastic-slider"
 import { Sparkles, Target, Palette, Settings2, Zap, Wind, CircleDot, Tornado, Layers3, ChevronDown, ChevronUp } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -24,63 +25,7 @@ interface ElementSettingsPanelProps {
   selectedElementIds?: string[]
 }
 
-// --- ÖZEL SLIDER BİLEŞENİ ---
-interface CustomSliderProps {
-  value: number
-  onChange: (value: number) => void
-  min: number
-  max: number
-  step: number
-  accentColor?: string
-}
 
-const CustomSlider: React.FC<CustomSliderProps> = ({ value, onChange, min, max, step, accentColor = "#8b5cf6" }) => {
-  return (
-    <div className="relative w-full group">
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-        style={{
-          background: `linear-gradient(to right, ${accentColor} 0%, ${accentColor} ${((value - min) / (max - min)) * 100}%, #e5e7eb ${((value - min) / (max - min)) * 100}%, #e5e7eb 100%)`
-        }}
-      />
-      <style jsx>{`
-        .slider::-webkit-slider-thumb {
-          appearance: none;
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: #ffffff;
-          cursor: pointer;
-          border: 3px solid ${accentColor};
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-          transition: all 0.2s ease;
-        }
-        .slider::-webkit-slider-thumb:hover {
-          transform: scale(1.2);
-        }
-        .slider::-moz-range-thumb {
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: #ffffff;
-          cursor: pointer;
-          border: 3px solid ${accentColor};
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-          transition: all 0.2s ease;
-        }
-        .slider::-moz-range-thumb:hover {
-          transform: scale(1.2);
-        }
-      `}</style>
-    </div>
-  );
-};
 
 const EFFECT_TYPE_ICONS: Record<string, any> = {
   particles: <Sparkles className="w-4 h-4" />,
@@ -261,12 +206,16 @@ export function ElementSettingsPanel({
                           className="w-16 h-6 text-xs text-center bg-white border-gray-200 font-mono text-gray-900"
                         />
                       </div>
-                      <CustomSlider
-                        value={selectedLayer.repeat}
+                      <ElasticSlider
+                        defaultValue={selectedLayer.repeat}
                         onChange={(v) => onUpdateLayer(selectedLayer.id, { repeat: v })}
-                        min={1}
-                        max={10}
-                        step={1}
+                        startingValue={1}
+                        maxValue={10}
+                        stepSize={1}
+                        isStepped={true}
+                        size="md"
+                        leftIcon={<span className="text-xs">1</span>}
+                        rightIcon={<span className="text-xs">10</span>}
                       />
                     </div>
 
@@ -284,12 +233,16 @@ export function ElementSettingsPanel({
                           className="w-16 h-6 text-xs text-center bg-white border-gray-200 font-mono text-gray-900"
                         />
                       </div>
-                      <CustomSlider
-                        value={selectedLayer.alpha}
+                      <ElasticSlider
+                        defaultValue={selectedLayer.alpha}
                         onChange={(v) => onUpdateLayer(selectedLayer.id, { alpha: v })}
-                        min={0}
-                        max={1}
-                        step={0.1}
+                        startingValue={0}
+                        maxValue={1}
+                        stepSize={0.1}
+                        isStepped={true}
+                        size="md"
+                        leftIcon={<span className="text-xs">0</span>}
+                        rightIcon={<span className="text-xs">1</span>}
                       />
                     </div>
 
@@ -307,12 +260,16 @@ export function ElementSettingsPanel({
                           className="w-16 h-6 text-xs text-center bg-white border-gray-200 font-mono text-gray-900"
                         />
                       </div>
-                      <CustomSlider
-                        value={selectedLayer.yOffset}
+                      <ElasticSlider
+                        defaultValue={selectedLayer.yOffset}
                         onChange={(v) => onUpdateLayer(selectedLayer.id, { yOffset: v })}
-                        min={-10}
-                        max={10}
-                        step={0.1}
+                        startingValue={-10}
+                        maxValue={10}
+                        stepSize={0.1}
+                        isStepped={true}
+                        size="md"
+                        leftIcon={<span className="text-xs">-10</span>}
+                        rightIcon={<span className="text-xs">10</span>}
                       />
                     </div>
 
@@ -330,12 +287,16 @@ export function ElementSettingsPanel({
                           className="w-16 h-6 text-xs text-center bg-white border-gray-200 font-mono text-gray-900"
                         />
                       </div>
-                      <CustomSlider
-                        value={selectedLayer.repeatInterval || 1}
+                      <ElasticSlider
+                        defaultValue={selectedLayer.repeatInterval || 1}
                         onChange={(v) => onUpdateLayer(selectedLayer.id, { repeatInterval: v })}
-                        min={1}
-                        max={20}
-                        step={1}
+                        startingValue={1}
+                        maxValue={20}
+                        stepSize={1}
+                        isStepped={true}
+                        size="md"
+                        leftIcon={<span className="text-xs">1</span>}
+                        rightIcon={<span className="text-xs">20</span>}
                       />
                     </div>
                   </div>
