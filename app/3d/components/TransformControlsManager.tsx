@@ -30,49 +30,102 @@ export function TransformControlsManager() {
   const [startRotations, setStartRotations] = useState<Map<string, Vector3>>(new Map())
   const [startScales, setStartScales] = useState<Map<string, Vector3>>(new Map())
   const [startCenter, setStartCenter] = useState<Vector3 | null>(null)
-  const [startDummyTransform, setStartDummyTransform] = useState<{position: Vector3, rotation: Vector3, scale: Vector3} | null>(null)
-  
+  const [startDummyTransform, setStartDummyTransform] = useState<{ position: Vector3, rotation: Vector3, scale: Vector3 } | null>(null)
+
   // Convert arrays to Sets for performance
   const selectedVerticesSet = useMemo(() => new Set(selectedVertices), [selectedVertices])
   const selectedShapesSet = useMemo(() => new Set(selectedShapes), [selectedShapes])
-  
+
   // !!! KRİTİK OPTİMİZASYON: Shapes'i Map'e çevir - O(1) erişim için !!!
   const shapesMap = useMemo(() => new Map(shapes.map(s => [s.id, s])), [shapes])
-  
+
   const hasSelection = selectedVertices.length > 0 || selectedShapes.length > 0
 
-  // Seçili objelerin merkezini hesapla ve dummy'yi oraya koy
-  useEffect(() => {
-    if (isDragging || !hasSelection || !dummyRef.current) return
-
+  // Seçili objelerin merkezini hesapla
+  const calculateSelectionCenter = useCallback(() => {
     const positions: Vector3[] = []
 
-    // Seçili vertex'leri ekle
-    selectedVertices.forEach(id => {
-      const vertex = vertices.get(id) // O(1) - Anında erişim!
-      if (vertex) {
-        positions.push(new Vector3(vertex.position.x, vertex.position.y || 0, vertex.position.z))
-      }
-    })
-
-    // Seçili shape'leri ekle
+    // Önce seçili shape'leri kontrol et
     selectedShapes.forEach(id => {
-      const shape = shapesMap.get(id) // O(1) - Anında erişim!
+      const shape = shapesMap.get(id)
       if (shape) {
         positions.push(new Vector3(shape.position.x, shape.position.y || 0, shape.position.z))
       }
     })
 
+    // Eğer shape seçili değilse, seçili vertex'leri ekle
+    if (positions.length === 0) {
+      selectedVertices.forEach(id => {
+        const vertex = vertices.get(id)
+        if (vertex) {
+          // Temp pozisyonları varsa onları kullan
+          const tempPos = tempPositions.get(id)
+          if (tempPos) {
+            positions.push(new Vector3(tempPos.x, tempPos.y, tempPos.z))
+          } else {
+            positions.push(new Vector3(vertex.position.x, vertex.position.y || 0, vertex.position.z))
+          }
+        }
+      })
+    } else {
+      // Shape'ler seçiliyse, temp pozisyonları kontrol et
+      selectedShapes.forEach(id => {
+        const tempPos = tempPositions.get(id)
+        if (tempPos) {
+          // Temp pozisyon varsa güncelle
+          const index = positions.findIndex((_, i) => i === Array.from(selectedShapes).indexOf(id))
+          if (index >= 0) {
+            positions[index] = new Vector3(tempPos.x, tempPos.y, tempPos.z)
+          }
+        }
+      })
+    }
+
     if (positions.length > 0) {
       const center = new Vector3()
       positions.forEach(pos => center.add(pos))
       center.divideScalar(positions.length)
-      
+      console.log('Calculated center:', center, 'from', positions.length, 'positions')
+      return center
+    }
+    return null
+  }, [selectedVertices, selectedShapes, vertices, shapesMap, tempPositions])
+
+  // Seçili objelerin merkezini hesapla ve dummy'yi oraya koy
+  useEffect(() => {
+    if (isDragging || !hasSelection || !dummyRef.current) return
+
+    const center = calculateSelectionCenter()
+    if (center) {
+      console.log('Setting dummy position to center:', center)
       dummyRef.current.position.copy(center)
       dummyRef.current.rotation.set(0, 0, 0)
       dummyRef.current.scale.set(1, 1, 1)
+      dummyRef.current.updateMatrix()
+      dummyRef.current.updateMatrixWorld(true)
     }
-  }, [selectedVertices, selectedShapes, vertices, shapes, hasSelection, isDragging])
+  }, [selectedVertices, selectedShapes, vertices, shapes, hasSelection, isDragging, calculateSelectionCenter])
+
+  // Transform sonrası dummy pozisyonunu güncelle
+  useEffect(() => {
+    if (!isDragging && hasSelection && dummyRef.current && tempPositions.size === 0) {
+      // Transform işlemi bittikten sonra dummy'yi yeni pozisyona taşı
+      const center = calculateSelectionCenter()
+      if (center) {
+        console.log('Updating dummy position after transform:', center)
+        dummyRef.current.position.copy(center)
+        dummyRef.current.rotation.set(0, 0, 0)
+        dummyRef.current.scale.set(1, 1, 1)
+        dummyRef.current.updateMatrix()
+        dummyRef.current.updateMatrixWorld(true)
+
+        // TransformControls'ü de güncelle
+        if (controlsRef.current) {
+          controlsRef.current.updateMatrixWorld()
+        }
+      }
+    }
+  }, [tempPositions.size, isDragging, hasSelection, calculateSelectionCenter])
 
   const handleDragStart = () => {
     console.log('handleDragStart called')
@@ -103,7 +156,7 @@ export function TransformControlsManager() {
     // Başlangıç merkez pozisyonunu kaydet
     const centerPositions: Vector3[] = []
     positions.forEach(pos => centerPositions.push(pos))
-    
+
     if (centerPositions.length > 0) {
       const center = new Vector3()
       centerPositions.forEach(pos => center.add(pos))
@@ -123,7 +176,7 @@ export function TransformControlsManager() {
     setStartPositions(positions)
     setStartRotations(rotations)
     setStartScales(scales)
-    
+
     console.log('Drag started:', {
       selectedVertices: selectedVertices.length,
       selectedShapes: selectedShapes.length,
@@ -131,7 +184,7 @@ export function TransformControlsManager() {
     })
   }
 
-  const handleObjectChange = () => {
+  const handleObjectChange = useCallback(() => {
     if (!dummyRef.current || !isDragging || !startCenter || !startDummyTransform) return
 
     const dummy = dummyRef.current
@@ -141,25 +194,42 @@ export function TransformControlsManager() {
     const newTempScales = new Map<string, Vector3>()
 
     if (toolMode === "translate") {
-      // Translate işlemi - sadece geçici pozisyonları hesapla
-      const delta = dummy.position.clone().sub(startDummyTransform.position)
-      
+      // DÜZELTME: Delta hesaplamasını daha doğru yap
+      const currentPos = dummy.position.clone()
+      const startPos = startDummyTransform.position.clone()
+      const delta = currentPos.sub(startPos)
+
+      console.log('Transform delta:', {
+        current: currentPos,
+        start: startPos,
+        delta: delta
+      })
+
       // Vertex'lerin geçici pozisyonlarını hesapla
-      startPositions.forEach((startPos, id) => {
+      startPositions.forEach((originalPos, id) => {
         if (selectedVerticesSet.has(id)) {
-          const newPos = startPos.clone().add(delta)
+          const newPos = originalPos.clone().add(delta)
           newTempPositions.set(id, newPos)
         }
       })
 
-      // SADECE SHAPE'LER İÇİN HESAPLAMA YAP, VERTEX'LERE DOKUNMA
-      startPositions.forEach((startPos, id) => {
+      // Shape'lerin geçici pozisyonlarını hesapla
+      startPositions.forEach((originalPos, id) => {
         if (selectedShapesSet.has(id)) {
-          const newPos = startPos.clone().add(delta)
+          const newPos = originalPos.clone().add(delta)
           newTempPositions.set(id, newPos)
-          
-          // !!! VERTEX DÖNGÜSÜ SİLİNDİ - CPU YÜKÜNİ %99 AZALTTIK !!!
-          // Vertex'ler artık render sırasında shape'in pozisyonuna göre hesaplanacak
+
+          // Shape'e bağlı vertex'leri de hesapla
+          const shape = shapesMap.get(id)
+          if (shape && shape.vertices) {
+            shape.vertices.forEach(vertexId => {
+              const vertexStartPos = startPositions.get(vertexId)
+              if (vertexStartPos) {
+                const newVertexPos = vertexStartPos.clone().add(delta)
+                newTempPositions.set(vertexId, newVertexPos)
+              }
+            })
+          }
         }
       })
     } else if (toolMode === "rotate") {
@@ -187,7 +257,7 @@ export function TransformControlsManager() {
           const rotatedPos = relativePos.clone().applyEuler(new Euler(deltaRotation.x, deltaRotation.y, deltaRotation.z))
           const newPos = startCenter.clone().add(rotatedPos)
           newTempPositions.set(id, newPos)
-          
+
           const startRot = startRotations.get(id) || new Vector3(0, 0, 0)
           const newRotation = {
             x: startRot.x + deltaRotation.x,
@@ -195,7 +265,7 @@ export function TransformControlsManager() {
             z: startRot.z + deltaRotation.z
           }
           newTempRotations.set(id, new Vector3(newRotation.x, newRotation.y, newRotation.z))
-          
+
           // !!! VERTEX DÖNGÜSÜ SİLİNDİ - CPU YÜKÜNİ %99 AZALTTIK !!!
           // Vertex'ler artık render sırasında shape'in rotasyonuna göre hesaplanacak
         }
@@ -225,7 +295,7 @@ export function TransformControlsManager() {
           const scaledPos = relativePos.clone().multiply(scaleFactor)
           const newPos = startCenter.clone().add(scaledPos)
           newTempPositions.set(id, newPos)
-          
+
           const startScale = startScales.get(id) || new Vector3(1, 1, 1)
           const newScale = {
             x: Math.max(0.1, startScale.x * scaleFactor.x),
@@ -233,7 +303,7 @@ export function TransformControlsManager() {
             z: Math.max(0.1, startScale.z * scaleFactor.z)
           }
           newTempScales.set(id, new Vector3(newScale.x, newScale.y, newScale.z))
-          
+
           // !!! VERTEX DÖNGÜSÜ SİLİNDİ - CPU YÜKÜNİ %99 AZALTTIK !!!
           // Vertex'ler artık render sırasında shape'in scale'ine göre hesaplanacak
         }
@@ -244,7 +314,7 @@ export function TransformControlsManager() {
     setTempPositions(newTempPositions)
     setTempRotations(newTempRotations)
     setTempScales(newTempScales)
-    
+
     // Debug
     console.log('Transform update:', {
       isDragging,
@@ -253,20 +323,21 @@ export function TransformControlsManager() {
       selectedVertices: selectedVertices.length,
       selectedShapes: selectedShapes.length
     })
-  }
+  }, [isDragging, startCenter, startDummyTransform, selectedVerticesSet, selectedShapesSet, startPositions, startRotations, startScales, shapesMap, setTempPositions, setTempRotations, setTempScales, currentTool])
 
   const handleMouseUp = useCallback(() => {
     console.log('handleMouseUp called, isDragging:', isDragging)
-    
+
     // Mouse bırakıldığında gerçek pozisyon güncellemelerini yap
     if (isDragging && tempPositions.size > 0) {
       console.log('🚀 OPTIMIZED: Applying batch transforms for', tempPositions.size, 'items')
-      
-      // OPTIMIZED: Use batch update instead of individual updates
+
+      // Transform'u uygula
       const { applyTempTransforms } = use3DStore.getState()
       applyTempTransforms()
     }
 
+    // State'i temizle
     setIsDragging(false)
     setIsTransforming(false)
     setStartPositions(new Map())
@@ -275,27 +346,38 @@ export function TransformControlsManager() {
     setStartCenter(null)
     setStartDummyTransform(null)
     clearTempPositions()
-    
-    if (dummyRef.current) {
-      dummyRef.current.rotation.set(0, 0, 0)
-      dummyRef.current.scale.set(1, 1, 1)
-    }
-    
+
+    // Dummy pozisyonunu güncelleme useEffect'e bırak
     console.log('✅ OPTIMIZED: Transform completed, cleared all temp data')
-  }, [isDragging, tempPositions, tempRotations, tempScales, selectedVertices, selectedShapes, applyTempTransforms, setIsTransforming, clearTempPositions])
+  }, [isDragging, tempPositions, applyTempTransforms, setIsTransforming, clearTempPositions, calculateSelectionCenter])
 
   // Global mouse up listener for more reliable detection
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       if (isDragging) {
         console.log('Global mouse up detected, calling handleMouseUp')
-        handleMouseUp()
+        // Küçük bir gecikme ile handleMouseUp'ı çağır
+        setTimeout(() => {
+          handleMouseUp()
+        }, 10)
+      }
+    }
+
+    const handleGlobalPointerUp = () => {
+      if (isDragging) {
+        console.log('Global pointer up detected, calling handleMouseUp')
+        setTimeout(() => {
+          handleMouseUp()
+        }, 10)
       }
     }
 
     document.addEventListener('mouseup', handleGlobalMouseUp)
+    document.addEventListener('pointerup', handleGlobalPointerUp)
+
     return () => {
       document.removeEventListener('mouseup', handleGlobalMouseUp)
+      document.removeEventListener('pointerup', handleGlobalPointerUp)
     }
   }, [isDragging, handleMouseUp])
 
@@ -319,10 +401,14 @@ export function TransformControlsManager() {
         onMouseUp={handleMouseUp}
         mode={getToolMode()}
         space="world"
-        size={0.5}
+        size={1.0}
         showX={true}
         showY={true}
         showZ={true}
+        translationSnap={null}
+        rotationSnap={null}
+        scaleSnap={null}
+        enabled={hasSelection}
       />
     </>
   )

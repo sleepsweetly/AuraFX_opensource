@@ -1713,7 +1713,8 @@ export const use3DStore = create<Store3D>()(
               if (selectedVerticesSet.has(id)) {
                 const vertex = state.vertices.get(id)
                 if (vertex) {
-                  vertex.position = { x: newPos.x, y: newPos.y, z: newPos.z } // Doğrudan mutasyon (immer sayesinde)
+                  // DÜZELTME: Pozisyonu tam olarak temp pozisyona ayarla
+                  vertex.position = { x: newPos.x, y: newPos.y, z: newPos.z }
                 }
               }
             })
@@ -1726,34 +1727,25 @@ export const use3DStore = create<Store3D>()(
                 const newRot = tempRotations.get(shape.id)
                 const newScale = tempScales.get(shape.id)
 
-                // Shape'in eski transformunu kaydet
-                const oldPos = { ...shape.position }
-                const oldRot = { ...shape.rotation }
-                const oldScale = { ...shape.scale }
+                // DÜZELTME: Shape'i tam olarak temp pozisyona ayarla
+                if (newPos) {
+                  state.shapes[index].position = { x: newPos.x, y: newPos.y, z: newPos.z }
+                }
+                if (newRot) {
+                  state.shapes[index].rotation = { x: newRot.x, y: newRot.y, z: newRot.z }
+                }
+                if (newScale) {
+                  state.shapes[index].scale = { x: newScale.x, y: newScale.y, z: newScale.z }
+                }
 
-                // Shape'i güncelle
-                if (newPos) state.shapes[index].position = { x: newPos.x, y: newPos.y, z: newPos.z }
-                if (newRot) state.shapes[index].rotation = { x: newRot.x, y: newRot.y, z: newRot.z }
-                if (newScale) state.shapes[index].scale = { x: newScale.x, y: newScale.y, z: newScale.z }
-
-                // !!! ŞİMDİ PAHALI HESAPLAMAYİ BURADA YAP (SADECE 1 KEZ) !!!
-                // Bu shape'e bağlı vertex'leri güncelle
-                if (shape.vertices && shape.vertices.length > 0) {
-                  const deltaPos = newPos ? {
-                    x: newPos.x - oldPos.x,
-                    y: newPos.y - oldPos.y,
-                    z: newPos.z - oldPos.z
-                  } : { x: 0, y: 0, z: 0 }
-
+                // Shape'e bağlı vertex'leri de güncelle (eğer varsa)
+                if (shape.vertices && shape.vertices.length > 0 && newPos) {
                   shape.vertices.forEach(vertexId => {
                     const vertex = state.vertices.get(vertexId)
-                    if (vertex) {
-                      // Basit delta transform (sadece translate için)
-                      vertex.position = {
-                        x: vertex.position.x + deltaPos.x,
-                        y: vertex.position.y + deltaPos.y,
-                        z: vertex.position.z + deltaPos.z
-                      }
+                    const tempVertexPos = tempPositions.get(vertexId)
+                    if (vertex && tempVertexPos) {
+                      // Vertex'in kendi temp pozisyonu varsa onu kullan
+                      vertex.position = { x: tempVertexPos.x, y: tempVertexPos.y, z: tempVertexPos.z }
                     }
                   })
                 }

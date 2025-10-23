@@ -38,6 +38,7 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
 
   // Local state for multi-position editing
   const [localMultiPosition, setLocalMultiPosition] = useState<{ x: string; y: string; z: string }>({ x: "", y: "", z: "" })
+  const [positionMode, setPositionMode] = useState<'relative' | 'absolute'>('relative')
 
   // Calculate initial multi-position values
   const calculatedMultiPosition = useMemo(() => {
@@ -82,7 +83,13 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
       window.clearTimeout(batchColorTimeoutRef.current)
     }
     batchColorTimeoutRef.current = window.setTimeout(() => {
-      allSelectedVertices.forEach((v: any) => updateVertex(v.id, { color }))
+      // PERFORMANS: Batch update kullan
+      const updates = allSelectedVertices.map(v => ({
+        id: v.id,
+        updates: { color }
+      }))
+      const { updateVerticesBatch } = use3DStore.getState()
+      updateVerticesBatch(updates)
     }, 100)
   }
 
@@ -458,28 +465,111 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
 
               {/* Batch Position */}
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                <div className="text-white/80 text-sm font-medium mb-3">Batch Position</div>
-                <div className="grid grid-cols-3 gap-3">
-                  {(["x", "y", "z"] as const).map((axis) => (
-                    <div key={axis} className="space-y-1">
-                      <label className="text-xs text-white/60 uppercase font-medium">{axis}</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        placeholder="Mixed"
-                        value={localMultiPosition[axis]}
-                        onChange={e => {
-                          const value = e.target.value
-                          setLocalMultiPosition(prev => ({ ...prev, [axis]: value }))
-                          if (value !== "") {
-                            allSelectedVertices.forEach((v: any) => updateVertex(v.id, { position: { ...v.position, [axis]: Number.parseFloat(value) } }))
-                          }
-                        }}
-                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-green-400/50 focus:bg-white/15 transition-all"
-                      />
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-white/80 text-sm font-medium">Batch Position</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setPositionMode(positionMode === 'relative' ? 'absolute' : 'relative')}
+                      className="text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded transition-colors text-white/70"
+                    >
+                      {positionMode === 'relative' ? 'Relative (Δ)' : 'Absolute (=)'}
+                    </button>
+                  </div>
                 </div>
+                
+                {positionMode === 'relative' ? (
+                  <>
+                    <div className="text-xs text-white/60 mb-3">
+                      Enter offset values to move all selected elements relatively
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {(["x", "y", "z"] as const).map((axis) => (
+                        <div key={axis} className="space-y-1">
+                          <label className="text-xs text-white/60 uppercase font-medium">Δ{axis}</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            placeholder="0.0"
+                            onChange={e => {
+                              const offsetValue = Number.parseFloat(e.target.value)
+                              if (!isNaN(offsetValue) && offsetValue !== 0) {
+                                // Relative offset uygula
+                                const updates = allSelectedVertices.map(v => ({
+                                  id: v.id,
+                                  updates: {
+                                    position: {
+                                      ...v.position,
+                                      [axis]: v.position[axis] + offsetValue
+                                    }
+                                  }
+                                }))
+                                
+                                // PERFORMANS: Batch update kullan
+                                const { updateVerticesBatch } = use3DStore.getState()
+                                updateVerticesBatch(updates)
+                                
+                                // Input'u temizle
+                                e.target.value = ""
+                              }
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.currentTarget.blur()
+                              }
+                            }}
+                            className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-green-400/50 focus:bg-white/15 transition-all"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 text-xs text-white/50">
+                      💡 Tip: Enter positive/negative values to move elements relatively
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-xs text-white/60 mb-3">
+                      Set absolute position for all selected elements
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {(["x", "y", "z"] as const).map((axis) => (
+                        <div key={axis} className="space-y-1">
+                          <label className="text-xs text-white/60 uppercase font-medium">{axis}</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            placeholder="Mixed"
+                            value={localMultiPosition[axis]}
+                            onChange={e => {
+                              const value = e.target.value
+                              setLocalMultiPosition(prev => ({ ...prev, [axis]: value }))
+                              if (value !== "") {
+                                // Absolute pozisyon ayarla
+                                const updates = allSelectedVertices.map(v => ({
+                                  id: v.id,
+                                  updates: {
+                                    position: {
+                                      ...v.position,
+                                      [axis]: Number.parseFloat(value) || 0
+                                    }
+                                  }
+                                }))
+                                
+                                // PERFORMANS: Batch update kullan
+                                const { updateVerticesBatch } = use3DStore.getState()
+                                updateVerticesBatch(updates)
+                              }
+                            }}
+                            className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white text-center focus:outline-none focus:border-blue-400/50 focus:bg-white/15 transition-all"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 text-xs text-white/50">
+                      ⚠️ Warning: This will move all elements to the same position
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Batch Color */}
