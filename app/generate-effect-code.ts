@@ -5,7 +5,7 @@ import { getDiscordInviteUrl } from "@/lib/config"
 // Action recording işleme fonksiyonları
 function processActionRecords(actionRecords: ActionRecord[], layers: Layer[]): { [elementId: string]: { x: number, z: number, yOffset: number } } {
   const elementPositions: { [elementId: string]: { x: number, z: number, yOffset: number } } = {};
-  
+
   // İlk olarak tüm element'lerin başlangıç pozisyonlarını al
   layers.forEach(layer => {
     layer.elements.forEach(element => {
@@ -16,7 +16,7 @@ function processActionRecords(actionRecords: ActionRecord[], layers: Layer[]): {
       };
     });
   });
-  
+
   // Action recording'leri işle
   actionRecords.forEach(record => {
     if (record.type === 'transform_update' || record.type === 'move_continuous') {
@@ -73,7 +73,7 @@ function processActionRecords(actionRecords: ActionRecord[], layers: Layer[]): {
       }
     }
   });
-  
+
   return elementPositions;
 }
 
@@ -127,20 +127,20 @@ function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: La
       };
     });
   });
-  
+
   // Sadece gerçek hareket/transform action'ları varsa frame'ler oluştur
-  const hasTransformActions = actionRecords.some(record => 
+  const hasTransformActions = actionRecords.some(record =>
     record.type === 'transform_update' || record.type === 'transform_end' ||
     record.type === 'move' || record.type === 'move_continuous' ||
     record.type === 'element_add' || record.type === 'idle'
   );
-  
+
   if (!hasTransformActions) {
     return frames; // Boş array döndür
   }
-  
+
   // Başlangıç frame'ini eklemiyoruz; sadece gerçek action'lardan üretilen frame'ler kullanılacak
-  
+
   // Action recording'leri işle
   let lastFrameTime = 0;
   actionRecords.forEach((record, index) => {
@@ -197,7 +197,7 @@ function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: La
     } else if (record.type === 'idle') {
       // Idle action - son action'ın son pozisyonlarını kullan
       const frameElements: Array<{ id: string, x: number, z: number, yOffset: number }> = [];
-      
+
       if (record.data.lastPositions && record.data.lastPositions.length > 0) {
         // Son pozisyonları kullan
         record.data.lastPositions.forEach(pos => {
@@ -231,7 +231,7 @@ function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: La
           frameElements.push({ id, x: pos.x, z: pos.z, yOffset: pos.yOffset });
         });
       }
-      
+
       if (frameElements.length > 0) {
         frames.push({
           delay: record.delayTicks,
@@ -325,6 +325,15 @@ function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
     case 5: r = v, g = p, b = q; break;
   }
   return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+function hexToRgb(hex: string): { r: number, g: number, b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 255, g: 107, b: 53 };
 }
 
 // Parametre kısaltma eşlemesi
@@ -507,14 +516,44 @@ export const generateEffectCode = async (
   actionRecordingSettings?: {
     optimizeCircleFrames?: boolean;
     optimizeIdleRepeat?: boolean;
-  }
+  },
+  exportFormat: string = 'mythicmobs'
 ) => {
+  // Export format kontrolü - vanilla veya datapack ise ilgili fonksiyonu çağır
+  if (exportFormat === 'vanilla') {
+    return await generateVanillaCommands(
+      layers,
+      settings,
+      modes,
+      modeSettings,
+      frameMode,
+      manualFrameCount,
+      actionRecords
+    );
+  }
+
+  if (exportFormat === 'datapack') {
+    const minecraftVersion = settings.minecraftVersion || "1.21.0-1.21.1";
+    return await generateDatapackCode(
+      layers,
+      settings,
+      modes,
+      modeSettings,
+      frameMode,
+      manualFrameCount,
+      actionRecords,
+      minecraftVersion,
+      chainItems
+    );
+  }
+
+  // MythicMobs formatı (varsayılan) - mevcut kod devam eder
   const totalElements = layers.reduce((sum, l) => sum + l.elements.length, 0);
 
   // Action recording'leri işle ve element pozisyonlarını güncelle
   const updatedElementPositions = processActionRecords(actionRecords, layers);
   const { colors: liveColors, repeats: liveRepeats } = processActionAttributes(actionRecords, layers);
-  
+
   // Action recording frame'lerini oluştur
   const actionFrames = generateActionRecordingFrames(actionRecords, layers);
   const hasActionRecording = actionRecords.length > 0;
@@ -584,21 +623,21 @@ export const generateEffectCode = async (
   // Action Recording mevcutsa, taban canvas elementlerini üretmeyi atla - sadece action'ları göster
   if (hasActionRecording) {
     codeLines.push(`  # Action Recording Mode - Base canvas elements skipped, only actions shown`);
-    
+
     // Element add action'larını işle
     const elementAddActions = actionRecords.filter(record => record.type === 'element_add');
     if (elementAddActions.length > 0) {
       codeLines.push(`  # Added Elements: ${elementAddActions.length} elements`);
-      
+
       elementAddActions.forEach((record, index) => {
         const { position, yOffset = 0, elementType = 'particles', particle = 'flame', color = '#ff6b35', alpha = 10, elementCount = 1 } = record.data as any || {};
         if (position && typeof position.x === 'number' && typeof position.z === 'number') {
           codeLines.push(`  # Element ${index + 1}: Added at (${position.x.toFixed(2)}, ${position.z.toFixed(2)})`);
-          
+
           const x = position.x;
           const z = position.z;
           const y = yOffset + (settings.yOffset ?? 0);
-          
+
           const effectLine = generateEffectLine(
             elementType,
             particle,
@@ -615,12 +654,12 @@ export const generateEffectCode = async (
           codeLines.push(effectLine);
         }
       });
-      
+
       if (actionFrames.length > 0) {
         codeLines.push(`  # Animation frames follow:`);
       }
     }
-    
+
     // Action recording frame'lerini işle
     if (actionFrames.length > 0) {
       codeLines.push(`  # Action Recording Animation: ${actionFrames.length} frames`);
@@ -672,7 +711,7 @@ export const generateEffectCode = async (
             codeLines.push(`  - delay ${frame.delay}`);
           }
         }
-        
+
         // Frame elementlerini layer'a göre grupla ve optimize et
         const layerIdToItems: Record<string, { layer: Layer, items: Array<{ fe: { id: string, x: number, z: number, yOffset: number }, el: Element }> }> = {};
         frame.elements.forEach(frameElement => {
@@ -775,42 +814,42 @@ export const generateEffectCode = async (
     } else {
       codeLines.push(`  # No transform frames recorded - add elements and perform actions to see animation`);
     }
-    
+
     return codeLines.join('\n');
   }
 
   // GIF Animation Detection
   const gifLayers = layers.filter(layer => layer.isGifFrame);
   const isGifAnimation = gifLayers.length > 0;
-  
+
   if (isGifAnimation) {
     // GIF frame'lerini sırala
     gifLayers.sort((a, b) => (a.frameIndex || 0) - (b.frameIndex || 0));
     codeLines.push(`  # GIF Animation: ${gifLayers.length} frames - Powered by AuraFX.online`);
-    
+
     // Frame delay ayarı
     const frameDelay = settings.gifFrameDelay || 2; // Default 2 tick (100ms)
-    
+
     // Her frame için kod üret
     gifLayers.forEach((layer, index) => {
       codeLines.push(`  # Frame ${index + 1}/${gifLayers.length} (${layer.elements.length} elements)`);
-      
+
       // Frame delay ekle (ilk frame hariç)
       if (index > 0) {
         codeLines.push(`  - delay ${frameDelay}`);
       }
-      
+
       // Frame elementlerini işle
       layer.elements.forEach(element => {
         if (element && element.position &&
           typeof element.position.x === "number" &&
           typeof element.position.z === "number") {
-          
+
           const { x, z } = element.position;
           const y = (element.yOffset ?? 0) + (layer.yOffset ?? 0) + (settings.yOffset ?? 0);
           const color = element.color || layer.color;
           const repeat = element.elementCount || layer.repeat;
-          
+
           // Doğru effect line formatı kullan
           const effectLine = generateEffectLine(
             layer.effectType || "particles",
@@ -828,35 +867,35 @@ export const generateEffectCode = async (
           codeLines.push(effectLine);
         }
       });
-      
+
       // Frame sonunda boş satır (son frame hariç)
       if (index < gifLayers.length - 1) {
         codeLines.push(``);
       }
     });
-    
+
     // GIF animation için loop ekleme seçeneği
     if (settings.gifLoop !== false) {
       codeLines.push(`  # Loop animation`);
       codeLines.push(`  - delay ${settings.gifLoopDelay || 10}`); // Loop arası pause
     }
-    
+
     // GIF son branding
     codeLines.push(`# ═══════════════════════════════════════════════════════════════`);
     codeLines.push(`# 🎬 GIF Animation Complete! Made with AuraFX.online`);
     codeLines.push(`# 🚀 Create more animations: https://aurafx.online`);
     codeLines.push(`# ═══════════════════════════════════════════════════════════════`);
-    
+
     // Normal layer işlemeyi atla
     const finalCode = codeLines.join('\n');
-    
+
     // Analytics için GIF bilgilerini gönder
     const layerDetails = gifLayers.map(layer => ({
       name: layer.name,
       elementCount: layer.elements.length,
       types: ['gif-frame']
     }));
-    
+
     // Discord notification gönder
     await sendDiscordNotifications({
       skillName: settings.skillName,
@@ -872,7 +911,7 @@ export const generateEffectCode = async (
       canvasImage,
       timestamp: now
     });
-    
+
     return finalCode;
   }
 
@@ -939,7 +978,7 @@ export const generateEffectCode = async (
     codeLines.push(`# ⛓️ Chain Effect Complete! Powered by AuraFX.online`);
     codeLines.push(`# 🎯 Create more chains: https://aurafx.online`);
     codeLines.push(`# ═══════════════════════════════════════════════════════════════`);
-    
+
     // Chain mode işlendi, layer döngüsünü atla
     return codeLines.join("\n");
   }
@@ -974,8 +1013,8 @@ export const generateEffectCode = async (
       return "No elements to process";
     }
 
-    // === OPTİMİZE MODU ===
-    if (optimize) {
+    // === OPTİMİZE MODU === (Sadece MythicMobs için)
+    if (optimize && exportFormat === 'mythicmobs') {
       // Elementleri groupId'ye göre grupla
       const groups: Record<string, Element[]> = {};
       for (const el of elementsToProcess) {
@@ -1476,7 +1515,7 @@ export const generateMultiEffectCode = async (
   // Her session için ayrı skill oluştur
   sessions.forEach((session, sessionIndex) => {
     const totalElements = session.layers.reduce((sum, l) => sum + l.elements.length, 0);
-    
+
     code += `# ┌─────────────────────────────────────────────────────────────┐\n`;
     code += `# │ Session ${sessionIndex + 1}: ${session.name}\n`;
     if (session.description) {
@@ -1495,7 +1534,7 @@ export const generateMultiEffectCode = async (
       if (!layer.visible || layer.elements.length === 0) return;
 
       code += `    # Layer ${layerIndex + 1}: ${layer.name}\n`;
-      
+
       // Action recording'leri işle
       const updatedElementPositions = processActionRecords(session.actionRecords || [], [layer]);
       const { colors: liveColors, repeats: liveRepeats } = processActionAttributes(session.actionRecords || [], [layer]);
@@ -1571,4 +1610,324 @@ export const generateProjectExport = async (
       version: "1.0.0"
     }, null, 2);
   }
-}; 
+};
+
+
+// ============================================================================
+// VANILLA MINECRAFT COMMAND GENERATION
+// ============================================================================
+
+function generateVanillaParticleCommand(
+  particle: string,
+  color: string,
+  x: number,
+  y: number,
+  z: number,
+  count: number,
+  spread: { x: number, y: number, z: number } = { x: 0, y: 0, z: 0 },
+  speed: number = 0,
+  force: boolean = true,
+  useRelativeCoords: boolean = true,
+  useExecute: boolean = true
+): string {
+  // Minecraft particle name mapping
+  const particleMap: Record<string, string> = {
+    'reddust': 'dust',
+    'flame': 'flame',
+    'heart': 'heart',
+    'smoke': 'smoke',
+    'portal': 'portal',
+    'enchant': 'enchantment_table',
+    'crit': 'crit',
+    'magicCrit': 'enchanted_hit',
+    'spell': 'effect',
+    'instantSpell': 'instant_effect',
+    'witchMagic': 'witch',
+    'note': 'note',
+    'slime': 'item_slime',
+    'snowball': 'item_snowball',
+    'cloud': 'cloud',
+    'drip': 'dripping_water',
+    'lava': 'lava',
+    'splash': 'splash',
+    'bubble': 'bubble',
+    'suspended': 'underwater',
+    'depthsuspend': 'underwater',
+    'townaura': 'mycelium',
+    'happyVillager': 'happy_villager',
+    'angryVillager': 'angry_villager',
+    'firework': 'firework',
+    'end_rod': 'end_rod',
+    'dragon_breath': 'dragon_breath',
+    'totem': 'totem_of_undying',
+    'spit': 'spit',
+    'squid_ink': 'squid_ink',
+    'nautilus': 'nautilus',
+    'dolphin': 'dolphin',
+    'sneeze': 'sneeze',
+    'campfire_smoke': 'campfire_cosy_smoke',
+    'soul_fire_flame': 'soul_fire_flame',
+    'ash': 'ash',
+    'crimson_spore': 'crimson_spore',
+    'warped_spore': 'warped_spore',
+    'dripping_honey': 'dripping_honey',
+    'falling_nectar': 'falling_nectar',
+    'soul': 'soul',
+    'glow': 'glow',
+    'scrape': 'scrape',
+    'wax_on': 'wax_on',
+    'wax_off': 'wax_off',
+    'electric_spark': 'electric_spark',
+    'sonic_boom': 'sonic_boom',
+    'sculk_soul': 'sculk_soul',
+    'sculk_charge': 'sculk_charge',
+    'cherry_leaves': 'cherry_leaves',
+    'trial_spawner_detection': 'trial_spawner_detection'
+  };
+
+  const mcParticle = particleMap[particle] || particle;
+  const mode = force ? 'force' : 'normal';
+
+  // Koordinat formatı (relative veya absolute)
+  const xCoord = useRelativeCoords ? `~${x.toFixed(2)}` : x.toFixed(2);
+  const yCoord = useRelativeCoords ? `~${y.toFixed(2)}` : y.toFixed(2);
+  const zCoord = useRelativeCoords ? `~${z.toFixed(2)}` : z.toFixed(2);
+
+  let particleCommand = '';
+
+  // Dust particle için özel format (renkli)
+  if (mcParticle === 'dust' || particle === 'reddust') {
+    // Renk kontrolü - boş veya undefined ise varsayılan renk kullan
+    const safeColor = color && color.trim() !== '' ? color : '#ff6b35';
+    const rgb = hexToRgb(safeColor);
+    const r = (rgb.r / 255).toFixed(3);
+    const g = (rgb.g / 255).toFixed(3);
+    const b = (rgb.b / 255).toFixed(3);
+    const size = 1.0; // Varsayılan boyut
+
+    particleCommand = `particle minecraft:dust ${r} ${g} ${b} ${size} ${xCoord} ${yCoord} ${zCoord} ${spread.x} ${spread.y} ${spread.z} ${speed} ${count} ${mode}`;
+  } else {
+    // Normal particle
+    particleCommand = `particle minecraft:${mcParticle} ${xCoord} ${yCoord} ${zCoord} ${spread.x} ${spread.y} ${spread.z} ${speed} ${count} ${mode}`;
+  }
+
+  // execute at @s run ile sarmalama
+  if (useExecute) {
+    return `execute at @s run ${particleCommand}`;
+  }
+
+  return particleCommand;
+}
+
+export const generateVanillaCommands = async (
+  layers: Layer[],
+  settings: any,
+  modes: any,
+  modeSettings: any,
+  frameMode: string,
+  manualFrameCount: number,
+  actionRecords: ActionRecord[] = []
+) => {
+  const commands: string[] = [];
+
+  // Animasyon kontrolü - Vanilla sadece statik efektleri destekler
+  const hasActionRecording = actionRecords.length > 0;
+  const hasChainMode = modes.chainMode;
+  const hasAnimationModes = modes.rotateMode || modes.rainbowMode || modes.riseMode ||
+    modes.localRotateMode || modes.moveMode;
+
+  // Animasyon varsa hata fırlat (modal gösterilecek)
+  if (hasActionRecording || hasChainMode || hasAnimationModes) {
+    const unsupportedFeatures: string[] = [];
+    if (hasActionRecording) unsupportedFeatures.push('Action Recording');
+    if (hasChainMode) unsupportedFeatures.push('Chain Mode');
+    if (modes.rotateMode) unsupportedFeatures.push('Rotate Mode');
+    if (modes.rainbowMode) unsupportedFeatures.push('Rainbow Mode');
+    if (modes.riseMode) unsupportedFeatures.push('Rise Mode');
+    if (modes.localRotateMode) unsupportedFeatures.push('Local Rotate Mode');
+    if (modes.moveMode) unsupportedFeatures.push('Move Mode');
+    
+    throw new Error(`VANILLA_ANIMATION_NOT_SUPPORTED:${unsupportedFeatures.join(',')}`);
+  }
+
+  // Action recording varsa işle
+  const updatedElementPositions = processActionRecords(actionRecords, layers);
+  const { colors: liveColors } = processActionAttributes(actionRecords, layers);
+
+  // Kullanıcı ayarları (varsayılan true, açıkça false ise false)
+  const useRelativeCoords = settings.useRelativeCoords === undefined ? true : settings.useRelativeCoords;
+  const useExecute = settings.useExecute === undefined ? true : settings.useExecute;
+
+  // Her layer için komutlar üret
+  layers.forEach((layer: Layer) => {
+    if (layer.elements.length === 0) return;
+
+    layer.elements.forEach((element: Element) => {
+      if (!element || !element.position) return;
+      if (typeof element.position.x !== "number" || typeof element.position.z !== "number") return;
+
+      const recordedPosition = updatedElementPositions[element.id];
+      const x = recordedPosition ? recordedPosition.x : element.position.x;
+      const z = recordedPosition ? recordedPosition.z : element.position.z;
+      const baseYOffset = recordedPosition ? recordedPosition.yOffset : (element.yOffset ?? 0);
+      const y = baseYOffset + (layer.yOffset ?? 0) + (settings.yOffset ?? 0);
+
+      const color = liveColors[element.id] || element.color || layer.color;
+      const count = element.elementCount || layer.alpha || 10;
+
+      // Repeat için: aynı komutu birden fazla kez üret
+      const repeat = layer.repeat || 1;
+
+      for (let i = 0; i < repeat; i++) {
+        const cmd = generateVanillaParticleCommand(
+          layer.particle,
+          color,
+          x,
+          y,
+          z,
+          count,
+          { x: 0, y: 0, z: 0 },
+          0,
+          true,
+          useRelativeCoords,
+          useExecute
+        );
+        commands.push(cmd);
+      }
+    });
+  });
+
+  return commands.join('\n');
+};
+
+// ============================================================================
+// DATAPACK (MCFUNCTION) GENERATION
+// ============================================================================
+
+// Minecraft version to pack_format mapping (Complete list)
+const PACK_FORMATS: Record<string, { format: number, description: string }> = {
+  "1.21.8": { format: 64, description: "1.21.8" },
+  "1.21.7": { format: 64, description: "1.21.7" },
+  "1.21.6": { format: 63, description: "1.21.6" },
+  "1.21.5": { format: 55, description: "1.21.5" },
+  "1.21.4": { format: 46, description: "1.21.4" },
+  "1.21.2-1.21.3": { format: 42, description: "1.21.2 - 1.21.3" },
+  "1.21.0-1.21.1": { format: 34, description: "1.21.0 - 1.21.1" },
+  "1.20.5-1.20.6": { format: 32, description: "1.20.5 - 1.20.6" },
+  "1.20.3-1.20.4": { format: 22, description: "1.20.3 - 1.20.4" },
+  "1.20.2": { format: 18, description: "1.20.2" },
+  "1.20.0-1.20.1": { format: 15, description: "1.20.0 - 1.20.1" },
+  "1.19.4": { format: 13, description: "1.19.4" },
+  "1.19.3": { format: 12, description: "1.19.3" },
+  "1.19.0-1.19.2": { format: 9, description: "1.19.0 - 1.19.2" },
+  "1.18.0-1.18.2": { format: 8, description: "1.18.0 - 1.18.2" },
+  "1.17.0-1.17.1": { format: 7, description: "1.17.0 - 1.17.1" },
+  "1.16.2-1.16.5": { format: 6, description: "1.16.2 - 1.16.5" },
+  "1.15.0-1.16.1": { format: 5, description: "1.15.0 - 1.16.1" },
+  "1.13.0-1.14.4": { format: 4, description: "1.13.0 - 1.14.4" },
+  "1.11.0-1.12.2": { format: 3, description: "1.11.0 - 1.12.2" },
+  "1.9.0-1.10.2": { format: 2, description: "1.9.0 - 1.10.2" },
+  "1.6.1-1.8.9": { format: 1, description: "1.6.1 - 1.8.9" },
+};
+
+export function generatePackMcmeta(packFormat: number = 48, description: string = "AuraFX Generated Datapack"): string {
+  return JSON.stringify({
+    pack: {
+      pack_format: packFormat,
+      description: description
+    }
+  }, null, 2);
+}
+
+export const generateDatapackCode = async (
+  layers: Layer[],
+  settings: any,
+  modes: any,
+  modeSettings: any,
+  frameMode: string,
+  manualFrameCount: number,
+  actionRecords: ActionRecord[] = [],
+  minecraftVersion: string = "1.21.0-1.21.1",
+  chainItems: Array<{ type: 'element' | 'delay', id: string, elementId?: string, elementIds?: string[], delay?: number }> = []
+) => {
+  const lines: string[] = [];
+
+  // Kullanıcı ayarları (varsayılan true, açıkça false ise false)
+  const useRelativeCoords = settings.useRelativeCoords === undefined ? true : settings.useRelativeCoords;
+  const useExecute = settings.useExecute === undefined ? true : settings.useExecute;
+
+  // Animasyon kontrolü - Datapack sadece statik efektleri destekler
+  const hasActionRecording = actionRecords.length > 0;
+  const hasChainMode = modes.chainMode && chainItems.length > 0;
+  const hasAnimationModes = modes.rotateMode || modes.rainbowMode || modes.riseMode ||
+    modes.localRotateMode || modes.moveMode;
+
+  // Animasyon varsa hata fırlat (modal gösterilecek)
+  if (hasActionRecording || hasChainMode || hasAnimationModes) {
+    const unsupportedFeatures: string[] = [];
+    if (hasActionRecording) unsupportedFeatures.push('Action Recording');
+    if (hasChainMode) unsupportedFeatures.push('Chain Mode');
+    if (modes.rotateMode) unsupportedFeatures.push('Rotate Mode');
+    if (modes.rainbowMode) unsupportedFeatures.push('Rainbow Mode');
+    if (modes.riseMode) unsupportedFeatures.push('Rise Mode');
+    if (modes.localRotateMode) unsupportedFeatures.push('Local Rotate Mode');
+    if (modes.moveMode) unsupportedFeatures.push('Move Mode');
+    
+    throw new Error(`DATAPACK_ANIMATION_NOT_SUPPORTED:${unsupportedFeatures.join(',')}`);
+  }
+
+  // Static Rainbow Mode desteklenir (animasyon gerektirmez)
+  const hasStaticRainbow = modes.staticRainbowMode && !modes.rainbowMode;
+
+  // Header
+  lines.push(`# AuraFX Generated Datapack`);
+  lines.push(`# Minecraft Version: ${minecraftVersion}`);
+  lines.push(`# Generated: ${new Date().toISOString()}`);
+  lines.push(``);
+
+  // Statik efekt üretimi
+  layers.forEach((layer: Layer) => {
+    if (layer.elements.length === 0) return;
+
+    lines.push(`# Layer: ${layer.name}`);
+
+    layer.elements.forEach((element: Element, elementIdx: number) => {
+      if (!element || !element.position) return;
+
+      const x = element.position.x;
+      const z = element.position.z;
+      const y = (element.yOffset ?? 0) + (layer.yOffset ?? 0) + (settings.yOffset ?? 0);
+
+      // Static Rainbow mode için renk hesapla
+      let color = element.color || layer.color || '#ff6b35';
+      if (hasStaticRainbow) {
+        const totalElements = layer.elements.length;
+        const hue = totalElements > 1 ? elementIdx / (totalElements - 1) : 0;
+        const rgb = hsvToRgb(hue, 1, 1);
+        color = `#${rgb[0].toString(16).padStart(2, '0')}${rgb[1].toString(16).padStart(2, '0')}${rgb[2].toString(16).padStart(2, '0')}`;
+      }
+
+      const count = element.elementCount || layer.alpha || 10;
+
+      const cmd = generateVanillaParticleCommand(
+        layer.particle,
+        color,
+        x,
+        y,
+        z,
+        count,
+        { x: 0, y: 0, z: 0 },
+        0,
+        true,
+        useRelativeCoords,
+        useExecute
+      );
+
+      lines.push(cmd);
+    });
+
+    lines.push(``);
+  });
+
+  return lines.join('\n');
+};

@@ -113,6 +113,10 @@ interface Settings {
   colorTolerance: number;
   maxElements: number;
   includeAllColors: boolean;
+  exportFormat?: string;
+  minecraftVersion?: string;
+  useRelativeCoords?: boolean;
+  useExecute?: boolean;
 }
 
 interface Modes {
@@ -1032,6 +1036,10 @@ export default function EffectEditor() {
     colorTolerance: 30,
     maxElements: 10000,
     includeAllColors: false,
+    exportFormat: "mythicmobs", // Varsayılan format
+    minecraftVersion: "1.21.0-1.21.1", // Varsayılan Minecraft versiyonu
+    useRelativeCoords: true, // Varsayılan relative coordinates
+    useExecute: true, // Varsayılan execute at @s
   });
 
   const [modes, setModes] = useState<Modes>({
@@ -1609,7 +1617,7 @@ export default function EffectEditor() {
     }
   }, []);
 
-  const generateCode = useCallback(async (optimize?: boolean) => {
+  const generateCode = useCallback(async (optimize?: boolean, exportFormat?: string) => {
     setIsGenerating(true);
     try {
       // Canvas'ın fotoğrafını al
@@ -1631,15 +1639,24 @@ export default function EffectEditor() {
         {
           optimizeCircleFrames,
           optimizeIdleRepeat
-        }
+        },
+        exportFormat || settings.exportFormat || 'mythicmobs' // Export format ekle
       );
       setGeneratedCode(code);
-    } catch (e) {
-      setGeneratedCode("# Error generating code\n" + (e instanceof Error ? e.message : String(e)));
-    } finally {
       setIsGenerating(false);
+    } catch (e) {
+      setIsGenerating(false);
+      // Datapack veya Vanilla animasyon hatası ise, hatayı fırlat (CodePanel yakalayacak)
+      if (e instanceof Error && (
+        e.message.startsWith('DATAPACK_ANIMATION_NOT_SUPPORTED:') ||
+        e.message.startsWith('VANILLA_ANIMATION_NOT_SUPPORTED:')
+      )) {
+        throw e;
+      }
+      // Diğer hatalar için kod olarak göster
+      setGeneratedCode("# Error generating code\n" + (e instanceof Error ? e.message : String(e)));
     }
-  }, [layers, settings, modes, modeSettings, frameMode, manualFrameCount, captureCanvasAsBase64]);
+  }, [layers, settings, modes, modeSettings, frameMode, manualFrameCount, captureCanvasAsBase64, actionRecords, chainSequence, chainItems, optimizeCircleFrames, optimizeIdleRepeat]);
 
   const newProject = () => {
     // Tüm state'leri sıfırla
@@ -1692,6 +1709,10 @@ export default function EffectEditor() {
       colorTolerance: 30,
       maxElements: 10000,
       includeAllColors: false,
+      exportFormat: "mythicmobs",
+      minecraftVersion: "1.21.0-1.21.1",
+      useRelativeCoords: true,
+      useExecute: true,
     })
 
     // Modes'u default'a döndür

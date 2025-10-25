@@ -15,15 +15,29 @@ interface ChangelogPanelProps { }
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "3.1.1",
+    date: "January 25, 2025",
+    title: "Datapack Export Improvements & Color Fixes",
+    changes: [
+      "🔧 Fixed datapack export color issue (colors were showing as 0.000 0.000 0.000)",
+      "⚠️ Datapack export now shows warning for unsupported animation features",
+      "📦 Datapack format simplified - only supports static effects (OBJ, PNG, YAML imports)",
+      "✨ Static Rainbow Mode still supported in datapack (no animation required)",
+      "🎯 Added default color fallback (#ff6b35) for all export formats",
+      "📝 Improved datapack export with clear usage instructions",
+      "🚀 Users directed to MythicMobs/Vanilla formats for animated effects"
+    ]
+  },
+  {
     version: "3.1.0",
     date: "January 23, 2025",
     title: "3D Axis Widget & ElasticSlider System",
     changes: [
-      "�  Added interactive 3D Axis Widget to 3D editor",
+      "🎯 Added interactive 3D Axis Widget to 3D editor",
       "🔧 Fixed WebGL Context Lost issues with GizmoHelper integration",
       "✨ Introduced ElasticSlider component with smooth animations",
       "🎨 Replaced all traditional sliders with ElasticSlider across panels",
-      "�  Added responsive sizing system (sm/md/lg/xl) for sliders",
+      "📏 Added responsive sizing system (sm/md/lg/xl) for sliders",
       "🎪 Optimized 3D scene performance and rendering",
       "🚀 Enhanced user experience with modern slider interactions",
       "📋 Standardized slider design with gray color theme",

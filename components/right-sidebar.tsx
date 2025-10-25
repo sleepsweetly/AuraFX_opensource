@@ -119,7 +119,7 @@ export function RightSidebar({
 }: RightSidebarProps) {
   const [activeTab, setActiveTab] = useState(0) // 0 = Tools panel
   const [isMinimized, setIsMinimized] = useState(true)
-  
+
   // Use store if prop is not provided
   const selectedElementIdsFromStore = useSelectionStore((state) => state.selectedElementIds)
   const selectedElementIds = propSelectedElementIds ?? selectedElementIdsFromStore

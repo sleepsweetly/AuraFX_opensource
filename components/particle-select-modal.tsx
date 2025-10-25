@@ -3,7 +3,7 @@
 import { useState, useEffect, ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Heart } from "lucide-react"
+import { Search, Plus, Heart, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -59,7 +59,27 @@ export function ParticleSelectModal({ currentParticle, onSelectParticle, onClose
     fetchParticles()
   }, [])
 
-  const [customParticles, setCustomParticles] = useState<string[]>([])
+  const [customParticles, setCustomParticles] = useState<string[]>(() => {
+    // localStorage'dan custom particle'ları yükle
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('aurafx_custom_particles')
+      if (saved) {
+        try {
+          return JSON.parse(saved)
+        } catch (e) {
+          return []
+        }
+      }
+    }
+    return []
+  })
+
+  // Custom particle'lar değiştiğinde localStorage'a kaydet
+  useEffect(() => {
+    if (typeof window !== 'undefined' && customParticles.length > 0) {
+      localStorage.setItem('aurafx_custom_particles', JSON.stringify(customParticles))
+    }
+  }, [customParticles])
 
   // Merge fetched and custom particles
   const allParticles = [...fetchedParticles, ...customParticles]
@@ -75,10 +95,14 @@ export function ParticleSelectModal({ currentParticle, onSelectParticle, onClose
   }
 
   const handleAddParticle = () => {
-    if (newParticle.trim() && !allParticles.includes(newParticle.trim())) {
-      setCustomParticles([...customParticles, newParticle.trim()])
+    const trimmedParticle = newParticle.trim()
+    if (trimmedParticle && !allParticles.includes(trimmedParticle)) {
+      setCustomParticles([...customParticles, trimmedParticle])
       setNewParticle("")
       setShowAddDialog(false)
+      // Eklenen particle'ı otomatik seç
+      onSelectParticle(trimmedParticle)
+      onClose()
     }
   }
 
@@ -114,25 +138,66 @@ export function ParticleSelectModal({ currentParticle, onSelectParticle, onClose
             onWheel={(e) => e.stopPropagation()}
           >
             <div className="grid grid-cols-1 gap-2 p-2">
-              {filteredParticles.map((particle) => (
-                <div
-                  key={particle}
-                  onClick={() => handleSelect(particle)}
-                  className={`p-4 rounded-md cursor-pointer transition-colors min-h-[48px] flex items-center ${
-                    particle === currentParticle
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-50 hover:bg-gray-100 text-gray-900"
-                  }`}
-                  style={{ fontSize: '1.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="font-semibold truncate">{particle}</span>
-                    {particle === currentParticle && (
-                      <Badge variant="secondary" className="bg-blue-500">Selected</Badge>
-                    )}
+              {filteredParticles.map((particle) => {
+                const isCustom = customParticles.includes(particle)
+                return (
+                  <div
+                    key={particle}
+                    className={`p-4 rounded-md cursor-pointer transition-colors min-h-[48px] flex items-center ${
+                      particle === currentParticle
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-50 hover:bg-gray-100 text-gray-900"
+                    }`}
+                    style={{ fontSize: '1.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  >
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <span 
+                        className="font-semibold truncate flex-1"
+                        onClick={() => handleSelect(particle)}
+                      >
+                        {particle}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {isCustom && (
+                          <>
+                            <Badge variant="outline" className={`text-xs ${
+                              particle === currentParticle 
+                                ? "border-white text-white" 
+                                : "border-purple-500 text-purple-700"
+                            }`}>
+                              Custom
+                            </Badge>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setCustomParticles(customParticles.filter(p => p !== particle))
+                                // localStorage'dan da sil
+                                const updated = customParticles.filter(p => p !== particle)
+                                if (typeof window !== 'undefined') {
+                                  if (updated.length > 0) {
+                                    localStorage.setItem('aurafx_custom_particles', JSON.stringify(updated))
+                                  } else {
+                                    localStorage.removeItem('aurafx_custom_particles')
+                                  }
+                                }
+                              }}
+                              className={`p-1 rounded hover:bg-red-100 transition-colors ${
+                                particle === currentParticle ? "text-white hover:bg-red-500" : "text-red-600"
+                              }`}
+                              title="Remove custom particle"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </>
+                        )}
+                        {particle === currentParticle && (
+                          <Badge variant="secondary" className="bg-blue-500 text-xs">Selected</Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </ScrollArea>
         )}
