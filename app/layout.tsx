@@ -19,9 +19,9 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://aurafx.online'),
-  title: 'AuraFX - MythicMobs Effect Generator',
-  description: 'Create and customize powerful particle effects for MythicMobs with AuraFX. The ultimate tool for Minecraft server owners and plugin developers.',
-  keywords: 'mythicmobs, minecraft, particle effect generator, 3d effect creator, visual skill editor, minecraft plugin tool, spigot plugin development, paper mc, bukkit plugins, custom particle effects, minecraft server tools, yaml code generator, aurafx, aura fx, mythic mobs editor, skill creation tool, boss fight effects, spell animation, minecraft vfx, particle animation, 3d particle system, real-time effect editor, minecraft server customization, advanced particle tools, no-code mythicmobs, visual yaml editing',
+  title: 'AuraFX - Minecraft Particle Effect Generator',
+  description: 'Create stunning particle effects for Minecraft with AuraFX. Support for MythicMobs, Datapack, and Vanilla formats. The ultimate visual effect editor for Minecraft server owners and developers.',
+  keywords: 'minecraft particle effects, particle effect generator, mythicmobs, datapack generator, vanilla commands, 3d effect creator, visual skill editor, minecraft plugin tool, spigot plugin development, paper mc, bukkit plugins, custom particle effects, minecraft server tools, yaml code generator, aurafx, aura fx, mcfunction generator, skill creation tool, boss fight effects, spell animation, minecraft vfx, particle animation, 3d particle system, real-time effect editor, minecraft server customization, advanced particle tools, no-code particle editor, visual yaml editing',
   authors: [{ name: 'Sleepsweety' }],
   creator: 'Sleepsweety',
   publisher: 'AuraFX',
@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     telephone: false,
   },
   openGraph: {
-    title: 'AuraFX - MythicMobs Effect Generator',
-    description: 'Create and customize powerful particle effects for MythicMobs with AuraFX. The ultimate tool for Minecraft server owners and plugin developers.',
+    title: 'AuraFX - Minecraft Particle Effect Generator',
+    description: 'Create stunning particle effects for Minecraft with AuraFX. Support for MythicMobs, Datapack, and Vanilla formats. The ultimate visual effect editor for Minecraft server owners and developers.',
     url: 'https://aurafx.online',
     siteName: 'AuraFX',
     images: [
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
         url: 'https://aurafx.online/aurafxarkaplan.png',
         width: 1200,
         height: 630,
-        alt: 'AuraFX - MythicMobs Effect Generator',
+        alt: 'AuraFX - Minecraft Particle Effect Generator',
       },
     ],
     locale: 'en_US',
@@ -48,8 +48,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AuraFX - MythicMobs Effect Generator',
-    description: 'Create and customize powerful particle effects for MythicMobs with AuraFX. The ultimate tool for Minecraft server owners and plugin developers.',
+    title: 'AuraFX - Minecraft Particle Effect Generator',
+    description: 'Create stunning particle effects for Minecraft with AuraFX. Support for MythicMobs, Datapack, and Vanilla formats. The ultimate visual effect editor for Minecraft server owners and developers.',
     images: ['https://aurafx.online/aurafxarkaplan.png'],
   },
   robots: {
@@ -80,7 +80,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Fuzzy+Bubbles:wght@400;700&display=swap" rel="stylesheet" />
         <meta name="theme-color" content="#000000" />
         <meta name="google-adsense-account" content="ca-pub-5170007489171917" />
-        
+
         {/* Google Tag Manager */}
         <Script id="google-tag-manager" strategy="afterInteractive">
           {`
@@ -91,7 +91,7 @@ export default function RootLayout({
             })(window,document,'script','dataLayer','GTM-PRWWNGH9');
           `}
         </Script>
-        
+
         {/* Google Analytics - Doğru sıralama */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
@@ -156,7 +156,7 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
               "name": "AuraFX",
-              "description": "Professional particle effect creation editor for MythicMobs plugin. Create complex and impressive particle effects with visual interface and automatic YAML code generation.",
+              "description": "Professional particle effect creation editor for Minecraft. Create complex and impressive particle effects with visual interface and automatic code generation. Supports MythicMobs, Datapack, and Vanilla formats.",
               "applicationCategory": "DeveloperApplication",
               "operatingSystem": "Web Browser",
               "offers": {
@@ -171,12 +171,14 @@ export default function RootLayout({
               "featureList": [
                 "Visual particle effect editor",
                 "3D editor integration",
-                "Automatic YAML code generation",
+                "Multiple export formats (MythicMobs, Datapack, Vanilla)",
+                "Automatic code generation",
                 "Layer-based effect system",
                 "Animation modes and presets",
                 "PNG and OBJ file import",
                 "Real-time preview",
-                "MythicMobs compatibility"
+                "Static Rainbow Mode support",
+                "Minecraft 1.13+ compatibility"
               ]
             })
           }}
@@ -185,56 +187,56 @@ export default function RootLayout({
       <body className={inter.className}>
         {/* Google Tag Manager (noscript) */}
         <noscript>
-          <iframe 
+          <iframe
             src="https://www.googletagmanager.com/ns.html?id=GTM-PRWWNGH9"
-            height="0" 
-            width="0" 
-            style={{display:'none',visibility:'hidden'}}
+            height="0"
+            width="0"
+            style={{ display: 'none', visibility: 'hidden' }}
           />
         </noscript>
         {/* End Google Tag Manager (noscript) */}
-        
+
         <GuestProvider>
           <Analytics />
           <SpeedInsights />
           {/* SEO Content - Hidden from users but visible to bots */}
           <div style={{ display: 'none' }} aria-hidden="true">
-            <h1>AuraFX - Professional MythicMobs Particle Effect Generator</h1>
-            <h2>Create Advanced Particle Effects for Minecraft Servers</h2>
-            <p>AuraFX is a comprehensive web-based tool designed specifically for Minecraft server owners and plugin developers who use MythicMobs. Our professional particle effect editor enables you to create stunning visual effects that enhance your server's gameplay experience.</p>
-            
+            <h1>AuraFX - Professional Minecraft Particle Effect Generator</h1>
+            <h2>Create Advanced Particle Effects for Minecraft - MythicMobs, Datapack & Vanilla</h2>
+            <p>AuraFX is a comprehensive web-based tool designed for Minecraft server owners, plugin developers, and map makers. Our professional particle effect editor supports multiple export formats including MythicMobs YAML, Minecraft Datapack (.mcfunction), and Vanilla commands, enabling you to create stunning visual effects that enhance your server's gameplay experience.</p>
+
             <h3>Key Features and Capabilities</h3>
             <h4>Visual Editor Interface</h4>
             <p>Design particle effects using an intuitive drag-and-drop interface. Our canvas-based editor allows you to create complex patterns, shapes, and animations with ease. The visual approach eliminates the need for manual YAML coding while providing precise control over every aspect of your effects.</p>
-            
+
             <h4>3D Editor Integration</h4>
             <p>Take your effects to the next dimension with our integrated 3D editor. Create three-dimensional particle systems, rotate and manipulate effects in real-time, and preview how your creations will look from any angle. The 3D workspace operates independently while maintaining synchronization with the main 2D canvas.</p>
-            
+
             <h4>Layer-Based Effect System</h4>
             <p>Build complex effects by combining multiple layers. Each layer can have different particle types, colors, sizes, and behaviors. Our advanced layer system supports various effect types including rings, spheres, tornados, orbitals, and custom shapes. Reorder layers with drag-and-drop functionality and toggle visibility for testing.</p>
-            
+
             <h4>Animation Modes and Presets</h4>
             <p>Bring your effects to life with our comprehensive animation system. Choose from global animation modes that affect all particles, or apply layer-specific animations. Features include rotation, movement, rainbow effects, chain reactions, mirror effects, and performance optimization modes.</p>
-            
+
             <h4>Import and Export Capabilities</h4>
             <p>Import particle data from PNG images or 3D OBJ models. Our PNG importer converts pixel data into particles with customizable size, threshold, and tolerance settings. The OBJ importer extracts vertices from 3D models, perfect for creating effects based on custom shapes and structures.</p>
-            
+
             <h4>Automatic Code Generation</h4>
-            <p>Generate MythicMobs-compatible YAML code automatically. Our system creates optimized particle effect configurations that work seamlessly with the MythicMobs plugin. No manual coding required - simply design your effect visually and export the ready-to-use code.</p>
-            
+            <p>Generate code in multiple formats automatically. Export as MythicMobs YAML for plugin integration, Minecraft Datapack (.mcfunction) for vanilla servers, or direct Vanilla commands for command blocks. Our system creates optimized particle effect configurations that work seamlessly across different Minecraft environments. No manual coding required - simply design your effect visually and export the ready-to-use code.</p>
+
             <h4>Professional Tools and Utilities</h4>
             <p>Access a complete suite of professional tools including color pickers, grid snapping, shape management, and real-time preview. Our performance mode ensures smooth operation even with complex effects, while the integrated code panel provides instant feedback on your YAML output.</p>
-            
+
             <h3>Perfect for Minecraft Server Enhancement</h3>
-            <p>AuraFX is specifically designed for Minecraft server environments using the MythicMobs plugin. Create boss fight effects, spell animations, environmental effects, and custom abilities that will impress your players and enhance their gaming experience. Our tool streamlines the process of creating professional-quality particle effects without requiring extensive technical knowledge.</p>
-            
+            <p>AuraFX is designed for all Minecraft environments - whether you're running a plugin-based server with MythicMobs, creating vanilla datapacks, or building adventure maps with command blocks. Create boss fight effects, spell animations, environmental effects, and custom abilities that will impress your players and enhance their gaming experience. Our tool streamlines the process of creating professional-quality particle effects without requiring extensive technical knowledge.</p>
+
             <h3>Technical Specifications</h3>
             <p>Built with Next.js 14 and modern web technologies, AuraFX provides a responsive and fast user experience. The application supports multiple languages, includes comprehensive documentation, and offers a wiki with detailed guides for all features. Our platform is optimized for both desktop and mobile devices.</p>
-            
+
             <h3>Community and Support</h3>
             <p>Join our community of Minecraft server administrators and plugin developers. AuraFX is continuously updated with new features and improvements based on user feedback. Our comprehensive wiki provides detailed tutorials, examples, and best practices for creating amazing particle effects.</p>
           </div>
-          
+
           <div className="min-h-screen">
             <main className="min-h-screen">
               {children}
