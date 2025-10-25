@@ -22,7 +22,8 @@ import {
   FileText,
   FolderOpen,
   Plus,
-  BookOpen
+  BookOpen,
+  HelpCircle
 } from "lucide-react"
 import { use3DStore } from "../store/use3DStore"
 import { useRouter } from "next/navigation"
@@ -36,6 +37,7 @@ interface TopToolbarProps {
   onNewProject?: () => void
   onSave?: () => void
   onLoad?: () => void
+  onShowTutorial?: () => void
 }
 
 export function TopToolbar({
@@ -43,7 +45,8 @@ export function TopToolbar({
   setUseOptimizedRenderer,
   onNewProject,
   onSave,
-  onLoad
+  onLoad,
+  onShowTutorial
 }: TopToolbarProps) {
   const router = useRouter()
   const {
@@ -392,6 +395,24 @@ export function TopToolbar({
                       >
                         <BookOpen className="w-4 h-4 text-green-400" />
                         Wiki
+                      </motion.div>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      className="text-white cursor-pointer flex items-center gap-2 p-2 hover:bg-white/10"
+                      onClick={onShowTutorial}
+                      asChild
+                    >
+                      <motion.div
+                        variants={dropdownItemVariants}
+                        whileHover={{ x: 5 }}
+                        className="w-full"
+                      >
+                        <HelpCircle className="w-4 h-4 text-purple-400" />
+                        <div>
+                          <div className="font-medium">Tutorial</div>
+                          <div className="text-xs text-white/50">Show tutorial again</div>
+                        </div>
                       </motion.div>
                     </DropdownMenuItem>
                   </motion.div>

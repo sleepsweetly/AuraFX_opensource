@@ -1,464 +1,301 @@
 "use client"
 import React, { useState, useEffect, useRef } from "react";
-import { Hexagon, Lock, BarChart3, Settings, Link, Shield, Scale, Baby, RotateCcw, Mail, ChevronDown, ChevronUp, Database, Globe } from "lucide-react";
+import { Mail, Lock, User, Shield, Database, Globe, ChevronRight } from "lucide-react";
 
 export default function PrivacyPolicy() {
-  const [expandedSections, setExpandedSections] = useState<number[]>([]);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    
-    const particles: Array<{
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      size: number;
-      opacity: number;
-    }> = [];
-    
-    for (let i = 0; i < 50; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
-        size: Math.random() * 3 + 1,
-        opacity: Math.random() * 0.5 + 0.2
-      });
-    }
-    
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      particles.forEach(particle => {
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        
-        if (particle.x < 0 || particle.x > canvas.width) particle.vx *= -1;
-        if (particle.y < 0 || particle.y > canvas.height) particle.vy *= -1;
-        
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 0, 0, ${particle.opacity})`;
-        ctx.fill();
-      });
-      
-      requestAnimationFrame(animate);
-    };
-    
-    animate();
-    
-    const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const [activeSection, setActiveSection] = useState("introduction");
+  const sectionsRef = useRef<{ [key: string]: HTMLElement | null }>({});
 
   const sections = [
-    {
-      icon: BarChart3,
-      title: "Information We Collect",
-      content: [
-        { label: "Personal Information", desc: "Such as your email address, if you contact us or sign up for updates." },
-        { label: "Usage Data", desc: "Information about how you use our site, including pages viewed, features used, and time spent." },
-        { label: "Cookies & Tracking", desc: "We use cookies and similar technologies to enhance your experience and analyze site usage." }
-      ]
-    },
-    {
-      icon: Settings,
-      title: "How We Use Your Information",
-      content: [
-        "To provide, operate, and maintain our website and services",
-        "To improve, personalize, and expand our services",
-        "To communicate with you, including support and updates",
-        "To analyze usage and trends to improve user experience",
-        "To comply with legal obligations"
-      ]
-    },
-    {
-      icon: Link,
-      title: "Third-Party Services",
-      content: "We may use third-party services (such as Google Analytics, Discord) to help operate our website and analyze usage. These services may collect information as described in their own privacy policies."
-    },
-    {
-      icon: Shield,
-      title: "Data Security",
-      content: "We implement reasonable security measures to protect your information. However, no method of transmission over the Internet is 100% secure."
-    },
-    {
-      icon: Scale,
-      title: "Your Rights",
-      content: [
-        "You may request access to, correction of, or deletion of your personal data at any time.",
-        "You can opt out of cookies via your browser settings.",
-        "You can control personalized advertising through Google Ads Settings."
-      ]
-    },
-    {
-      icon: Database,
-      title: "Future Data Collection",
-      content: "We currently don't collect advertising revenue, but in the future we may implement webhooks to analyze which features or modes are most used. This will help us improve our services and prioritize development based on actual usage patterns."
-    }
+    { id: "introduction", title: "Introduction" },
+    { id: "information", title: "Information We Collect" },
+    { id: "usage", title: "How We Use Your Information" },
+    { id: "third-party", title: "Third-Party Services" },
+    { id: "security", title: "Data Security" },
+    { id: "rights", title: "Your Rights" },
+    { id: "future", title: "Future Data Collection" },
+    { id: "contact", title: "Contact Us" }
   ];
 
-  const toggleExpanded = (index: number) => {
-    setExpandedSections(prev => 
-      prev.includes(index) 
-        ? prev.filter(i => i !== index)
-        : [...prev, index]
-    );
-  };
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + 100;
+      
+      for (const section of sections) {
+        const element = sectionsRef.current[section.id];
+        if (element) {
+          const { offsetTop, offsetHeight } = element;
+          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+            setActiveSection(section.id);
+            break;
+          }
+        }
+      }
+    };
 
-  const expandAll = () => {
-    setExpandedSections(sections.map((_, index) => index));
-  };
+    window.addEventListener("scroll", handleScroll);
+    handleScroll(); // Initial check
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
-  const collapseAll = () => {
-    setExpandedSections([]);
+  const scrollToSection = (sectionId: string) => {
+    sectionsRef.current[sectionId]?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
-    <div className="min-h-screen bg-white overflow-hidden">
-      <canvas 
-        ref={canvasRef}
-        className="fixed top-0 left-0 w-full h-full pointer-events-none z-0"
-        style={{ opacity: 0.3 }}
-      />
-      
+    <div className="min-h-screen bg-white">
       {/* Custom Font Styles */}
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Poppins:wght@400;500;600;700&display=swap');
         
-        .font-display {
-          font-family: 'Space Grotesk', sans-serif;
+        body {
+          font-family: 'Merriweather', serif;
+        }
+        
+        .font-heading {
+          font-family: 'Poppins', sans-serif;
         }
         
         .font-body {
-          font-family: 'Inter', sans-serif;
+          font-family: 'Merriweather', serif;
         }
         
-        .text-gradient {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+        .toc-item {
+          transition: all 0.2s ease;
         }
         
-        .hover-lift {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        .toc-item:hover {
+          transform: translateX(4px);
         }
         
-        .hover-lift:hover {
-          transform: translateY(-8px) scale(1.02);
+        .active-toc {
+          position: relative;
         }
         
-        .float-animation {
-          animation: float 6s ease-in-out infinite;
-        }
-        
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-20px); }
-        }
-        
-        .slide-in {
-          animation: slideIn 0.8s ease-out forwards;
-          opacity: 0;
-        }
-        
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .rotate-slow {
-          animation: rotate 20s linear infinite;
-        }
-        
-        @keyframes rotate {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        .active-toc::before {
+          content: '';
+          position: absolute;
+          left: -24px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 16px;
+          height: 16px;
+          background-color: #000;
+          border-radius: 50%;
         }
       `}</style>
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center px-6 z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-gray-50 to-white opacity-90" />
-        
-        <div className="relative max-w-6xl mx-auto text-center">
-          <div className="mb-8 slide-in" style={{ animationDelay: '0.1s' }}>
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-black rounded-3xl float-animation shadow-2xl">
-              <Lock className="w-12 h-12 text-white" />
-            </div>
-          </div>
-          
-          <h1 className="font-display text-7xl md:text-8xl font-black text-black mb-6 slide-in" style={{ animationDelay: '0.2s' }}>
-            Privacy <span className="font-extralight text-gradient">Policy</span>
-          </h1>
-          
-          <p className="font-body text-xl md:text-2xl text-black/70 max-w-3xl mx-auto mb-12 leading-relaxed slide-in" style={{ animationDelay: '0.3s' }}>
-            We are committed to protecting your privacy and being transparent about how we collect and use your information.
-          </p>
-        </div>
-      </section>
-
-      {/* Introduction */}
-      <section className="relative py-12 px-6 z-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-gray-50 rounded-3xl p-8 border border-black/10 slide-in">
-            <p className="font-body text-lg text-black/80 leading-relaxed">
-              <strong className="font-display text-black">AuraFX</strong> ("we", "us", or "our") is committed to protecting your privacy. 
-              This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our services.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Controls */}
-      <section className="relative py-6 px-6 z-10">
-        <div className="max-w-4xl mx-auto flex justify-center gap-4">
-          <button
-            onClick={expandAll}
-            className="text-sm text-black/60 hover:text-black transition-colors"
-          >
-            Expand All
-          </button>
-          <span className="text-black/20">|</span>
-          <button
-            onClick={collapseAll}
-            className="text-sm text-black/60 hover:text-black transition-colors"
-          >
-            Collapse All
-          </button>
-        </div>
-      </section>
-
-      {/* Main Sections */}
-      <section className="relative py-8 px-6 z-10">
-        <div className="max-w-4xl mx-auto space-y-4">
-          {sections.map((section, index) => (
-            <div
-              key={index}
-              className="bg-white rounded-2xl border border-black/10 overflow-hidden hover:shadow-xl transition-all duration-300"
-            >
-              <button
-                onClick={() => toggleExpanded(index)}
-                className="w-full px-8 py-6 flex items-center justify-between text-left"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center">
-                    <section.icon className="w-6 h-6 text-white" />
-                  </div>
-                  <h2 className="font-display text-xl font-bold text-black">{section.title}</h2>
-                </div>
-                <div className="flex-shrink-0">
-                  {expandedSections.includes(index) ? (
-                    <ChevronUp className="w-5 h-5 text-black/60" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-black/60" />
-                  )}
-                </div>
-              </button>
-              
-              <div className={`overflow-hidden transition-all duration-300 ${
-                expandedSections.includes(index) ? 'max-h-96' : 'max-h-0'
-              }`}>
-                <div className="px-8 pb-6 pl-24">
-                  {Array.isArray(section.content) ? (
-                    <div className="space-y-4">
-                      {section.content.map((item, itemIndex) => (
-                        <div key={itemIndex}>
-                          {typeof item === 'string' ? (
-                            <div className="flex items-start">
-                              <span className="text-black/40 mr-3 mt-1">•</span>
-                              <p className="font-body text-black/70">{item}</p>
-                            </div>
-                          ) : (
-                            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                              <h4 className="font-semibold text-black mb-2">{item.label}:</h4>
-                              <p className="font-body text-black/70">{item.desc}</p>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="font-body text-black/70 leading-relaxed">{section.content}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Future Data Collection Highlight */}
-      <section className="relative py-12 px-6 z-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-r from-gray-50 to-white rounded-3xl p-8 border border-black/10">
+      {/* Header */}
+      <header className="relative border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-6 py-16 md:py-24">
+          <div className="max-w-3xl">
             <div className="flex items-center mb-6">
-              <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mr-4">
-                <Globe className="w-8 h-8 text-white" />
+              <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center mr-4">
+                <Lock className="w-6 h-6 text-white" />
+              </div>
+              <p className="font-heading text-sm font-medium text-gray-500 uppercase tracking-wider">Legal</p>
+            </div>
+            <h1 className="font-heading text-5xl md:text-6xl font-bold text-black mb-6">Privacy Policy</h1>
+            <p className="font-body text-lg text-gray-600 leading-relaxed">
+              Your privacy is important to us. This policy explains how we collect, use, and protect your information.
+            </p>
+            <p className="font-body text-sm text-gray-500 mt-4">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-6 py-12 md:py-16 flex flex-col md:flex-row gap-12">
+        {/* Table of Contents - Sticky Sidebar */}
+        <aside className="md:w-64 md:sticky md:top-24 md:h-fit">
+          <nav>
+            <h3 className="font-heading text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Table of Contents</h3>
+            <ul className="space-y-2">
+              {sections.map((section) => (
+                <li key={section.id}>
+                  <button
+                    onClick={() => scrollToSection(section.id)}
+                    className={`toc-item block w-full text-left py-2 text-sm font-medium ${
+                      activeSection === section.id
+                        ? "text-black font-semibold active-toc"
+                        : "text-gray-600 hover:text-black"
+                    }`}
+                  >
+                    {section.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 max-w-3xl">
+          {/* Introduction Section */}
+          <section
+            id="introduction"
+            ref={(el) => { sectionsRef.current["introduction"] = el }}
+            className="mb-16 scroll-mt-24"
+          >
+            <h2 className="font-heading text-3xl font-bold text-black mb-6">Introduction</h2>
+            <p className="font-body text-gray-700 leading-relaxed mb-4">
+              <strong className="font-heading">AuraFX</strong> ("we", "us", or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our services.
+            </p>
+            <p className="font-body text-gray-700 leading-relaxed">
+              By using AuraFX, you consent to the data practices described in this policy. If you do not agree with the terms of this privacy policy, please do not access or use our website.
+            </p>
+          </section>
+
+          {/* Information We Collect Section */}
+          <section
+            id="information"
+            ref={(el) => { sectionsRef.current["information"] = el }}
+            className="mb-16 scroll-mt-24"
+          >
+            <h2 className="font-heading text-3xl font-bold text-black mb-6">Information We Collect</h2>
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-heading text-xl font-semibold text-black mb-2">Personal Information</h3>
+                <p className="font-body text-gray-700 leading-relaxed">
+                  We may collect personal information such as your email address, but only if you provide it to us voluntarily when contacting us or signing up for updates.
+                </p>
               </div>
               <div>
-                <h2 className="font-display text-2xl font-bold text-black mb-2">No Advertising Currently</h2>
-                <p className="font-body text-black/70">
-                  We don't currently display any advertisements or collect revenue from your data.
+                <h3 className="font-heading text-xl font-semibold text-black mb-2">Usage Data</h3>
+                <p className="font-body text-gray-700 leading-relaxed">
+                  We collect information about how you use our site, including pages viewed, features used, and time spent. This helps us understand user behavior and improve our services.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-heading text-xl font-semibold text-black mb-2">Cookies & Tracking</h3>
+                <p className="font-body text-gray-700 leading-relaxed">
+                  We use cookies and similar technologies to enhance your experience and analyze site usage. You can control cookies through your browser settings.
                 </p>
               </div>
             </div>
-            
-            <div className="bg-white rounded-2xl p-6 border border-black/10">
-              <h3 className="font-display text-lg font-bold text-black mb-3">Future Plans</h3>
-              <p className="font-body text-black/70 mb-4">
-                In the future, we may implement webhooks to collect anonymous usage data to understand which features or modes are most popular. This will help us:
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-start">
-                  <span className="text-black/40 mr-3 mt-1">•</span>
-                  <p className="font-body text-black/70">Prioritize development based on actual usage</p>
-                </div>
-                <div className="flex items-start">
-                  <span className="text-black/40 mr-3 mt-1">•</span>
-                  <p className="font-body text-black/70">Improve the most-used features</p>
-                </div>
-                <div className="flex items-start">
-                  <span className="text-black/40 mr-3 mt-1">•</span>
-                  <p className="font-body text-black/70">Identify and fix issues in popular workflows</p>
-                </div>
-                <div className="flex items-start">
-                  <span className="text-black/40 mr-3 mt-1">•</span>
-                  <p className="font-body text-black/70">Make informed decisions about new features</p>
-                </div>
-              </div>
-              <p className="font-body text-black/60 text-sm mt-4">
-                Any future data collection will be anonymous and will not include personal information.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+          </section>
 
-      {/* Additional Sections */}
-      <section className="relative py-8 px-6 z-10">
-        <div className="max-w-4xl mx-auto space-y-4">
-          <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
-            <button
-              onClick={() => toggleExpanded(6)}
-              className="w-full px-8 py-6 flex items-center justify-between text-left"
+          {/* How We Use Your Information Section */}
+          <section
+            id="usage"
+            ref={(el) => { sectionsRef.current["usage"] = el }}
+            className="mb-16 scroll-mt-24"
+          >
+            <h2 className="font-heading text-3xl font-bold text-black mb-6">How We Use Your Information</h2>
+            <ul className="space-y-3">
+              <li className="flex items-start">
+                <ChevronRight className="w-5 h-5 text-black mr-3 mt-0.5 flex-shrink-0" />
+                <p className="font-body text-gray-700">To provide, operate, and maintain our website and services</p>
+              </li>
+              <li className="flex items-start">
+                <ChevronRight className="w-5 h-5 text-black mr-3 mt-0.5 flex-shrink-0" />
+                <p className="font-body text-gray-700">To improve, personalize, and expand our services</p>
+              </li>
+              <li className="flex items-start">
+                <ChevronRight className="w-5 h-5 text-black mr-3 mt-0.5 flex-shrink-0" />
+                <p className="font-body text-gray-700">To communicate with you, including support and updates</p>
+              </li>
+              <li className="flex items-start">
+                <ChevronRight className="w-5 h-5 text-black mr-3 mt-0.5 flex-shrink-0" />
+                <p className="font-body text-gray-700">To analyze usage and trends to improve user experience</p>
+              </li>
+              <li className="flex items-start">
+                <ChevronRight className="w-5 h-5 text-black mr-3 mt-0.5 flex-shrink-0" />
+                <p className="font-body text-gray-700">To comply with legal obligations</p>
+              </li>
+            </ul>
+          </section>
+
+          {/* Third-Party Services Section */}
+          <section
+            id="third-party"
+            ref={(el) => { sectionsRef.current["third-party"] = el }}
+            className="mb-16 scroll-mt-24"
+          >
+            <h2 className="font-heading text-3xl font-bold text-black mb-6">Third-Party Services</h2>
+            <p className="font-body text-gray-700 leading-relaxed">
+              We may use third-party services (such as Google Analytics, Discord) to help operate our website and analyze usage. These services may collect information as described in their own privacy policies.
+            </p>
+          </section>
+
+          {/* Data Security Section */}
+          <section
+            id="security"
+            ref={(el) => { sectionsRef.current["security"] = el }}
+            className="mb-16 scroll-mt-24"
+          >
+            <h2 className="font-heading text-3xl font-bold text-black mb-6">Data Security</h2>
+            <p className="font-body text-gray-700 leading-relaxed">
+              We implement reasonable security measures to protect your information. However, no method of transmission over the Internet is 100% secure.
+            </p>
+          </section>
+
+          {/* Your Rights Section */}
+          <section
+            id="rights"
+            ref={(el) => { sectionsRef.current["rights"] = el }}
+            className="mb-16 scroll-mt-24"
+          >
+            <h2 className="font-heading text-3xl font-bold text-black mb-6">Your Rights</h2>
+            <ul className="space-y-3">
+              <li className="flex items-start">
+                <ChevronRight className="w-5 h-5 text-black mr-3 mt-0.5 flex-shrink-0" />
+                <p className="font-body text-gray-700">You may request access to, correction of, or deletion of your personal data at any time.</p>
+              </li>
+              <li className="flex items-start">
+                <ChevronRight className="w-5 h-5 text-black mr-3 mt-0.5 flex-shrink-0" />
+                <p className="font-body text-gray-700">You can opt out of cookies via your browser settings.</p>
+              </li>
+              <li className="flex items-start">
+                <ChevronRight className="w-5 h-5 text-black mr-3 mt-0.5 flex-shrink-0" />
+                <p className="font-body text-gray-700">You can control personalized advertising through Google Ads Settings.</p>
+              </li>
+            </ul>
+          </section>
+
+          {/* Future Data Collection Section - Highlighted */}
+          <section
+            id="future"
+            ref={(el) => { sectionsRef.current["future"] = el }}
+            className="mb-16 scroll-mt-24 bg-gray-50 p-8 -mx-8 rounded-lg"
+          >
+            <div className="flex items-center mb-6">
+              <Globe className="w-8 h-8 text-black mr-3" />
+              <h2 className="font-heading text-3xl font-bold text-black">Future Data Collection</h2>
+            </div>
+            <p className="font-body text-gray-700 leading-relaxed mb-4">
+              We currently don't collect advertising revenue, but in the future we may implement webhooks to analyze which features or modes are most used. This will help us improve our services and prioritize development based on actual usage patterns.
+            </p>
+            <p className="font-body text-gray-700 leading-relaxed">
+              Any future data collection will be anonymous and will not include personal information.
+            </p>
+          </section>
+
+          {/* Contact Section */}
+          <section
+            id="contact"
+            ref={(el) => { sectionsRef.current["contact"] = el }}
+            className="mb-16 scroll-mt-24"
+          >
+            <h2 className="font-heading text-3xl font-bold text-black mb-6">Contact Us</h2>
+            <p className="font-body text-gray-700 leading-relaxed mb-6">
+              If you have any questions about this Privacy Policy, please don't hesitate to contact us.
+            </p>
+            <a
+              href="/contact"
+              className="inline-flex items-center font-heading font-medium text-black hover:underline"
             >
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center">
-                  <Baby className="w-6 h-6 text-white" />
-                </div>
-                <h2 className="font-display text-xl font-bold text-black">Children's Privacy</h2>
-              </div>
-              <div className="flex-shrink-0">
-                {expandedSections.includes(6) ? (
-                  <ChevronUp className="w-5 h-5 text-black/60" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-black/60" />
-                )}
-              </div>
-            </button>
-            
-            <div className={`overflow-hidden transition-all duration-300 ${
-              expandedSections.includes(6) ? 'max-h-96' : 'max-h-0'
-            }`}>
-              <div className="px-8 pb-6 pl-24">
-                <p className="font-body text-black/70 leading-relaxed">
-                  Our website is not intended for children under 13. We do not knowingly collect personal information from children.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-black/10 overflow-hidden">
-            <button
-              onClick={() => toggleExpanded(7)}
-              className="w-full px-8 py-6 flex items-center justify-between text-left"
-            >
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center">
-                  <RotateCcw className="w-6 h-6 text-white" />
-                </div>
-                <h2 className="font-display text-xl font-bold text-black">Changes to This Policy</h2>
-              </div>
-              <div className="flex-shrink-0">
-                {expandedSections.includes(7) ? (
-                  <ChevronUp className="w-5 h-5 text-black/60" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-black/60" />
-                )}
-              </div>
-            </button>
-            
-            <div className={`overflow-hidden transition-all duration-300 ${
-              expandedSections.includes(7) ? 'max-h-96' : 'max-h-0'
-            }`}>
-              <div className="px-8 pb-6 pl-24">
-                <p className="font-body text-black/70 leading-relaxed">
-                  We may update this Privacy Policy from time to time. Changes will be posted on this page with an updated date.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section className="relative py-24 px-6 z-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-gray-50 rounded-3xl p-12 border border-black/10">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-2xl mb-6">
-                <Mail className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="font-display text-3xl font-bold text-black mb-4">Questions About Privacy?</h2>
-              <p className="font-body text-lg text-black/70 mb-8 max-w-2xl mx-auto">
-                If you have any questions about this Privacy Policy, please don't hesitate to contact us.
-              </p>
-              <a
-                href="/contact"
-                className="group inline-flex items-center px-8 py-4 bg-black text-white font-semibold rounded-full hover:shadow-xl transition-all duration-300"
-              >
-                <Mail className="w-5 h-5 mr-2" />
-                Send Message
-              </a>
-              <p className="mt-8 text-sm text-black/50">
-                Last updated: {new Date().toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+              <Mail className="w-5 h-5 mr-2" />
+              Contact Us
+            </a>
+          </section>
+        </main>
+      </div>
 
       {/* Footer */}
-      <footer className="relative py-12 px-6 border-t border-black/10 z-10">
-        <div className="max-w-6xl mx-auto text-center">
-          <div className="flex items-center justify-center mb-4">
-            <Hexagon className="w-8 h-8 text-black" />
-          </div>
-          <p className="font-body text-black/60">
-            © 2024 AuraFX. Crafted with passion for the Minecraft community.
+      <footer className="border-t border-gray-200 mt-16">
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <p className="font-body text-sm text-gray-500 text-center">
+            © 2024 AuraFX. All rights reserved.
           </p>
         </div>
       </footer>

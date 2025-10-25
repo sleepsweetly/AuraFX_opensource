@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronRight, ChevronLeft, X } from "lucide-react"
 
-interface TutorialStep3D {
+interface TutorialStep {
   id: string
   title: string
   description: string
@@ -12,71 +12,22 @@ interface TutorialStep3D {
   highlightPadding?: number
 }
 
-const tutorialSteps3D: TutorialStep3D[] = [
-  {
-    id: "viewport",
-    title: "3D Viewport",
-    description: "This is your 3D workspace. You can rotate, zoom, and pan the scene using your mouse.",
-    targetSelector: "canvas",
-    highlightPadding: 20,
-  },
-  {
-    id: "camera-controls",
-    title: "Camera Controls",
-    description: "Rotate: Middle Mouse • Pan: Shift + Middle Mouse • Zoom: Mouse Wheel or Ctrl + Middle Mouse",
-    targetSelector: "canvas",
-    highlightPadding: 20,
-  },
-  {
-    id: "left-sidebar",
-    title: "Tools & Objects",
-    description: "Add 3D objects, import models, and access various tools. This panel contains everything you need to build your scene.",
-    targetSelector: ".fixed.left-0.top-16",
-    highlightPadding: 12,
-  },
-  {
-    id: "right-sidebar",
-    title: "Properties & Settings",
-    description: "Adjust object properties, materials, and scene settings. Select any object to see its properties here.",
-    targetSelector: ".fixed.right-0.top-16",
-    highlightPadding: 12,
-  },
-  {
-    id: "top-toolbar",
-    title: "Quick Actions",
-    description: "Access common actions like undo, redo, save, and view options. The toolbar provides quick access to essential functions.",
-    targetSelector: ".fixed.top-0.left-0.right-0.h-16",
-    highlightPadding: 12,
-  },
-  {
-    id: "object-selection",
-    title: "Object Selection",
-    description: "Click on 3D objects to select them. Selected objects can be transformed, edited, or deleted. Hold Ctrl for multi-selection.",
-    targetSelector: "canvas",
-    highlightPadding: 20,
-  },
-  {
-    id: "add-objects",
-    title: "Add Objects",
-    description: "Press Shift+A to quickly add objects to your scene. Choose from various 3D shapes and objects to build your effect.",
-    targetSelector: "canvas",
-    highlightPadding: 20,
-  },
-]
-
-interface Tutorial3DProps {
+interface TutorialWidgetProps {
+  steps: TutorialStep[]
   onComplete?: () => void
   onSkip?: () => void
   storageKey?: string
 }
 
-export default function Tutorial3D({ 
+export function TutorialWidget({ 
+  steps, 
   onComplete, 
   onSkip,
-  storageKey = "tutorial3D_completed"
-}: Tutorial3DProps) {
+  storageKey = "tutorial_completed"
+}: TutorialWidgetProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [isVisible, setIsVisible] = useState(false)
+  const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
   const [messageBoxPosition, setMessageBoxPosition] = useState({ top: 0, left: 0 })
   const messageBoxRef = useRef<HTMLDivElement>(null)
 
@@ -88,15 +39,16 @@ export default function Tutorial3D({
   }, [storageKey])
 
   useEffect(() => {
-    if (!isVisible || currentStep >= tutorialSteps3D.length) return
+    if (!isVisible || currentStep >= steps.length) return
 
     const updatePosition = () => {
-      const step = tutorialSteps3D[currentStep]
+      const step = steps[currentStep]
       const targetElement = document.querySelector(step.targetSelector)
       
       if (!targetElement) return
       
       const rect = targetElement.getBoundingClientRect()
+      setTargetRect(rect)
       
       const messageBoxWidth = 340
       const messageBoxHeight = 180
@@ -142,6 +94,14 @@ export default function Tutorial3D({
       if (step.targetSelector === 'canvas') {
         messageX = (viewportWidth - messageBoxWidth) / 2
         messageY = (viewportHeight - messageBoxHeight) / 2
+      } else if (step.targetSelector === '#layers-toggle-button') {
+        // Layers button için özel konum - biraz yukarıda
+        messageX = Math.max(padding, Math.min(viewportWidth - messageBoxWidth - padding, targetCenterX - messageBoxWidth / 2))
+        messageY = rect.top - highlightPadding - padding - messageBoxHeight - 40 // 40px daha yukarı
+      } else if (step.targetSelector === '.fixed.bottom-8.left-1\\/2') {
+        // View controls için özel konum - yukarıda
+        messageX = Math.max(padding, Math.min(viewportWidth - messageBoxWidth - padding, targetCenterX - messageBoxWidth / 2))
+        messageY = rect.top - highlightPadding - padding - messageBoxHeight - 60 // 60px daha yukarı
       } else {
         switch (bestPosition.direction) {
           case 'bottom':
@@ -185,10 +145,11 @@ export default function Tutorial3D({
       window.removeEventListener("resize", debouncedUpdate)
       window.removeEventListener("scroll", debouncedUpdate, true)
     }
-  }, [currentStep, isVisible])
+  }, [currentStep, isVisible, steps])
 
   const handleNext = () => {
-    if (currentStep < tutorialSteps3D.length - 1) {
+    if (currentStep < steps.length - 1) {
+      setTargetRect(null)
       setTimeout(() => {
         setCurrentStep(currentStep + 1)
       }, 200)
@@ -199,6 +160,7 @@ export default function Tutorial3D({
 
   const handlePrevious = () => {
     if (currentStep > 0) {
+      setTargetRect(null)
       setTimeout(() => {
         setCurrentStep(currentStep - 1)
       }, 200)
@@ -217,10 +179,10 @@ export default function Tutorial3D({
     onSkip?.()
   }
 
-  if (!isVisible || currentStep >= tutorialSteps3D.length) return null
+  if (!isVisible || currentStep >= steps.length) return null
 
-  const step = tutorialSteps3D[currentStep]
-  const progress = ((currentStep + 1) / tutorialSteps3D.length) * 100
+  const step = steps[currentStep]
+  const progress = ((currentStep + 1) / steps.length) * 100
 
   return (
     <AnimatePresence>
@@ -248,7 +210,7 @@ export default function Tutorial3D({
           <div className="relative px-5 pt-4 pb-3">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-gray-500">
-                {currentStep + 1} / {tutorialSteps3D.length}
+                {currentStep + 1} of {steps.length}
               </span>
               <button
                 onClick={handleSkip}
@@ -304,7 +266,7 @@ export default function Tutorial3D({
               onClick={handleNext}
               className="flex items-center gap-1 px-4 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-sm font-medium rounded-lg transition-all shadow-md"
             >
-              <span>{currentStep === tutorialSteps3D.length - 1 ? 'Finish' : 'Next'}</span>
+              <span>{currentStep === steps.length - 1 ? 'Finish' : 'Next'}</span>
               <ChevronRight size={16} />
             </button>
           </div>

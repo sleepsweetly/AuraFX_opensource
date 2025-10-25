@@ -117,7 +117,7 @@ export function RightSidebar({
   selectedElementIds: propSelectedElementIds, chainItems, onChainItemsChange, currentLineCount, onOptimize, onApplyTemplate,
   isRecording, onToggleRecording, activeTabOverride, onTabChange, forceExpand
 }: RightSidebarProps) {
-  const [activeTab, setActiveTab] = useState(4)
+  const [activeTab, setActiveTab] = useState(0) // 0 = Tools panel
   const [isMinimized, setIsMinimized] = useState(true)
   
   // Use store if prop is not provided

@@ -44,6 +44,7 @@ import dynamic from "next/dynamic"
 import { useEffectSessionStore } from "@/store/useEffectSessionStore"
 import { useTransferStore } from "@/store/useTransferStore"
 const GettingStarted = dynamic(() => import("@/components/getting-started"), { ssr: false })
+import { TutorialWidget } from "@/components/tutorial-widget"
 
 declare global {
   interface Window {
@@ -991,7 +992,7 @@ export default function EffectEditor() {
   const [manualFrameCount, setManualFrameCount] = useState<number | undefined>(undefined);
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
-  
+
   // Use selection store instead of local state
   const selectedElementIds = useSelectionStore((state) => state.selectedElementIds);
   const setSelectedElementIds = useSelectionStore((state) => state.setSelectedElementIds);
@@ -1001,17 +1002,6 @@ export default function EffectEditor() {
   const [showQuickSettings, setShowQuickSettings] = useState(false);
   const [showParticleModal, setShowParticleModal] = useState(false);
   const [canvasBackgroundColor, setCanvasBackgroundColor] = useState("#ffffff");
-  const [isEasterEggOpen, setIsEasterEggOpen] = useState(false);
-
-  // Listen for easter egg toggle events
-  useEffect(() => {
-    const handleEasterEggToggle = (event: CustomEvent) => {
-      setIsEasterEggOpen(event.detail.isOpen);
-    };
-
-    window.addEventListener('easterEggToggle', handleEasterEggToggle as EventListener);
-    return () => window.removeEventListener('easterEggToggle', handleEasterEggToggle as EventListener);
-  }, []);
 
   // Synchronize selectedElementIds with selectedShapeIds
   useEffect(() => {
@@ -2725,6 +2715,7 @@ export default function EffectEditor() {
 
   const [showGettingStarted, setShowGettingStarted] = useState(false);
   const [isTutorialActive, setIsTutorialActive] = useState(false);
+  const [showTutorial2D, setShowTutorial2D] = useState(false);
   const [layersPanelOpen, setLayersPanelOpen] = useState(false);
   const [canvasScale, setCanvasScale] = useState(1);
   const [viewMode, setViewMode] = useState<'top' | 'side' | 'diagonal' | 'isometric' | 'front'>('top');
@@ -2990,10 +2981,13 @@ export default function EffectEditor() {
           showGridCoordinates={showGridCoordinates}
           onToggleGridCoordinates={() => setShowGridCoordinates(!showGridCoordinates)}
           onShowChangelog={() => setOpenPanels((prev) => [...prev.filter((p) => p !== "changelog"), "changelog"])}
+          onShowTutorial={() => {
+            setShowTutorial2D(true)
+          }}
         />
 
         {/* Footer */}
-        {!isEasterEggOpen && <Footer />}
+        <Footer />
 
         {/* 3D Transfer Modal */}
         <Transfer3DModal
@@ -3022,18 +3016,16 @@ export default function EffectEditor() {
         />
 
         {/* Left Toolbar */}
-        {!isEasterEggOpen && (
-          <LeftToolbar
-            currentTool={currentTool}
-            setCurrentTool={setCurrentTool}
-            onClearCanvas={handleClearCanvas}
-            onShowQuickSettings={() => setShowQuickSettings(!showQuickSettings)}
-            onGenerateCode={() => {
-              setShowCodePanel(true);
-              generateCode(optimize);
-            }}
-          />
-        )}
+        <LeftToolbar
+          currentTool={currentTool}
+          setCurrentTool={setCurrentTool}
+          onClearCanvas={handleClearCanvas}
+          onShowQuickSettings={() => setShowQuickSettings(!showQuickSettings)}
+          onGenerateCode={() => {
+            setShowCodePanel(true);
+            generateCode(optimize);
+          }}
+        />
 
         {/* Right Sidebar */}
         <RightSidebar
@@ -3095,15 +3087,13 @@ export default function EffectEditor() {
         />
 
         {/* Top Center Toolbar */}
-        {!isEasterEggOpen && (
-          <TopCenterToolbar
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            modes={modes}
-            isRecording={storeIsRecording}
-            onToggleRecording={handleToggleRecording}
-          />
-        )}
+        <TopCenterToolbar
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          modes={modes}
+          isRecording={storeIsRecording}
+          onToggleRecording={handleToggleRecording}
+        />
 
         {/* Layers Panel */}
         <LayersPanel
@@ -3140,14 +3130,12 @@ export default function EffectEditor() {
         />
 
         {/* Bottom Status Bar */}
-        {!isEasterEggOpen && (
-          <BottomStatusBar
-            onLayersClick={() => setLayersPanelOpen(!layersPanelOpen)}
-            onZoomIn={handleZoomIn}
-            onZoomOut={handleZoomOut}
-            zoomLevel={Math.round(canvasScale * 100)}
-          />
-        )}
+        <BottomStatusBar
+          onLayersClick={() => setLayersPanelOpen(!layersPanelOpen)}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          zoomLevel={Math.round(canvasScale * 100)}
+        />
 
         <div className="flex h-screen">
           <div className="flex-1 relative flex flex-col">
@@ -3200,7 +3188,71 @@ export default function EffectEditor() {
         />
       )}
 
-
+      {/* Interactive Tutorial Widget - Only show when manually triggered */}
+      {showTutorial2D && (
+        <TutorialWidget
+          steps={[
+            {
+              id: "header",
+              title: "Welcome to AuraFX! 🎉",
+              description: "From this top menu, you can create new projects, save and open files. Access 3D editor and Wiki pages.",
+              targetSelector: ".fixed.top-4.left-4.z-40",
+              highlightPadding: 12
+            },
+            {
+              id: "left-toolbar",
+              title: "Drawing Tools",
+              description: "Your drawing tools are here! Use selection, free draw, shapes, and eraser. Code generation and clear buttons are also available.",
+              targetSelector: ".fixed.left-6.top-1\\/2",
+              highlightPadding: 12
+            },
+            {
+              id: "top-center-toolbar",
+              title: "View Controls",
+              description: "Change your view angle here! Switch between Top, Side, Front, Diagonal, and Isometric views. Also control recording mode.",
+              targetSelector: ".fixed.bottom-8.left-1\\/2",
+              highlightPadding: 12
+            },
+            {
+              id: "canvas",
+              title: "Main Canvas",
+              description: "Draw your particle effects here! Click or drag with your mouse to add elements. Track positions with grid coordinates.",
+              targetSelector: "canvas",
+              highlightPadding: 16
+            },
+            {
+              id: "right-sidebar",
+              title: "Settings Panel",
+              description: "All settings and features are here! Tools, Modes, Import, Element Config, Code and more. Click each tab to access different features.",
+              targetSelector: ".fixed.top-4.right-4.bottom-4",
+              highlightPadding: 12
+            },
+            {
+              id: "layers-panel",
+              title: "Layers Manager",
+              description: "Click this button to open the layers panel. Use layers to create and organize complex effects with multiple elements.",
+              targetSelector: "#layers-toggle-button",
+              highlightPadding: 12
+            },
+            {
+              id: "complete",
+              title: "You're Ready! 🚀",
+              description: "You're now ready to use AuraFX! Start creating your particle effects. Have fun!",
+              targetSelector: "canvas",
+              highlightPadding: 16
+            }
+          ]}
+          onComplete={() => {
+            console.log("Tutorial completed!")
+            setShowTutorial2D(false)
+          }}
+          onSkip={() => {
+            console.log("Tutorial skipped")
+            setShowTutorial2D(false)
+          }}
+          storageKey="aurafx_homepage_tutorial_v1_manual"
+        />
+      )}
 
 
 

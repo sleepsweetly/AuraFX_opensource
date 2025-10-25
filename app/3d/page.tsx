@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { use3DStore } from "./store/use3DStore"
 import { useTransferStore } from "@/store/useTransferStore"
+import Tutorial3D from "./components/Tutorial3D"
+import { HelpCircle } from "lucide-react"
 
 const Scene3DEditor = dynamic(() => import("./components/Scene3DEditor").then(mod => mod.Scene3DEditor), { ssr: false })
 const OptimizedScene3D = dynamic(() => import("./components/OptimizedScene3D").then(mod => mod.OptimizedScene3D), { ssr: false })
@@ -32,6 +34,7 @@ export default function ThreeDEditor() {
   const [useOptimizedRenderer, setUseOptimizedRenderer] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [showTutorial, setShowTutorial] = useState(false);
   const { toast } = useToast();
 
   // 3D store'dan object sayısını al
@@ -179,6 +182,10 @@ export default function ThreeDEditor() {
           }
           input.click()
         }}
+        onShowTutorial={() => {
+          localStorage.removeItem("tutorial3D_completed")
+          setShowTutorial(true)
+        }}
       />
 
       {/* Main Content Area - Full Screen */}
@@ -234,6 +241,21 @@ export default function ThreeDEditor() {
 
       {/* Toast Notifications */}
       <Toaster />
+
+      {/* Tutorial Widget for 3D Editor */}
+      {showTutorial && (
+        <Tutorial3D
+          onComplete={() => {
+            console.log("3D Tutorial completed!")
+            setShowTutorial(false)
+          }}
+          onSkip={() => {
+            console.log("3D Tutorial skipped")
+            setShowTutorial(false)
+          }}
+          storageKey="tutorial3D_completed"
+        />
+      )}
     </div>
   )
 } 

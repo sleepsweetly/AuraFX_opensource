@@ -9,7 +9,6 @@ import {
 import { ChevronDown, Hexagon, FileText, FolderOpen, Plus, Grid3X3, Box, BookOpen, Mail, HelpCircle, Shield, FileText as Terms, Info } from "lucide-react"
 import { motion, AnimatePresence, Variants } from "framer-motion"
 import { useState, useRef } from "react"
-import { EasterEggGame } from "./easter-egg-game"
 
 interface HeaderProps {
   onGenerateCode?: () => void
@@ -21,16 +20,17 @@ interface HeaderProps {
   showGridCoordinates?: boolean
   onToggleGridCoordinates?: () => void
   onShowChangelog?: () => void
+  onShowTutorial?: () => void
 }
 
 export function Header(props: HeaderProps = {}) {
-  const { onNewProject, onSave, onLoad } = props
+  const { onNewProject, onSave, onLoad, onShowTutorial } = props
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   
-  // Easter egg state
-  const [showEasterEgg, setShowEasterEgg] = useState(false)
+  // Rickroll easter egg
+  const [showRickroll, setShowRickroll] = useState(false)
   const clickCountRef = useRef(0)
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -95,7 +95,7 @@ export function Header(props: HeaderProps = {}) {
     }
   }
 
-  // Easter egg click handler
+  // Rickroll easter egg - 5 clicks within 2 seconds
   const handleLogoClick = () => {
     clickCountRef.current += 1
     
@@ -104,15 +104,10 @@ export function Header(props: HeaderProps = {}) {
       clearTimeout(clickTimeoutRef.current)
     }
     
-    // If 5 clicks within 2 seconds, show easter egg
+    // If 5 clicks within 2 seconds, rickroll!
     if (clickCountRef.current >= 5) {
-      setShowEasterEgg(true)
+      setShowRickroll(true)
       clickCountRef.current = 0
-      
-      // Hide all other components globally
-      document.body.style.overflow = 'hidden'
-      const event = new CustomEvent('easterEggToggle', { detail: { isOpen: true } })
-      window.dispatchEvent(event)
       return
     }
     
@@ -120,14 +115,6 @@ export function Header(props: HeaderProps = {}) {
     clickTimeoutRef.current = setTimeout(() => {
       clickCountRef.current = 0
     }, 2000)
-  }
-
-  // Handle easter egg close
-  const handleEasterEggClose = () => {
-    setShowEasterEgg(false)
-    document.body.style.overflow = 'auto'
-    const event = new CustomEvent('easterEggToggle', { detail: { isOpen: false } })
-    window.dispatchEvent(event)
   }
 
   return (
@@ -409,6 +396,23 @@ export function Header(props: HeaderProps = {}) {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
+                      onClick={onShowTutorial}
+                      asChild
+                    >
+                      <motion.div
+                        variants={dropdownItemVariants}
+                        whileHover={{ x: 5 }}
+                        className="w-full"
+                      >
+                        <HelpCircle className="w-4 h-4 text-purple-600" />
+                        <div>
+                          <div className="font-medium">Tutorial</div>
+                          <div className="text-xs text-gray-500">Show tutorial again</div>
+                        </div>
+                      </motion.div>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
                       onClick={() => window.location.href = '/privacy-policy'}
                       asChild
                     >
@@ -442,12 +446,45 @@ export function Header(props: HeaderProps = {}) {
           </DropdownMenu>
         </motion.div>
       </motion.div>
-      
-      {/* Easter Egg Game */}
-      <EasterEggGame 
-        isOpen={showEasterEgg} 
-        onClose={handleEasterEggClose} 
-      />
+
+      {/* Rickroll Modal */}
+      <AnimatePresence>
+        {showRickroll && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowRickroll(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 20 }}
+              className="relative w-full max-w-4xl aspect-video"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowRickroll(false)}
+                className="absolute -top-12 right-0 text-white text-4xl hover:text-gray-300 transition-colors z-10"
+              >
+                ×
+              </button>
+              <iframe
+                width="100%"
+                height="100%"
+                src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1"
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="rounded-lg shadow-2xl"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

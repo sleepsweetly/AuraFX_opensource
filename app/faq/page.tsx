@@ -280,8 +280,8 @@ export default function FAQ() {
                 key={category}
                 onClick={() => setSelectedCategory(category)}
                 className={`px-6 py-3 rounded-full font-semibold transition-all duration-300 ${selectedCategory === category
-                    ? "bg-black text-white"
-                    : "bg-gray-50 text-black border border-black/10 hover:bg-gray-100"
+                  ? "bg-black text-white"
+                  : "bg-gray-50 text-black border border-black/10 hover:bg-gray-100"
                   }`}
               >
                 {category}
