@@ -1,12 +1,10 @@
 "use client"
 
-import { useState, useEffect, ReactNode } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Heart, X } from "lucide-react"
+import { Search, Plus, X, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
 
 interface ParticleSelectModalProps {
   currentParticle: string
@@ -14,44 +12,56 @@ interface ParticleSelectModalProps {
   onClose: () => void
 }
 
-type ParticleCategory = {
-  name: string
-  icon: ReactNode
-  particles: string[]
-}
-
-type ParticleCategories = {
-  [key: string]: ParticleCategory
-}
-
 const PARTICLES_URL = "https://raw.githubusercontent.com/Lxlp38/MythicScribe/refs/heads/master/data/mythic/particles.json"
 
 export function ParticleSelectModal({ currentParticle, onSelectParticle, onClose }: ParticleSelectModalProps) {
   const [searchTerm, setSearchTerm] = useState("")
-  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
   const [newParticle, setNewParticle] = useState("")
   const [fetchedParticles, setFetchedParticles] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [customParticles, setCustomParticles] = useState<string[]>([])
 
-  // Fetch particles from GitHub on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('aurafx_custom_particles')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          setCustomParticles(parsed)
+        } catch (e) {
+          setCustomParticles([])
+        }
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (customParticles.length > 0) {
+        localStorage.setItem('aurafx_custom_particles', JSON.stringify(customParticles))
+      } else {
+        localStorage.removeItem('aurafx_custom_particles')
+      }
+    }
+  }, [customParticles])
+
   useEffect(() => {
     async function fetchParticles() {
       setLoading(true)
-      setError(null)
       try {
         const res = await fetch(PARTICLES_URL)
+        if (!res.ok) throw new Error('Network error')
         const data = await res.json()
-        // Flatten all unique particle names from the JSON
         const names = new Set<string>()
         Object.values(data).forEach((entry: any) => {
           if (Array.isArray(entry?.name)) {
             entry.name.forEach((n: string) => names.add(n))
           }
         })
-        setFetchedParticles(Array.from(names))
+        setFetchedParticles(Array.from(names).sort())
       } catch (e) {
-        setError("Failed to load particles.")
+        console.error('Failed to load particles')
       } finally {
         setLoading(false)
       }
@@ -59,32 +69,7 @@ export function ParticleSelectModal({ currentParticle, onSelectParticle, onClose
     fetchParticles()
   }, [])
 
-  const [customParticles, setCustomParticles] = useState<string[]>(() => {
-    // localStorage'dan custom particle'ları yükle
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('aurafx_custom_particles')
-      if (saved) {
-        try {
-          return JSON.parse(saved)
-        } catch (e) {
-          return []
-        }
-      }
-    }
-    return []
-  })
-
-  // Custom particle'lar değiştiğinde localStorage'a kaydet
-  useEffect(() => {
-    if (typeof window !== 'undefined' && customParticles.length > 0) {
-      localStorage.setItem('aurafx_custom_particles', JSON.stringify(customParticles))
-    }
-  }, [customParticles])
-
-  // Merge fetched and custom particles
-  const allParticles = [...fetchedParticles, ...customParticles]
-
-  // Filter by search
+  const allParticles = [...new Set([...fetchedParticles, ...customParticles])].sort()
   const filteredParticles = allParticles.filter((particle) =>
     particle.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -97,166 +82,201 @@ export function ParticleSelectModal({ currentParticle, onSelectParticle, onClose
   const handleAddParticle = () => {
     const trimmedParticle = newParticle.trim()
     if (trimmedParticle && !allParticles.includes(trimmedParticle)) {
-      setCustomParticles([...customParticles, trimmedParticle])
+      setCustomParticles(prev => [...prev, trimmedParticle])
       setNewParticle("")
-      setShowAddDialog(false)
-      // Eklenen particle'ı otomatik seç
-      onSelectParticle(trimmedParticle)
-      onClose()
+      setShowAddModal(false)
     }
   }
 
+  const handleRemoveCustomParticle = (particle: string) => {
+    setCustomParticles(prev => prev.filter(p => p !== particle))
+  }
+
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] bg-white border-gray-200 z-[99999990]">
-        <DialogHeader>
-          <DialogTitle className="text-gray-900 flex items-center gap-2">
-            <Heart className="w-5 h-5" />
-            Particle Selection
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search particles..."
-            className="pl-9 bg-white border-gray-300 text-gray-900 h-9"
-          />
-        </div>
-
-        {/* Loading/Error State */}
-        {loading ? (
-          <div className="text-gray-500 text-center py-4">Loading particles...</div>
-        ) : error ? (
-          <div className="text-red-600 text-center py-4">{error}</div>
-        ) : (
-          <ScrollArea 
-            className="h-[200px] rounded-md border border-gray-200 scroll-contain"
-            onWheel={(e) => e.stopPropagation()}
-          >
-            <div className="grid grid-cols-1 gap-2 p-2">
-              {filteredParticles.map((particle) => {
-                const isCustom = customParticles.includes(particle)
-                return (
-                  <div
-                    key={particle}
-                    className={`p-4 rounded-md cursor-pointer transition-colors min-h-[48px] flex items-center ${
-                      particle === currentParticle
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-50 hover:bg-gray-100 text-gray-900"
-                    }`}
-                    style={{ fontSize: '1.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                  >
-                    <div className="flex items-center justify-between w-full gap-2">
-                      <span 
-                        className="font-semibold truncate flex-1"
-                        onClick={() => handleSelect(particle)}
-                      >
-                        {particle}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {isCustom && (
-                          <>
-                            <Badge variant="outline" className={`text-xs ${
-                              particle === currentParticle 
-                                ? "border-white text-white" 
-                                : "border-purple-500 text-purple-700"
-                            }`}>
-                              Custom
-                            </Badge>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setCustomParticles(customParticles.filter(p => p !== particle))
-                                // localStorage'dan da sil
-                                const updated = customParticles.filter(p => p !== particle)
-                                if (typeof window !== 'undefined') {
-                                  if (updated.length > 0) {
-                                    localStorage.setItem('aurafx_custom_particles', JSON.stringify(updated))
-                                  } else {
-                                    localStorage.removeItem('aurafx_custom_particles')
-                                  }
-                                }
-                              }}
-                              className={`p-1 rounded hover:bg-red-100 transition-colors ${
-                                particle === currentParticle ? "text-white hover:bg-red-500" : "text-red-600"
-                              }`}
-                              title="Remove custom particle"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </>
-                        )}
-                        {particle === currentParticle && (
-                          <Badge variant="secondary" className="bg-blue-500 text-xs">Selected</Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
+    <>
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent className="w-[600px] bg-white rounded-lg shadow-xl border border-gray-200 p-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Particle Effects</DialogTitle>
+          </DialogHeader>
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Particle Effects</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {currentParticle ? `Selected: ${currentParticle}` : 'No effect selected'}
+              </p>
             </div>
-          </ScrollArea>
-        )}
-
-        {/* Add Custom Particle */}
-        <div className="flex justify-between items-center">
-          <Button
-            onClick={() => setShowAddDialog(true)}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Add Custom Particle
-          </Button>
-          <span className="text-gray-500 text-sm">
-            {filteredParticles.length} particles found
-          </span>
-        </div>
-
-        {/* Add Particle Dialog */}
-        {showAddDialog && (
-          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-            <DialogContent 
-              className="sm:max-w-[425px] bg-white border-gray-200"
-              style={{ zIndex: 99999999 }}
+            <Button
+              onClick={onClose}
+              variant="ghost"
+              size="sm"
+              className="w-8 h-8 p-0 hover:bg-gray-100 rounded"
             >
-              <DialogHeader>
-                <DialogTitle className="text-gray-900">Add Custom Particle</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-600">Particle Name</label>
-                  <Input
-                    value={newParticle}
-                    onChange={(e) => setNewParticle(e.target.value)}
-                    placeholder="Enter particle name..."
-                    className="bg-white border-gray-300 text-gray-900"
-                    autoFocus
-                  />
+              <X className="w-4 h-4 text-gray-600" />
+            </Button>
+          </div>
+
+          {/* Search */}
+          <div className="p-5 pb-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search particles..."
+                className="pl-10 h-10 bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-md focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
+              />
+            </div>
+          </div>
+
+          {/* Particles List */}
+          <div className="px-5 pb-5">
+            <div className="h-[360px] overflow-hidden">
+              {loading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin"></div>
                 </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowAddDialog(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleAddParticle}
-                    disabled={!newParticle.trim() || allParticles.includes(newParticle.trim())}
-                  >
-                    Add Particle
-                  </Button>
+              ) : (
+                <div className="h-full overflow-y-auto pr-1">
+                  {filteredParticles.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <p className="text-sm">No particles found</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {filteredParticles.map((particle) => {
+                        const isCustom = customParticles.includes(particle)
+                        const isSelected = particle === currentParticle
+                        return (
+                          <div
+                            key={particle}
+                            onClick={() => handleSelect(particle)}
+                            className={`group flex items-center justify-between px-3 py-2.5 rounded cursor-pointer transition-colors ${isSelected
+                              ? "bg-gray-900 text-white"
+                              : "hover:bg-gray-50 text-gray-900"
+                              }`}
+                          >
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <span className="text-sm font-medium truncate">{particle}</span>
+                              {isCustom && (
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${isSelected
+                                  ? "bg-gray-800 text-gray-300"
+                                  : "bg-gray-100 text-gray-600"
+                                  }`}>
+                                  custom
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              {isCustom && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleRemoveCustomParticle(particle)
+                                  }}
+                                  className={`p-1 rounded transition-opacity opacity-0 group-hover:opacity-100 ${isSelected
+                                    ? "hover:bg-gray-800 text-white/70"
+                                    : "hover:bg-red-50 text-red-500"
+                                    }`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {isSelected && (
+                                <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 border-t border-gray-100">
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="h-9 px-3 bg-gray-900 hover:bg-gray-800 text-white rounded-md text-sm"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Add Custom
+            </Button>
+            <span className="text-xs text-gray-500">
+              {filteredParticles.length} items
+            </span>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Modal */}
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="w-[420px] bg-white rounded-lg shadow-xl border border-gray-200 p-0" style={{ backgroundColor: '#ffffff' }}>
+          <DialogHeader className="sr-only">
+            <DialogTitle>Add Custom Particle</DialogTitle>
+          </DialogHeader>
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-900">Add Custom Particle</h3>
+              <Button
+                onClick={() => {
+                  setShowAddModal(false)
+                  setNewParticle("")
+                }}
+                variant="ghost"
+                size="sm"
+                className="w-7 h-7 p-0 hover:bg-gray-100 rounded"
+              >
+                <X className="w-3.5 h-3.5 text-gray-600" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <Input
+                value={newParticle}
+                onChange={(e) => setNewParticle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddParticle()
+                  if (e.key === 'Escape') {
+                    setShowAddModal(false)
+                    setNewParticle("")
+                  }
+                }}
+                placeholder="Particle name..."
+                className="w-full h-9 bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-md focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
+                style={{ backgroundColor: '#ffffff' }}
+                autoFocus
+              />
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleAddParticle}
+                  disabled={!newParticle.trim() || allParticles.includes(newParticle.trim())}
+                  className="flex-1 h-9 bg-gray-900 hover:bg-gray-800 text-white rounded-md text-sm"
+                >
+                  Add
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowAddModal(false)
+                    setNewParticle("")
+                  }}
+                  variant="outline"
+                  className="flex-1 h-9 bg-white border-gray-200 text-gray-700 hover:bg-white hover:border-gray-300 rounded-md text-sm"
+                  style={{ backgroundColor: '#ffffff' }}
+                >
+                  Cancel
+                </Button>
               </div>
-            </DialogContent>
-          </Dialog>
-        )}
-      </DialogContent>
-    </Dialog>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
