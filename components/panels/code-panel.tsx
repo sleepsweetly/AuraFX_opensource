@@ -21,11 +21,14 @@ import {
   Braces,
   Terminal,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Share2
 } from "lucide-react"
 import type { Layer } from "@/types"
 import { useToast } from "@/components/toast-system"
 import { DatapackWarningModal } from "@/components/datapack-warning-modal"
+import { shareEffect } from "@/app/generate-effect-code"
+import { ElasticSlider } from "@/components/ui/elastic-slider"
 
 interface CodePanelProps {
   code?: string
@@ -286,7 +289,8 @@ export function CodePanel({
   },
   onFrameSettingsChange = () => { },
   optimize = false,
-  setOptimize = () => { }
+  setOptimize = () => { },
+  layers = []
 }: CodePanelProps) {
   const [copied, setCopied] = useState(false)
   const [showCode, setShowCode] = useState(true)
@@ -299,6 +303,7 @@ export function CodePanel({
   const [showPackMcmeta, setShowPackMcmeta] = useState(false)
   const [useRelativeCoords, setUseRelativeCoords] = useState(settings?.useRelativeCoords !== false)
   const [useExecute, setUseExecute] = useState(settings?.useExecute !== false)
+  const [isSharing, setIsSharing] = useState(false)
   const { toast } = useToast()
 
   const hasAnimationModes = Object.values(modes).some(Boolean)
@@ -434,6 +439,63 @@ export function CodePanel({
   const handleExecuteChange = (execute: boolean) => {
     setUseExecute(execute)
     onSettingsChange({ ...settings, useExecute: execute })
+  }
+
+  const handleShare = async () => {
+    if (!code || code.trim() === "") {
+      toast({
+        title: "Error",
+        description: "No code to share. Generate code first.",
+        variant: "destructive",
+        duration: 2000,
+      })
+      return
+    }
+
+    setIsSharing(true)
+    
+    try {
+      // Karmaşıklık hesapla
+      const totalElements = layers?.reduce((sum: number, layer: Layer) => sum + layer.elements.length, 0) || 0
+      const activeModesList = Object.entries(modes).filter(([_, value]) => value === true).map(([key]) => key)
+      let complexity: 'Basit' | 'Orta' | 'Karmaşık' = 'Basit'
+      if (totalElements > 50 || activeModesList.length > 3) complexity = 'Orta'
+      if (totalElements > 100 || activeModesList.length > 5) complexity = 'Karmaşık'
+
+      const result = await shareEffect({
+        skillName: settings.skillName || "Unnamed Effect",
+        code: code,
+        layerCount: layers?.length || 0,
+        elementCount: totalElements,
+        activeModes: activeModesList,
+        complexity: complexity,
+        canvasImage: null
+      })
+
+      if (result.success) {
+        toast({
+          title: "Shared Successfully",
+          description: "Effect has been shared to Discord",
+          duration: 3000,
+        })
+      } else {
+        toast({
+          title: "Share Failed",
+          description: result.error || "Failed to share effect",
+          variant: "destructive",
+          duration: 3000,
+        })
+      }
+    } catch (error: any) {
+      toast({
+        title: "Share Failed",
+        description: error.message || "Failed to share effect",
+        variant: "destructive",
+        duration: 3000,
+      })
+    } finally {
+      setIsSharing(false)
+    }
   }
 
   const handleCopyPackMcmeta = async () => {
@@ -603,18 +665,20 @@ export function CodePanel({
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-600">Frames</span>
-                <span className="text-xs font-mono bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                <span className="text-xs font-mono bg-gray-800 text-white px-1.5 py-0.5 rounded">
                   {manualFrameCount}
                 </span>
               </div>
-              <input
-                type="range"
-                min={12}
-                max={240}
-                step={6}
-                value={manualFrameCount}
-                onChange={(e) => handleManualFrameChange(Number(e.target.value))}
-                className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              <ElasticSlider
+                defaultValue={manualFrameCount}
+                onChange={(v) => handleManualFrameChange(v)}
+                startingValue={12}
+                maxValue={240}
+                stepSize={6}
+                isStepped={true}
+                size="md"
+                leftIcon={<span className="text-xs">12</span>}
+                rightIcon={<span className="text-xs">240</span>}
               />
             </div>
           )}
@@ -674,6 +738,19 @@ export function CodePanel({
         >
           <Download className="w-3.5 h-3.5" />
           Save
+        </button>
+
+        <button
+          onClick={handleShare}
+          disabled={!code || isGenerating || isSharing}
+          className="flex-1 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
+        >
+          {isSharing ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Share2 className="w-3.5 h-3.5" />
+          )}
+          {isSharing ? "Sharing..." : "Share"}
         </button>
       </div>
 

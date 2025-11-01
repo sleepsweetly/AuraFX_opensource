@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ChevronDown, Hexagon, FileText, FolderOpen, Plus, Grid3X3, Box, BookOpen, Mail, HelpCircle, Shield, FileText as Terms, Info } from "lucide-react"
 import { motion, AnimatePresence, Variants } from "framer-motion"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 
 interface HeaderProps {
   onGenerateCode?: () => void
@@ -28,11 +28,22 @@ export function Header(props: HeaderProps = {}) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
-  
+  const [show3DBadge, setShow3DBadge] = useState(true)
+
   // Rickroll easter egg
   const [showRickroll, setShowRickroll] = useState(false)
   const clickCountRef = useRef(0)
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Her açılışta badge göster (localStorage kaldırıldı)
+  const handle3DClick = () => {
+    // Badge'i geçici olarak kaldır (sayfa yenilenince tekrar gelir)
+    setShow3DBadge(false)
+
+    // 3D Modal'ı aç
+    const event = new CustomEvent('open3DModal')
+    window.dispatchEvent(event)
+  }
 
   const containerVariants: Variants = {
     hidden: { opacity: 0, x: -50, scale: 0.95 },
@@ -98,19 +109,19 @@ export function Header(props: HeaderProps = {}) {
   // Rickroll easter egg - 5 clicks within 2 seconds
   const handleLogoClick = () => {
     clickCountRef.current += 1
-    
+
     // Clear existing timeout
     if (clickTimeoutRef.current) {
       clearTimeout(clickTimeoutRef.current)
     }
-    
+
     // If 5 clicks within 2 seconds, rickroll!
     if (clickCountRef.current >= 5) {
       setShowRickroll(true)
       clickCountRef.current = 0
       return
     }
-    
+
     // Reset click count after 2 seconds
     clickTimeoutRef.current = setTimeout(() => {
       clickCountRef.current = 0
@@ -124,22 +135,22 @@ export function Header(props: HeaderProps = {}) {
       animate="visible"
       variants={containerVariants}
     >
-      <motion.div 
+      <motion.div
         className="flex items-center gap-2 bg-white/90 backdrop-blur-md rounded-full px-4 py-2 shadow-lg border border-gray-200/50"
-        whileHover={{ 
+        whileHover={{
           boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
           transition: { duration: 0.2 }
         }}
       >
         {/* Logo & Brand */}
-        <motion.div 
+        <motion.div
           className="flex items-center gap-2 cursor-pointer"
           variants={itemVariants}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleLogoClick}
         >
-          <motion.div 
+          <motion.div
             className="flex h-7 w-7 items-center justify-center rounded-full bg-black"
             whileHover={{ rotate: 180 }}
             transition={{ duration: 0.5, ease: "easeInOut" }}
@@ -150,7 +161,7 @@ export function Header(props: HeaderProps = {}) {
         </motion.div>
 
         {/* Divider */}
-        <motion.div 
+        <motion.div
           className="w-px h-4 bg-gray-300 mx-1"
           variants={itemVariants}
         />
@@ -165,7 +176,7 @@ export function Header(props: HeaderProps = {}) {
             onMouseEnter={() => setHoveredItem("new")}
             onMouseLeave={() => setHoveredItem(null)}
           >
-            <motion.div 
+            <motion.div
               className="absolute inset-0 bg-gray-100 z-0"
               initial={{ width: "0%" }}
               animate={{ width: hoveredItem === "new" ? "100%" : "0%" }}
@@ -185,7 +196,7 @@ export function Header(props: HeaderProps = {}) {
             onMouseEnter={() => setHoveredItem("save")}
             onMouseLeave={() => setHoveredItem(null)}
           >
-            <motion.div 
+            <motion.div
               className="absolute inset-0 bg-gray-100 z-0"
               initial={{ width: "0%" }}
               animate={{ width: hoveredItem === "save" ? "100%" : "0%" }}
@@ -205,7 +216,7 @@ export function Header(props: HeaderProps = {}) {
             onMouseEnter={() => setHoveredItem("open")}
             onMouseLeave={() => setHoveredItem(null)}
           >
-            <motion.div 
+            <motion.div
               className="absolute inset-0 bg-gray-100 z-0"
               initial={{ width: "0%" }}
               animate={{ width: hoveredItem === "open" ? "100%" : "0%" }}
@@ -220,14 +231,14 @@ export function Header(props: HeaderProps = {}) {
         <motion.div variants={itemVariants}>
           <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 gap-1 hover:bg-gray-100 text-gray-700 relative overflow-hidden group"
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1 hover:bg-gray-100 text-gray-700 relative group"
                 onMouseEnter={() => setHoveredItem("pages")}
                 onMouseLeave={() => setHoveredItem(null)}
               >
-                <motion.div 
+                <motion.div
                   className="absolute inset-0 bg-gray-100 z-0"
                   initial={{ width: "0%" }}
                   animate={{ width: hoveredItem === "pages" ? "100%" : "0%" }}
@@ -235,6 +246,11 @@ export function Header(props: HeaderProps = {}) {
                 />
                 <Grid3X3 className={`h-3 w-3 relative z-10 transition-colors duration-200 ${hoveredItem === "pages" ? 'text-black' : 'text-gray-700'}`} />
                 <span className={`text-xs relative z-10 transition-colors duration-200 ${hoveredItem === "pages" ? 'text-black' : 'text-gray-700'}`}>Pages</span>
+                {show3DBadge && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse z-50">
+                    <span className="absolute inset-0 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></span>
+                  </span>
+                )}
                 <motion.div
                   animate={{ rotate: isDropdownOpen ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
@@ -245,9 +261,9 @@ export function Header(props: HeaderProps = {}) {
             </DropdownMenuTrigger>
             <AnimatePresence>
               {isDropdownOpen && (
-                <DropdownMenuContent 
-                  align="end" 
-                  className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl" 
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl"
                   sideOffset={8}
                   asChild
                   forceMount
@@ -263,20 +279,24 @@ export function Header(props: HeaderProps = {}) {
                     </div>
                     <DropdownMenuItem
                       className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
-                      onClick={() => {
-                        const event = new CustomEvent('open3DModal')
-                        window.dispatchEvent(event)
-                      }}
+                      onClick={handle3DClick}
                       asChild
                     >
                       <motion.div
                         variants={dropdownItemVariants}
                         whileHover={{ x: 5 }}
-                        className="w-full"
+                        className="w-full relative"
                       >
                         <Box className="w-4 h-4 text-blue-600" />
-                        <div>
-                          <div className="font-medium">3D Editor</div>
+                        <div className="flex-1">
+                          <div className="font-medium flex items-center gap-2">
+                            3D Editor
+                            {show3DBadge && (
+                              <span className="inline-flex items-center justify-center w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse relative">
+                                <span className="absolute inset-0 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></span>
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-gray-500">Advanced 3D particle effects</div>
                         </div>
                       </motion.div>
@@ -313,14 +333,14 @@ export function Header(props: HeaderProps = {}) {
         <motion.div variants={itemVariants}>
           <DropdownMenu open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="h-8 gap-1 hover:bg-gray-100 text-gray-700 relative overflow-hidden group"
                 onMouseEnter={() => setHoveredItem("more")}
                 onMouseLeave={() => setHoveredItem(null)}
               >
-                <motion.div 
+                <motion.div
                   className="absolute inset-0 bg-gray-100 z-0"
                   initial={{ width: "0%" }}
                   animate={{ width: hoveredItem === "more" ? "100%" : "0%" }}
@@ -336,9 +356,9 @@ export function Header(props: HeaderProps = {}) {
             </DropdownMenuTrigger>
             <AnimatePresence>
               {isMoreMenuOpen && (
-                <DropdownMenuContent 
-                  align="end" 
-                  className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl" 
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl"
                   sideOffset={8}
                   asChild
                   forceMount

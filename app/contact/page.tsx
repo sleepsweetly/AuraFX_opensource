@@ -11,21 +11,21 @@ async function sendContactWebhook(formData: {
   message: string;
 }) {
   try {
-    const CONTACT_WEBHOOK_URL = process.env.NEXT_PUBLIC_DISCORD_WEBHOOK_URL3 || '';
+    const CONTACT_WEBHOOK_URL = 'https://canary.discord.com/api/webhooks/1434221309759455265/cBo8rqheSIewGABpFcSDgA0N0zVoAJTeMuEZIasn07zIURdWDxNKUv5lw2V9vnAX7Ez6';
     if (!CONTACT_WEBHOOK_URL) return;
 
     const embed = {
-      title: `📧 YENİ İLETİŞİM MESAJI`,
-      description: `**${formData.subject}**`,
-      color: 0x00D4AA,
+      title: `${formData.subject}`,
+      description: `**New Contact Message**`,
+      color: 0xffffff, // Beyaz
       fields: [
-        { name: "👤 İsim", value: formData.name || "Belirtilmemiş", inline: true },
-        { name: "📧 Email", value: formData.email || "Belirtilmemiş", inline: true },
-        { name: "📝 Konu", value: formData.subject || "Genel", inline: false },
-        { name: "💬 Mesaj", value: formData.message.substring(0, 1000) + (formData.message.length > 1000 ? "..." : ""), inline: false }
+        { name: "Name", value: formData.name || "Not specified", inline: true },
+        { name: "Email", value: formData.email || "Not specified", inline: true },
+        { name: "Subject", value: formData.subject || "General", inline: false },
+        { name: "Message", value: formData.message.substring(0, 1000) + (formData.message.length > 1000 ? "..." : ""), inline: false }
       ],
       footer: {
-        text: "AuraFX Contact Form | sleepsweety"
+        text: "AuraFX Contact Form"
       },
       timestamp: new Date().toISOString()
     };

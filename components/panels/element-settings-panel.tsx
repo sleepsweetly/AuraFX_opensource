@@ -236,13 +236,13 @@ export function ElementSettingsPanel({
                       <ElasticSlider
                         defaultValue={selectedLayer.alpha}
                         onChange={(v) => onUpdateLayer(selectedLayer.id, { alpha: v })}
-                        startingValue={0}
-                        maxValue={1}
-                        stepSize={0.1}
+                        startingValue={1}
+                        maxValue={1000}
+                        stepSize={1}
                         isStepped={true}
                         size="md"
-                        leftIcon={<span className="text-xs">0</span>}
-                        rightIcon={<span className="text-xs">1</span>}
+                        leftIcon={<span className="text-xs">1</span>}
+                        rightIcon={<span className="text-xs">1000</span>}
                       />
                     </div>
 
@@ -263,13 +263,13 @@ export function ElementSettingsPanel({
                       <ElasticSlider
                         defaultValue={selectedLayer.yOffset}
                         onChange={(v) => onUpdateLayer(selectedLayer.id, { yOffset: v })}
-                        startingValue={-10}
-                        maxValue={10}
+                        startingValue={-20}
+                        maxValue={20}
                         stepSize={0.1}
                         isStepped={true}
                         size="md"
-                        leftIcon={<span className="text-xs">-10</span>}
-                        rightIcon={<span className="text-xs">10</span>}
+                        leftIcon={<span className="text-xs">-20</span>}
+                        rightIcon={<span className="text-xs">20</span>}
                       />
                     </div>
 

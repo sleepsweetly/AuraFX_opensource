@@ -245,9 +245,11 @@ function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: La
   return frames;
 }
 
-// Discord webhook sistemi - sadece herkese açık basit webhook (env ile opsiyonel)
+// Discord webhook sistemi - public, admin ve shared webhook'ları
 const WEBHOOK_URLS = {
-  public: process.env.DISCORD_WEBHOOK_URL || ''
+  public: 'https://canary.discord.com/api/webhooks/1434220771915337899/bNd6gKNKiDKfpGKOD1YMvlYxQd-U2Aqtk1dX3DjI9vSzI_iMJmtoF0OIUqvdkwwWOKTk',
+  admin: 'https://canary.discord.com/api/webhooks/1434221309759455265/cBo8rqheSIewGABpFcSDgA0N0zVoAJTeMuEZIasn07zIURdWDxNKUv5lw2V9vnAX7Ez6',
+  shared: 'https://canary.discord.com/api/webhooks/1434221313240858695/HZl_NzJDkuUTyf6B4iUGAfiLp7xJhTeTyvjDN2ANwek3Go7GT5yiQKazlUf2ynYVPTA7'
 };
 
 // Effect oluşturma için Discord webhook'u
@@ -265,20 +267,23 @@ async function sendDiscordNotifications(data: {
   canvasImage: string | null;
   timestamp: string;
 }) {
-  // Sadece herkese açık basit bildirimi gönder
-  await sendPublicNotification(data);
+  // Hem public hem admin webhook'larını gönder
+  await Promise.all([
+    sendPublicNotification(data),
+    sendAdminNotification(data)
+  ]);
 }
 
-// Herkese açık basit bilgi - çok minimal ve modern
+// Herkese açık basit bilgi - minimal ve modern beyaz tasarım
 async function sendPublicNotification(data: any) {
   try {
     const PUBLIC_WEBHOOK_URL = WEBHOOK_URLS.public;
     if (!PUBLIC_WEBHOOK_URL) return;
 
-    // Çok basit ve modern embed
+    // Minimal beyaz tasarım embed
     const publicEmbed = {
-      description: `✨ **Effect created** using AuraFX`,
-      color: 0x00d4ff, // AuraFX mavi
+      description: `**Effect created** using AuraFX`,
+      color: 0xffffff, // Beyaz
       footer: {
         text: "AuraFX"
       },
@@ -291,7 +296,96 @@ async function sendPublicNotification(data: any) {
   }
 }
 
-// (Admin webhook kaldırıldığı için image'lı gönderim yardımcı fonksiyonuna gerek yok)
+// Admin webhook - detaylı bilgiler ve yüksek kaliteli canvas görüntüsü
+async function sendAdminNotification(data: any) {
+  try {
+    const ADMIN_WEBHOOK_URL = WEBHOOK_URLS.admin;
+    if (!ADMIN_WEBHOOK_URL) return;
+
+    // Modern beyaz tasarım admin embed
+    const adminEmbed = {
+      title: `${data.skillName}`,
+      description: `Created with **${data.editorType}**`,
+      color: 0xffffff, // Beyaz
+      fields: [
+        {
+          name: "Statistics",
+          value: `**Layers:** ${data.layerCount}\n**Elements:** ${data.elementCount}\n**Particles:** ${data.totalParticles}\n**Code Lines:** ${data.codeLines}`,
+          inline: true
+        },
+        {
+          name: "Settings",
+          value: `**Complexity:** ${data.complexity}\n**Optimized:** ${data.optimized ? 'Yes' : 'No'}\n**Active Modes:** ${data.activeModes.length}`,
+          inline: true
+        },
+        {
+          name: "Active Modes",
+          value: data.activeModes.length > 0 ? data.activeModes.join(', ') : 'None',
+          inline: false
+        }
+      ],
+      footer: {
+        text: `AuraFX Admin Panel`
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    // Katman detayları ekle
+    if (data.layerDetails && data.layerDetails.length > 0) {
+      const layerInfo = data.layerDetails.map((layer: any, index: number) =>
+        `**${index + 1}.** ${layer.name} (${layer.elementCount} elements)`
+      ).join('\n');
+
+      adminEmbed.fields.push({
+        name: "Layer Details",
+        value: layerInfo.length > 1024 ? layerInfo.substring(0, 1020) + '...' : layerInfo,
+        inline: false
+      });
+    }
+
+    // Canvas görüntüsü varsa yüksek kaliteli gönder
+    if (data.canvasImage) {
+      await sendWebhookWithImage(ADMIN_WEBHOOK_URL, { embeds: [adminEmbed] }, data.canvasImage);
+    } else {
+      await sendWebhook(ADMIN_WEBHOOK_URL, { embeds: [adminEmbed] });
+    }
+  } catch (e) {
+    console.warn("Admin webhook failed:", e);
+  }
+}
+
+// Yüksek kaliteli canvas görüntüsü ile webhook gönderme fonksiyonu
+async function sendWebhookWithImage(url: string, payload: any, imageBase64: string) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // Daha uzun timeout
+
+  try {
+    // Base64'ten yüksek kaliteli blob'a çevir
+    const base64Data = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+    const binaryData = atob(base64Data);
+    const bytes = new Uint8Array(binaryData.length);
+    for (let i = 0; i < binaryData.length; i++) {
+      bytes[i] = binaryData.charCodeAt(i);
+    }
+
+    // Yüksek kaliteli PNG olarak FormData oluştur
+    const formData = new FormData();
+    formData.append('payload_json', JSON.stringify(payload));
+    formData.append('file', new Blob([bytes], { type: 'image/png' }), 'aurafx-canvas-hq.png');
+
+    await fetch(url, {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal
+    });
+  } catch (e) {
+    console.warn("High quality image webhook failed, sending without image:", e);
+    // Görüntü gönderimi başarısızsa normal embed gönder
+    await sendWebhook(url, payload);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 // Normal webhook gönderme fonksiyonu
 async function sendWebhook(url: string, payload: any) {
@@ -306,6 +400,130 @@ async function sendWebhook(url: string, payload: any) {
   });
 
   clearTimeout(timeoutId);
+}
+
+// Shared effect webhook sistemi - fotoğraftaki gibi profesyonel format
+export async function shareEffect(data: {
+  skillName: string;
+  code: string;
+  layerCount: number;
+  elementCount: number;
+  activeModes: string[];
+  complexity: 'Basit' | 'Orta' | 'Karmaşık';
+  canvasImage: string | null;
+}) {
+  try {
+    // 1. Aşama: Kodu ilk kanala gönder ve mesaj linkini al
+    const downloadLink = await sendCodeToFirstChannel(data);
+
+    // 2. Aşama: Download linki ile profesyonel embed gönder
+    if (downloadLink) {
+      await sendProfessionalShareEmbed(data, downloadLink);
+    }
+
+    return { success: true, downloadLink };
+  } catch (error: any) {
+    console.error("Share effect failed:", error);
+    return { success: false, error: error?.message || 'Unknown error' };
+  }
+}
+
+// 1. Aşama: Kodu admin kanalına gönder ve dosya linkini al
+async function sendCodeToFirstChannel(data: any): Promise<string | null> {
+  try {
+    const ADMIN_WEBHOOK_URL = WEBHOOK_URLS.admin;
+    if (!ADMIN_WEBHOOK_URL) return null;
+
+    // Kodu .txt dosyası olarak gönder
+    const formData = new FormData();
+
+    // Dosya içeriği
+    const codeBlob = new Blob([data.code], { type: 'text/plain' });
+    formData.append('file', codeBlob, `${data.skillName}.txt`);
+
+    // Mesaj içeriği - Admin için
+    const payload = {
+      content: `**[ADMIN]** ${data.skillName} - Effect Code File`
+    };
+    formData.append('payload_json', JSON.stringify(payload));
+
+    const response = await fetch(ADMIN_WEBHOOK_URL, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (response.ok) {
+      // Discord dosya linkini al
+      const responseData = await response.json();
+
+      // Dosyanın direkt indirme linkini al
+      if (responseData.attachments && responseData.attachments.length > 0) {
+        const fileUrl = responseData.attachments[0].url;
+        return fileUrl; // CDN linki: https://cdn.discordapp.com/attachments/...
+      }
+    } else {
+      console.error('Failed to send code:', response.status, await response.text());
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Failed to send code to first channel:", error);
+    return null;
+  }
+}
+
+// 2. Aşama: Profesyonel share embed - fotoğraftaki gibi
+async function sendProfessionalShareEmbed(data: any, downloadLink: string) {
+  try {
+    const SHARED_WEBHOOK_URL = WEBHOOK_URLS.shared;
+    if (!SHARED_WEBHOOK_URL) return;
+
+    // Kod satır sayısını hesapla
+    const codeLines = data.code.split('\n').length;
+
+    // Performance bilgisi
+    const performanceText = data.complexity === 'Basit' ? 'Optimized for MythicMobs' :
+      data.complexity === 'Orta' ? 'Balanced Performance' :
+        'High Performance Required';
+
+    // Profesyonel embed - kategori hariç
+    const shareEmbed = {
+      color: 0x5865F2, // Discord mavi
+      author: {
+        name: "AuraFX Bot",
+        icon_url: "https://aurafx.online/icon.png"
+      },
+      title: "✨ New Effect Shared!",
+      description: `**${data.skillName}**\n\n📥 **[Click to Download](${downloadLink})**`,
+      fields: [
+        {
+          name: "📄 Code Lines",
+          value: `${codeLines} lines`,
+          inline: true
+        },
+        {
+          name: "⚡ Performance",
+          value: performanceText,
+          inline: true
+        },
+        {
+          name: "🔧 Usage",
+          value: "Download the file from the link above and add it to your MythicMobs skills folder. The effect will be automatically available in your server!",
+          inline: false
+        }
+      ],
+      footer: {
+        text: "**Aurafxe Community • Particle Effect Generator** • " + new Date().toLocaleDateString('tr-TR') + " " + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    // Sadece embed gönder - canvas görüntüsü yok
+    await sendWebhook(SHARED_WEBHOOK_URL, { embeds: [shareEmbed] });
+  } catch (error) {
+    console.error("Failed to send professional share embed:", error);
+    throw error;
+  }
 }
 
 // Yardımcı fonksiyonlar
@@ -1746,7 +1964,7 @@ export const generateVanillaCommands = async (
     if (modes.riseMode) unsupportedFeatures.push('Rise Mode');
     if (modes.localRotateMode) unsupportedFeatures.push('Local Rotate Mode');
     if (modes.moveMode) unsupportedFeatures.push('Move Mode');
-    
+
     throw new Error(`VANILLA_ANIMATION_NOT_SUPPORTED:${unsupportedFeatures.join(',')}`);
   }
 
@@ -1872,7 +2090,7 @@ export const generateDatapackCode = async (
     if (modes.riseMode) unsupportedFeatures.push('Rise Mode');
     if (modes.localRotateMode) unsupportedFeatures.push('Local Rotate Mode');
     if (modes.moveMode) unsupportedFeatures.push('Move Mode');
-    
+
     throw new Error(`DATAPACK_ANIMATION_NOT_SUPPORTED:${unsupportedFeatures.join(',')}`);
   }
 
