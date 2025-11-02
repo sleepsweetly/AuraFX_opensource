@@ -9,7 +9,7 @@ import { RightSidebar } from "@/components/right-sidebar"
 import { TopCenterToolbar } from "@/components/top-center-toolbar"
 import { LayersPanel } from "@/components/panels/layers-panel"
 import { BottomStatusBar } from "@/components/bottom-status-bar"
-import { Canvas } from "@/components/canvas"
+import { Canvas, CanvasApiHandle } from "@/components/canvas"
 import { CodePanel } from "@/components/panels/code-panel"
 import { ModesPanel } from "@/components/panels/modes-panel"
 import { ChainPanel } from "@/components/panels/chain-panel"
@@ -53,6 +53,16 @@ declare global {
     addGifElements?: (elements: any[], frameCount: number) => void
     addGifLayers?: (layers: any[]) => void
     gtag: (command: string, action: string, params?: any) => void
+    auraFxApi?: {
+      setCurrentTool: (tool: Tool) => void;
+      createCircle: (x: number, y: number, radius: number) => void;
+      createSquare: (x: number, y: number, size: number) => void;
+      createLine: (x1: number, y1: number, x2: number, y2: number) => void;
+      createTriangle: (x: number, y: number, radius: number) => void;
+      clear: () => void;
+      addElement: (element: Element | Element[]) => void;
+      getCanvas: () => HTMLCanvasElement | null;
+    }
   }
 }
 
@@ -1585,12 +1595,67 @@ export default function EffectEditor() {
     setManualFrameCount(mode === "manual" ? frameCount : undefined)
   }
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<CanvasApiHandle>(null);
+
+  // === API KÖPRÜSÜ ===
+  // Canvas API'sini global window nesnesine bağla
+  useEffect(() => {
+    // Global auraFxApi nesnesi oluştur
+    (window as any).auraFxApi = {
+      // AI'nin "Circle Tool'u seç" demesi yerine bunu çağırmasını sağla
+      setCurrentTool: (tool: Tool) => {
+        console.log(`API: Setting tool to ${tool}`);
+        canvasRef.current?.setCurrentTool(tool);
+      },
+      
+      // AI'nin "Tıklayıp sürükle" demesi yerine bunu çağırmasını sağla
+      createCircle: (x: number, y: number, radius: number) => {
+        console.log(`API: Creating circle at (${x}, ${y}) with radius ${radius}`);
+        canvasRef.current?.createCircle(x, y, radius);
+      },
+      
+      createSquare: (x: number, y: number, size: number) => {
+        console.log(`API: Creating square at (${x}, ${y}) with size ${size}`);
+        canvasRef.current?.createSquare(x, y, size);
+      },
+      
+      createLine: (x1: number, y1: number, x2: number, y2: number) => {
+        console.log(`API: Creating line from (${x1}, ${y1}) to (${x2}, ${y2})`);
+        canvasRef.current?.createLine(x1, y1, x2, y2);
+      },
+      
+      createTriangle: (x: number, y: number, radius: number) => {
+        console.log(`API: Creating triangle at (${x}, ${y}) with radius ${radius}`);
+        canvasRef.current?.createTriangle(x, y, radius);
+      },
+      
+      clear: () => {
+        console.log('API: Clearing canvas');
+        canvasRef.current?.clearCanvas();
+      },
+      
+      // Ek yardımcı fonksiyonlar
+      addElement: (element: Element | Element[]) => {
+        console.log('API: Adding element(s)', element);
+        canvasRef.current?.addElement(element);
+      },
+      
+      // Canvas elementine erişim (gelişmiş kullanım için)
+      getCanvas: () => {
+        return canvasRef.current?.getCanvasElement();
+      }
+    };
+
+    // Temizlik fonksiyonu
+    return () => {
+      delete (window as any).auraFxApi;
+    };
+  }, []); // Boş bağımlılık dizisi ile sadece bir kez çalışır
 
   // Canvas'ı küçük base64'e çevirme fonksiyonu
   const captureCanvasAsBase64 = useCallback((): string | null => {
     try {
-      const canvas = canvasRef.current;
+      const canvas = canvasRef.current?.getCanvasElement();
       if (!canvas) return null;
 
       // Küçük bir temporary canvas oluştur (Discord için)

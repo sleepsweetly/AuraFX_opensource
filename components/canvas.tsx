@@ -15,6 +15,18 @@ import { useActionRecordingStore } from "@/store/useActionRecordingStore"
 import { useSelectionStore } from "@/store/useSelectionStore"
 import { useToast } from "@/components/toast-system"
 
+// API Handle interface for external access
+export interface CanvasApiHandle {
+  getCanvasElement: () => HTMLCanvasElement | null;
+  clearCanvas: () => void;
+  addElement: (element: Element | Element[]) => void;
+  setCurrentTool: (tool: Tool) => void;
+  createCircle: (centerX: number, centerY: number, radius: number) => void;
+  createSquare: (centerX: number, centerY: number, size: number) => void;
+  createLine: (startX: number, startY: number, endX: number, endY: number) => void;
+  createTriangle: (centerX: number, centerY: number, radius: number) => void;
+}
+
 interface CanvasProps {
   currentTool: Tool
   setCurrentTool: (tool: Tool) => void
@@ -60,13 +72,12 @@ if (typeof window !== 'undefined' && typeof Worker !== 'undefined') {
   // chainAnimationWorker = new Worker(new URL('../worker/chainAnimationWorker.ts', import.meta.url), { type: 'module' });
 }
 
-const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
+const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
   { currentTool, setCurrentTool, layers, currentLayerId, settings, onSettingsChange, modes, onAddElement, onClearCanvas, onUpdateLayer, selectedElementIds, setSelectedElementIds, performanceMode = false, onShapeCreated, onStartBatchMode, onEndBatchMode, chainSequence = [], onChainSequenceChange, chainItems = [], optimize = false, showGridCoordinates = true, onToggleGridCoordinates, updateSelectedElementsParticle, onElementCountChange, onZoomIn, onZoomOut, scale: externalScale, viewMode: externalViewMode, setViewMode: externalSetViewMode, isRecording = false, backgroundColor = "#ffffff" },
   ref
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { toast } = useToast()
-  useImperativeHandle(ref, () => canvasRef.current as HTMLCanvasElement)
 
   // Selection Store - Use store directly instead of props
   const selectedElementIdsFromStore = useSelectionStore((state) => state.selectedElementIds)
@@ -2435,6 +2446,26 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     addElementWithRecording(elements)
     if (onShapeCreated) onShapeCreated("line");
   }
+
+  // API Handle - expose functions for external access (moved here after function definitions)
+  useImperativeHandle(ref, () => ({
+    getCanvasElement: () => canvasRef.current,
+    clearCanvas: onClearCanvas,
+    setCurrentTool: setCurrentTool,
+    addElement: addElementWithRecording,
+    createCircle: createCircle,
+    createSquare: createSquare,
+    createLine: createLine,
+    createTriangle: createTriangle,
+  }), [
+    onClearCanvas, 
+    setCurrentTool, 
+    addElementWithRecording,
+    createCircle,
+    createSquare,
+    createLine,
+    createTriangle
+  ])
 
   const handleWheel = (e: React.WheelEvent) => {
     // Canvas boyutunu kontrol et
