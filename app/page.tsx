@@ -10,6 +10,7 @@ import { TopCenterToolbar } from "@/components/top-center-toolbar"
 import { LayersPanel } from "@/components/panels/layers-panel"
 import { BottomStatusBar } from "@/components/bottom-status-bar"
 import { Canvas, CanvasApiHandle } from "@/components/canvas"
+import { SplitCanvas } from "@/components/split-canvas"
 import { CodePanel } from "@/components/panels/code-panel"
 import { ModesPanel } from "@/components/panels/modes-panel"
 import { ChainPanel } from "@/components/panels/chain-panel"
@@ -45,6 +46,8 @@ import { useEffectSessionStore } from "@/store/useEffectSessionStore"
 import { useTransferStore } from "@/store/useTransferStore"
 const GettingStarted = dynamic(() => import("@/components/getting-started"), { ssr: false })
 import { TutorialWidget } from "@/components/tutorial-widget"
+import { ToolbarCustomizationModal } from "@/components/toolbar-customization-modal"
+
 
 declare global {
   interface Window {
@@ -1016,16 +1019,33 @@ export default function EffectEditor() {
   const [showQuickSettings, setShowQuickSettings] = useState(false);
   const [showParticleModal, setShowParticleModal] = useState(false);
   const [canvasBackgroundColor, setCanvasBackgroundColor] = useState("#ffffff");
+  const [showToolbarCustomization, setShowToolbarCustomization] = useState(false);
+  const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
 
   // Synchronize selectedElementIds with selectedShapeIds
   useEffect(() => {
     setSelectedShapeIds(selectedElementIds);
   }, [selectedElementIds]);
 
+  // Load toolbar customization from localStorage
+  useEffect(() => {
+    const savedTools = localStorage.getItem('toolbar-selected-tools')
+    if (savedTools) {
+      try {
+        setSelectedToolIds(JSON.parse(savedTools))
+      } catch (error) {
+        console.error('Error loading toolbar customization:', error)
+        setSelectedToolIds(['eraser', 'square', 'circle', 'triangle'])
+      }
+    } else {
+      setSelectedToolIds(['eraser', 'square', 'circle', 'triangle'])
+    }
+  }, [])
+
 
 
   const [settings, setSettings] = useState({
-    particleCount: 10,
+    particleCount: 70,
     shapeSize: 20,
     color: "#000000",
     particle: "reddust",
@@ -1147,6 +1167,8 @@ export default function EffectEditor() {
 
   const [optimize, setOptimize] = useState(false);
   const [showGridCoordinates, setShowGridCoordinates] = useState(true);
+  const [splitViewEnabled, setSplitViewEnabled] = useState(false);
+  const [showSplitNotification, setShowSplitNotification] = useState(false);
 
   // Performans optimizasyon state'leri
   const [performanceAnalysis, setPerformanceAnalysis] = useState(() => analyzeEffectLines(layers));
@@ -1754,7 +1776,7 @@ export default function EffectEditor() {
 
     // Settings'i default'a döndür
     setSettings({
-      particleCount: 10,
+      particleCount: 70,
       shapeSize: 20,
       color: "#000000",
       particle: "reddust",
@@ -2826,6 +2848,16 @@ export default function EffectEditor() {
     setCanvasScale(prev => Math.max(0.2, prev / 1.15));
   };
 
+  const handleToggleSplitView = () => {
+    const newSplitState = !splitViewEnabled;
+    setSplitViewEnabled(newSplitState);
+    
+    // Split view açıldığında notification göster
+    if (newSplitState) {
+      setShowSplitNotification(true);
+    }
+  };
+
 
 
   // Tutorial artık otomatik açılmıyor, sadece buton ile açılacak
@@ -3111,6 +3143,8 @@ export default function EffectEditor() {
             setShowCodePanel(true);
             generateCode(optimize);
           }}
+          onShowCustomization={() => setShowToolbarCustomization(true)}
+          selectedToolIds={selectedToolIds}
         />
 
         {/* Right Sidebar */}
@@ -3179,6 +3213,8 @@ export default function EffectEditor() {
           modes={modes}
           isRecording={storeIsRecording}
           onToggleRecording={handleToggleRecording}
+          splitViewEnabled={splitViewEnabled}
+          onToggleSplitView={handleToggleSplitView}
         />
 
         {/* Layers Panel */}
@@ -3225,7 +3261,7 @@ export default function EffectEditor() {
 
         <div className="flex h-screen">
           <div className="flex-1 relative flex flex-col">
-            <Canvas
+            <SplitCanvas
               ref={canvasRef}
               key={currentLayer?.id}
               onStartBatchMode={startBatchMode}
@@ -3257,6 +3293,10 @@ export default function EffectEditor() {
               viewMode={viewMode}
               setViewMode={setViewMode}
               isRecording={storeIsRecording}
+              splitViewEnabled={splitViewEnabled}
+              onToggleSplitView={handleToggleSplitView}
+              showSplitNotification={showSplitNotification}
+              onHideSplitNotification={() => setShowSplitNotification(false)}
             />
             {renderActivePanel()}
             {/* 3D buttons hidden per user request */}
@@ -3539,6 +3579,19 @@ export default function EffectEditor() {
           onClose={() => setShowParticleModal(false)}
         />
       )}
+
+      {/* Toolbar Customization Modal */}
+      <ToolbarCustomizationModal
+        isOpen={showToolbarCustomization}
+        onClose={() => setShowToolbarCustomization(false)}
+        onSave={(selectedTools) => {
+          setSelectedToolIds(selectedTools)
+          localStorage.setItem('toolbar-selected-tools', JSON.stringify(selectedTools))
+        }}
+        currentTools={selectedToolIds}
+      />
+
+
 
     </>
   )

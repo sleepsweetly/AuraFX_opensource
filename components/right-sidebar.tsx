@@ -188,7 +188,7 @@ export function RightSidebar({
 
   return (
     <motion.div
-      className="fixed top-4 right-4 bottom-4 bg-white rounded-2xl shadow-xl border border-gray-200 flex z-30 overflow-hidden"
+      className="fixed top-4 right-4 bottom-4 bg-white rounded-2xl shadow-lg border border-gray-200 flex z-30 overflow-hidden"
       variants={containerVariants}
       initial="expanded"
       animate={isMinimized ? "collapsed" : "expanded"}
@@ -238,22 +238,27 @@ export function RightSidebar({
       </div>
 
       {/* SAĞ: Dikey Sekmeler */}
-      <div className="flex flex-col items-center py-4 space-y-2 bg-gray-50 border-l border-gray-200" style={{ width: `${TAB_BAR_WIDTH}px` }}>
+      <div className="flex flex-col items-center py-3 space-y-1 bg-gray-50/50 border-l border-gray-200/50" style={{ width: `${TAB_BAR_WIDTH}px` }}>
         {tabs.map((tab, index) => {
           const Icon = tab.icon
           return (
-            <Button
+            <motion.div
               key={tab.id}
-              variant="ghost"
-              size="icon"
-              onClick={() => handleTabChange(index)}
-              className={`h-10 w-10 rounded-xl transition-all duration-200 ${index === safeActiveTab
-                ? "bg-white text-gray-900 shadow-md"
-                : "text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm"
-                }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <Icon size={20} />
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleTabChange(index)}
+                className={`h-9 w-9 rounded-xl transition-all duration-200 ${index === safeActiveTab
+                  ? "bg-white text-gray-900 shadow-sm border border-gray-200"
+                  : "text-gray-600 hover:bg-white/80 hover:text-gray-900 hover:shadow-sm"
+                  }`}
+              >
+                <Icon size={18} />
+              </Button>
+            </motion.div>
           )
         })}
 

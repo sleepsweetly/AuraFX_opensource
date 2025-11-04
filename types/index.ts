@@ -8,7 +8,7 @@ export interface Position {
 
 export interface Element {
   id: string
-  type: "free" | "circle" | "square" | "triangle" | "line" | "image" | "obj" | "gif"
+  type: "free" | "circle" | "square" | "triangle" | "line" | "image" | "obj" | "gif" | "shape"
   position: Position
   color?: string
   yOffset?: number
@@ -102,7 +102,7 @@ export interface Layer {
   }
 }
 
-export type Tool = "select" | "free" | "circle" | "square" | "triangle" | "line" | "eraser"
+export type Tool = "select" | "free" | "circle" | "square" | "triangle" | "line" | "eraser" | "star" | "heart" | "arrow" | "lightning" | "diamond" | "hexagon" | string
 
 export interface ActionRecord {
   id: string

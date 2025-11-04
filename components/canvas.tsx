@@ -14,6 +14,8 @@ import { Pencil, MousePointerClick, Eraser, Circle, Square, Slash, Triangle } fr
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
 import { useSelectionStore } from "@/store/useSelectionStore"
 import { useToast } from "@/components/toast-system"
+import { shapeLibrary, findShapeById } from "@/lib/shape-library"
+import { svgPathProperties } from 'svg-path-properties'
 
 // API Handle interface for external access
 export interface CanvasApiHandle {
@@ -59,6 +61,8 @@ interface CanvasProps {
   setViewMode?: (mode: "top" | "side" | "diagonal" | "isometric" | "front") => void;
   isRecording?: boolean;
   backgroundColor?: string;
+  splitViewEnabled?: boolean;
+  onToggleSplitView?: () => void;
 }
 
 // Web Workers for optimization
@@ -73,7 +77,7 @@ if (typeof window !== 'undefined' && typeof Worker !== 'undefined') {
 }
 
 const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
-  { currentTool, setCurrentTool, layers, currentLayerId, settings, onSettingsChange, modes, onAddElement, onClearCanvas, onUpdateLayer, selectedElementIds, setSelectedElementIds, performanceMode = false, onShapeCreated, onStartBatchMode, onEndBatchMode, chainSequence = [], onChainSequenceChange, chainItems = [], optimize = false, showGridCoordinates = true, onToggleGridCoordinates, updateSelectedElementsParticle, onElementCountChange, onZoomIn, onZoomOut, scale: externalScale, viewMode: externalViewMode, setViewMode: externalSetViewMode, isRecording = false, backgroundColor = "#ffffff" },
+  { currentTool, setCurrentTool, layers, currentLayerId, settings, onSettingsChange, modes, onAddElement, onClearCanvas, onUpdateLayer, selectedElementIds, setSelectedElementIds, performanceMode = false, onShapeCreated, onStartBatchMode, onEndBatchMode, chainSequence = [], onChainSequenceChange, chainItems = [], optimize = false, showGridCoordinates = true, onToggleGridCoordinates, updateSelectedElementsParticle, onElementCountChange, onZoomIn, onZoomOut, scale: externalScale, viewMode: externalViewMode, setViewMode: externalSetViewMode, isRecording = false, backgroundColor = "#ffffff", splitViewEnabled = false, onToggleSplitView },
   ref
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -120,7 +124,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
         }
       }
     }
-    return settings.particleCount || 10
+    return settings.particleCount || 70
   }
 
   // Helper: Determine current shape type if any
@@ -919,8 +923,9 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
       }
     }
 
-    // Draw drag preview for shapes (circle, square, line)
-    if (isDragging && (currentTool === "circle" || currentTool === "square" || currentTool === "triangle" || currentTool === "line")) {
+    // Draw drag preview for shapes (circle, square, line, and new shapes from library)
+    const shapeDef = findShapeById(currentTool);
+    if (isDragging && (shapeDef || currentTool === "circle" || currentTool === "square" || currentTool === "triangle" || currentTool === "line")) {
       // Apply snap to grid to both start and end points for overlay
       const { x: snapStartX, y: snapStartY } = snapToGrid(dragStart.x, dragStart.y)
       const { x: snapEndX, y: snapEndY } = snapToGrid(dragEnd.x, dragEnd.y)
@@ -1055,6 +1060,71 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
         ctx.lineTo(verts[2].x, verts[2].y)
         ctx.closePath()
         ctx.stroke()
+      } else if (shapeDef) {
+        // Yeni şekiller için gerçek şekil önizlemesi
+        try {
+          const properties = new svgPathProperties(shapeDef.path);
+          const totalLength = properties.getTotalLength();
+          
+          // Bounding box hesapla
+          const sampleCount = 50; // Önizleme için daha az sample yeterli
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          
+          for (let i = 0; i <= sampleCount; i++) {
+            const distance = (i / sampleCount) * totalLength;
+            const point = properties.getPointAtLength(distance);
+            minX = Math.min(minX, point.x);
+            minY = Math.min(minY, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxY = Math.max(maxY, point.y);
+          }
+          
+          const originalWidth = maxX - minX;
+          const originalHeight = maxY - minY;
+          const originalCenterX = minX + originalWidth / 2;
+          const originalCenterY = minY + originalHeight / 2;
+          
+          if (totalLength > 0) {
+            ctx.beginPath();
+            
+            // Önizleme için 100 nokta yeterince pürüzsüz olacaktır
+            const previewPoints = 100;
+            
+            for (let i = 0; i <= previewPoints; i++) {
+              const distance = (i / previewPoints) * totalLength;
+              const point = properties.getPointAtLength(distance);
+              
+              // createShapeFromPath ile aynı ölçekleme mantığı
+              const relativeX = (point.x - originalCenterX) / originalWidth;
+              const relativeY = (point.y - originalCenterY) / originalHeight;
+              const scaledX = startX + relativeX * (radius * 2);
+              const scaledY = startY + relativeY * (radius * 2);
+              
+              if (i === 0) {
+                ctx.moveTo(scaledX, scaledY); // İlk noktaya git
+              } else {
+                ctx.lineTo(scaledX, scaledY); // Sonraki noktalara çizgi çiz
+              }
+            }
+            
+            ctx.closePath(); // Şekli kapat (son noktayı ilkine bağla)
+            ctx.stroke(); // Çiz
+          }
+        } catch (error) {
+          // Hata durumunda basit daire göster
+          ctx.beginPath()
+          ctx.arc(startX, startY, radius, 0, 2 * Math.PI)
+          ctx.stroke()
+        }
+        
+        // Şekil adını göster
+        ctx.save()
+        ctx.setLineDash([])
+        ctx.fillStyle = "#000000"
+        ctx.font = "600 14px -apple-system, system-ui, sans-serif"
+        ctx.textAlign = "center"
+        ctx.fillText(shapeDef.name, startX, startY - radius - 10)
+        ctx.restore()
       }
 
       ctx.setLineDash([])
@@ -1671,7 +1741,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
         }
       }
       addElementWithRecording(element)
-    } else if (currentTool === "circle" || currentTool === "square" || currentTool === "triangle" || currentTool === "line") {
+    } else if (findShapeById(currentTool) || currentTool === "circle" || currentTool === "square" || currentTool === "triangle" || currentTool === "line") {
       setIsDragging(true)
       setDragStart({ x, y })
       setDragEnd({ x, y })
@@ -2040,7 +2110,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
         }
       }
       addElementWithRecording(element)
-    } else if (isDragging && (currentTool === "circle" || currentTool === "square" || currentTool === "triangle" || currentTool === "line")) {
+    } else if (isDragging && (findShapeById(currentTool) || currentTool === "circle" || currentTool === "square" || currentTool === "triangle" || currentTool === "line")) {
       // Apply snap to grid to drag end point
       const coords = snapToGrid(x, y)
       setDragEnd({ x: coords.x, y: coords.y })
@@ -2138,24 +2208,39 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
       handlePanUp()
     }
 
-    if (isDragging && (currentTool === "circle" || currentTool === "square" || currentTool === "triangle" || currentTool === "line")) {
-      if (currentTool === "circle") {
-        const start = dragStart
-        const end = dragEnd
-        const radius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2))
-        createCircle(start.x, start.y, radius)
-      } else if (currentTool === "square") {
-        const start = dragStart
-        const end = dragEnd
-        const size = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2))
-        createSquare(start.x, start.y, size)
-      } else if (currentTool === "line") {
-        createLine(dragStart.x, dragStart.y, dragEnd.x, dragEnd.y)
-      } else if (currentTool === "triangle") {
-        const start = dragStart
-        const end = dragEnd
-        const radius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2))
-        createTriangle(start.x, start.y, radius)
+    if (isDragging) {
+      // Çizilen şeklin tanımını kütüphaneden bul
+      const shapeDef = findShapeById(currentTool);
+      
+      // Eğer geçerli araç bir şekil ise (kütüphanede bulunduysa)
+      if (shapeDef) {
+        const start = dragStart;
+        const end = dragEnd;
+        const radius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+        
+        // Genel fonksiyonu, bulunan şeklin path'i ile çağır!
+        createShapeFromPath(start.x, start.y, radius, shapeDef.path, shapeDef.id);
+      }
+      // Eski circle, square, line, triangle araçlarını da koruyalım (backward compatibility)
+      else if (currentTool === "circle" || currentTool === "square" || currentTool === "triangle" || currentTool === "line") {
+        if (currentTool === "circle") {
+          const start = dragStart
+          const end = dragEnd
+          const radius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2))
+          createCircle(start.x, start.y, radius)
+        } else if (currentTool === "square") {
+          const start = dragStart
+          const end = dragEnd
+          const size = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2))
+          createSquare(start.x, start.y, size)
+        } else if (currentTool === "line") {
+          createLine(dragStart.x, dragStart.y, dragEnd.x, dragEnd.y)
+        } else if (currentTool === "triangle") {
+          const start = dragStart
+          const end = dragEnd
+          const radius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2))
+          createTriangle(start.x, start.y, radius)
+        }
       }
     }
     setIsDrawing(false)
@@ -2171,7 +2256,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
   const createCircle = (centerX: number, centerY: number, radius: number) => {
     // Izgaraya yapıştır
     const { x: snapCenterX, y: snapCenterY } = snapToGrid(centerX, centerY)
-    const count = settings.particleCount || 10
+    const count = settings.particleCount || 70
     const elements: Element[] = []
     const groupId = `circle-group-${Date.now()}-${Math.floor(Math.random() * 10000)}`
     // World merkezini hesapla (ilk noktanın world pozisyonu ile aynı mantık)
@@ -2219,7 +2304,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
   const createSquare = (centerX: number, centerY: number, size: number) => {
     // Izgaraya yapıştır
     const { x: snapCenterX, y: snapCenterY } = snapToGrid(centerX, centerY)
-    const count = settings.particleCount || 10
+    const count = settings.particleCount || 70
     const perSide = Math.ceil(count / 4)
     const elements: Element[] = []
     const groupId = `square-group-${Date.now()}-${Math.floor(Math.random() * 10000)}`
@@ -2342,7 +2427,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
   // ✅ TRIANGLE CREATION - MULTIPLE ELEMENTS (equilateral along perimeter)
   const createTriangle = (centerX: number, centerY: number, radius: number) => {
     const { x: snapCenterX, y: snapCenterY } = snapToGrid(centerX, centerY)
-    const count = Math.max(3, settings.particleCount || 10)
+    const count = Math.max(3, settings.particleCount || 70)
     const elements: Element[] = []
     const groupId = `triangle-group-${Date.now()}-${Math.floor(Math.random() * 10000)}`
     const worldCenter = canvasToWorld(snapCenterX, snapCenterY)
@@ -2411,7 +2496,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
     // Izgaraya yapıştır
     const { x: snapStartX, y: snapStartY } = snapToGrid(startX, startY)
     const { x: snapEndX, y: snapEndY } = snapToGrid(endX, endY)
-    const count = settings.particleCount || 10
+    const count = settings.particleCount || 70
     const elements: Element[] = []
     const groupId = `line-group-${Date.now()}-${Math.floor(Math.random() * 10000)}`
 
@@ -2445,6 +2530,90 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
     }
     addElementWithRecording(elements)
     if (onShapeCreated) onShapeCreated("line");
+  }
+
+  // ✅ GENERIC SHAPE CREATION - The only function you'll need for new shapes!
+
+
+  const createShapeFromPath = (centerX: number, centerY: number, radius: number, pathData: string, shapeId: string) => {
+    try {
+      // 1. Parçacık sayısını al ve karmaşık şekiller için minimum sınır belirle
+      const count = Math.max(30, settings.particleCount || 30);
+      
+      // 2. Path'in özelliklerini çıkar
+      const properties = new svgPathProperties(pathData);
+      
+      // Bounding box hesapla - path üzerinde sample noktalar alarak
+      const sampleCount = 100;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      
+      for (let i = 0; i <= sampleCount; i++) {
+        const distance = (i / sampleCount) * properties.getTotalLength();
+        const point = properties.getPointAtLength(distance);
+        minX = Math.min(minX, point.x);
+        minY = Math.min(minY, point.y);
+        maxX = Math.max(maxX, point.x);
+        maxY = Math.max(maxY, point.y);
+      }
+      
+      // Orijinal SVG şeklinin genişliğini, yüksekliğini ve merkezini hesapla
+      const originalWidth = maxX - minX;
+      const originalHeight = maxY - minY;
+      const originalCenterX = minX + originalWidth / 2;
+      const originalCenterY = minY + originalHeight / 2;
+      
+      // Sıfır boyut kontrolü
+      if (originalWidth === 0 || originalHeight === 0) {
+        return;
+      }
+      
+      // 3. Path'in toplam uzunluğunu al
+      const totalLength = properties.getTotalLength();
+      if (totalLength === 0) {
+        return; // Boş path ise devam etme
+      }
+      
+      const elements: Element[] = [];
+      const groupId = `${shapeId}-group-${Date.now()}`;
+      
+      // 4. Eşit aralıklarla noktaları oluştur
+      for (let i = 0; i < count; i++) {
+        // Son noktanın tam olarak yolun sonunda olmasını sağlamak için (count - 1)'e böl
+        const distance = (i / (count - 1)) * totalLength;
+        const point = properties.getPointAtLength(distance); // { x, y }
+        
+        // 5. Akıllı Ölçeklendirme:
+        // Noktanın orijinal SVG kutusu içindeki göreceli konumunu bul (-0.5 ile +0.5 arası)
+        const relativeX = (point.x - originalCenterX) / originalWidth;
+        const relativeY = (point.y - originalCenterY) / originalHeight;
+        
+        // Bu göreceli konumu, kullanıcının çizdiği alana (radius) uygula
+        const scaledX = centerX + relativeX * (radius * 2);
+        const scaledY = centerY + relativeY * (radius * 2);
+        
+        const worldPos = canvasToWorld(scaledX, scaledY);
+        let yOffset = settings.yOffset;
+
+        elements.push({
+          id: `${shapeId}-${Date.now()}-${i}`,
+          type: "shape" as any,
+          position: worldPos,
+          color: settings.color,
+          yOffset,
+          groupId,
+          meta: { shapeId },
+        });
+      }
+      
+
+
+      addElementWithRecording(elements);
+      if (onShapeCreated) onShapeCreated(shapeId);
+    } catch (error) {
+      console.error(`Error creating shape ${shapeId}:`, error);
+      // Fallback to circle if path parsing fails
+      createCircle(centerX, centerY, radius);
+    }
   }
 
   // API Handle - expose functions for external access (moved here after function definitions)
@@ -2531,7 +2700,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
   type Position3D = { x: number, y?: number, z: number }
   function create3DLine(start: Position3D, end: Position3D) {
     const elements: Element[] = []
-    const count = settings.particleCount || 10
+    const count = settings.particleCount || 70
     for (let i = 0; i < count; i++) {
       const t = i / (count - 1)
       elements.push({
@@ -3006,6 +3175,9 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
     ? { minX: workerSelection.minX, minY: workerSelection.minY, maxX: workerSelection.maxX, maxY: workerSelection.maxY }
     : selectionBounds;
 
+  // Mouse over state for this specific canvas
+  const [isMouseOver, setIsMouseOver] = useState(false)
+
   // Wheel event'i için özel useEffect
   useEffect(() => {
     const canvas = canvasRef.current
@@ -3015,6 +3187,9 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
       // Canvas boyutunu kontrol et
       const canvas = canvasRef.current
       if (!canvas || canvas.width === 0 || canvas.height === 0) return
+
+      // Sadece mouse bu canvas üzerindeyse zoom yap
+      if (!isMouseOver) return
 
       e.preventDefault()
       e.stopPropagation()
@@ -3037,7 +3212,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
     return () => {
       canvas.removeEventListener('wheel', handleWheelEvent)
     }
-  }, [modes.chainMode])
+  }, [modes.chainMode, isMouseOver, externalScale, onZoomIn, onZoomOut])
 
   return (
     <div className="canvas-area relative w-full h-full overflow-hidden" style={{ backgroundColor }}>
@@ -3051,9 +3226,11 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onMouseEnter={() => setIsMouseOver(true)}
         onMouseLeave={() => {
           handleMouseUp();
           setMousePosition(null);
+          setIsMouseOver(false);
         }}
       />
 

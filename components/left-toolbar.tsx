@@ -1,9 +1,14 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { Square, LayoutGrid, Circle, Minus, Triangle, MousePointerClick, Eraser, Settings, Trash2, Code } from "lucide-react"
-import { useState } from "react"
+import { LayoutGrid, MousePointerClick, Settings, Trash2, Code, Plus } from "lucide-react"
+import { useState, useEffect } from "react"
 import type { Tool } from "@/types"
 import { motion, AnimatePresence } from "framer-motion"
+import { shapeLibrary } from "@/lib/shape-library"
+import { ShapeIcon } from "./toolbar-customization-modal"
+
+
+
 
 interface LeftToolbarProps {
     currentTool: Tool
@@ -11,17 +16,65 @@ interface LeftToolbarProps {
     onClearCanvas?: () => void
     onShowQuickSettings?: () => void
     onGenerateCode?: () => void
+    onShowCustomization?: () => void
+    selectedToolIds?: string[] // Ana component'ten gelen seçili araçlar
 }
 
-export function LeftToolbar({ currentTool, setCurrentTool, onClearCanvas, onShowQuickSettings, onGenerateCode }: LeftToolbarProps) {
+export function LeftToolbar({ currentTool, setCurrentTool, onClearCanvas, onShowQuickSettings, onGenerateCode, onShowCustomization, selectedToolIds: externalSelectedToolIds }: LeftToolbarProps) {
     const [showMoreTools, setShowMoreTools] = useState(false)
     const [isHovered, setIsHovered] = useState<string | null>(null)
+    const [selectedToolIds, setSelectedToolIds] = useState<string[]>([])
+
+    // Varsayılan araçlar
+    const defaultTools = [
+        { id: 'eraser', name: 'Eraser', isDefault: true },
+        { id: 'square', name: 'Square', isDefault: true },
+        { id: 'circle', name: 'Circle', isDefault: true },
+        { id: 'triangle', name: 'Triangle', isDefault: true },
+        { id: 'line', name: 'Line', isDefault: true },
+    ]
+
+    // Şekil kütüphanesinden araçlar (varsayılan araçlarla çakışmayanlar)
+    const shapeTools = shapeLibrary
+        .filter(shape => !defaultTools.some(tool => tool.id === shape.id))
+        .map(shape => ({
+            id: shape.id,
+            name: shape.name,
+            isDefault: false
+        }))
+
+    // Tüm mevcut araçlar (varsayılan + benzersiz şekiller)
+    const allTools = [...defaultTools, ...shapeTools]
+
+    // Ana component'ten gelen araçları kullan, yoksa localStorage'dan yükle
+    useEffect(() => {
+        if (externalSelectedToolIds && externalSelectedToolIds.length > 0) {
+            setSelectedToolIds(externalSelectedToolIds)
+        } else {
+            const savedTools = localStorage.getItem('toolbar-selected-tools')
+            if (savedTools) {
+                try {
+                    setSelectedToolIds(JSON.parse(savedTools))
+                } catch (error) {
+                    console.error('Error loading toolbar customization:', error)
+                    setSelectedToolIds(['eraser', 'square', 'circle', 'triangle'])
+                }
+            } else {
+                setSelectedToolIds(['eraser', 'square', 'circle', 'triangle'])
+            }
+        }
+    }, [externalSelectedToolIds])
+
+    // Seçili araçları filtrele ve sırala
+    const visibleTools = selectedToolIds.map(id => allTools.find(tool => tool.id === id)).filter(Boolean) as typeof allTools
 
     const handleToolClick = (tool: string) => {
         console.log("[LeftToolbar] Tool clicked:", tool)
 
         if (tool === "layout") {
             setShowMoreTools(!showMoreTools)
+        } else if (tool === "customize") {
+            onShowCustomization?.()
         } else if (tool === "settings") {
             console.log("[LeftToolbar] Settings clicked")
             onShowQuickSettings?.()
@@ -231,131 +284,59 @@ export function LeftToolbar({ currentTool, setCurrentTool, onClearCanvas, onShow
                         animate="visible"
                         exit="exit"
                     >
-                        {/* Eraser Tool */}
-                        <motion.div variants={itemVariants}>
-                            <motion.div
-                                whileHover="hover"
-                                whileTap="tap"
-                                variants={buttonVariants}
-                                onHoverStart={() => setIsHovered("eraser")}
-                                onHoverEnd={() => setIsHovered(null)}
-                            >
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => handleToolClick("eraser")}
-                                    className={`h-9 w-9 rounded-full hover:bg-gray-100 text-gray-700 hover:text-gray-900 ${currentTool === "eraser" ? "bg-black text-white hover:bg-black/90" : ""}`}
-                                >
+                        {/* Dynamic Customizable Tools */}
+                        {visibleTools.map((tool) => {
+                            return (
+                                <motion.div key={tool.id} variants={itemVariants}>
                                     <motion.div
-                                        variants={iconVariants}
-                                        animate={currentTool === "eraser" ? "active" : isHovered === "eraser" ? "hover" : "idle"}
-                                        transition={{ duration: 0.3 }}
+                                        whileHover="hover"
+                                        whileTap="tap"
+                                        variants={buttonVariants}
+                                        onHoverStart={() => setIsHovered(tool.id)}
+                                        onHoverEnd={() => setIsHovered(null)}
                                     >
-                                        <Eraser className="h-4 w-4" />
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => handleToolClick(tool.id)}
+                                            className={`h-9 w-9 rounded-full hover:bg-gray-100 text-gray-700 hover:text-gray-900 ${currentTool === tool.id ? "bg-black text-white hover:bg-black/90" : ""}`}
+                                            title={tool.name}
+                                        >
+                                            <motion.div
+                                                variants={iconVariants}
+                                                animate={currentTool === tool.id ? "active" : isHovered === tool.id ? "hover" : "idle"}
+                                                transition={{ duration: 0.3 }}
+                                            >
+                                                <ShapeIcon shapeId={tool.id} className="h-4 w-4" />
+                                            </motion.div>
+                                        </Button>
                                     </motion.div>
-                                </Button>
-                            </motion.div>
-                        </motion.div>
+                                </motion.div>
+                            );
+                        })}
 
-                        {/* Square Tool */}
+                        {/* Customize Button (+ icon) */}
                         <motion.div variants={itemVariants}>
                             <motion.div
                                 whileHover="hover"
                                 whileTap="tap"
                                 variants={buttonVariants}
-                                onHoverStart={() => setIsHovered("square")}
+                                onHoverStart={() => setIsHovered("customize")}
                                 onHoverEnd={() => setIsHovered(null)}
                             >
                                 <Button
                                     size="icon"
                                     variant="ghost"
-                                    onClick={() => handleToolClick("square")}
-                                    className={`h-9 w-9 rounded-full hover:bg-gray-100 text-gray-700 hover:text-gray-900 ${currentTool === "square" ? "bg-black text-white hover:bg-black/90" : ""}`}
+                                    onClick={() => handleToolClick("customize")}
+                                    className="h-9 w-9 rounded-full hover:bg-blue-100 text-gray-700 hover:text-blue-600"
+                                    title="Customize Toolbar"
                                 >
                                     <motion.div
                                         variants={iconVariants}
-                                        animate={currentTool === "square" ? "active" : isHovered === "square" ? "hover" : "idle"}
+                                        animate={isHovered === "customize" ? "hover" : "idle"}
                                         transition={{ duration: 0.3 }}
                                     >
-                                        <Square className="h-4 w-4" />
-                                    </motion.div>
-                                </Button>
-                            </motion.div>
-                        </motion.div>
-
-                        {/* Circle Tool */}
-                        <motion.div variants={itemVariants}>
-                            <motion.div
-                                whileHover="hover"
-                                whileTap="tap"
-                                variants={buttonVariants}
-                                onHoverStart={() => setIsHovered("circle")}
-                                onHoverEnd={() => setIsHovered(null)}
-                            >
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => handleToolClick("circle")}
-                                    className={`h-9 w-9 rounded-full hover:bg-gray-100 text-gray-700 hover:text-gray-900 ${currentTool === "circle" ? "bg-black text-white hover:bg-black/90" : ""}`}
-                                >
-                                    <motion.div
-                                        variants={iconVariants}
-                                        animate={currentTool === "circle" ? "active" : isHovered === "circle" ? "hover" : "idle"}
-                                        transition={{ duration: 0.3 }}
-                                    >
-                                        <Circle className="h-4 w-4" />
-                                    </motion.div>
-                                </Button>
-                            </motion.div>
-                        </motion.div>
-
-                        {/* Triangle Tool */}
-                        <motion.div variants={itemVariants}>
-                            <motion.div
-                                whileHover="hover"
-                                whileTap="tap"
-                                variants={buttonVariants}
-                                onHoverStart={() => setIsHovered("triangle")}
-                                onHoverEnd={() => setIsHovered(null)}
-                            >
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => handleToolClick("triangle")}
-                                    className={`h-9 w-9 rounded-full hover:bg-gray-100 text-gray-700 hover:text-gray-900 ${currentTool === "triangle" ? "bg-black text-white hover:bg-black/90" : ""}`}
-                                >
-                                    <motion.div
-                                        variants={iconVariants}
-                                        animate={currentTool === "triangle" ? "active" : isHovered === "triangle" ? "hover" : "idle"}
-                                        transition={{ duration: 0.3 }}
-                                    >
-                                        <Triangle className="h-4 w-4" />
-                                    </motion.div>
-                                </Button>
-                            </motion.div>
-                        </motion.div>
-
-                        {/* Line Tool */}
-                        <motion.div variants={itemVariants}>
-                            <motion.div
-                                whileHover="hover"
-                                whileTap="tap"
-                                variants={buttonVariants}
-                                onHoverStart={() => setIsHovered("line")}
-                                onHoverEnd={() => setIsHovered(null)}
-                            >
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => handleToolClick("line")}
-                                    className={`h-9 w-9 rounded-full hover:bg-gray-100 text-gray-700 hover:text-gray-900 ${currentTool === "line" ? "bg-black text-white hover:bg-black/90" : ""}`}
-                                >
-                                    <motion.div
-                                        variants={iconVariants}
-                                        animate={currentTool === "line" ? "active" : isHovered === "line" ? "hover" : "idle"}
-                                        transition={{ duration: 0.3 }}
-                                    >
-                                        <Minus className="h-4 w-4" />
+                                        <Plus className="h-4 w-4" />
                                     </motion.div>
                                 </Button>
                             </motion.div>
@@ -389,6 +370,8 @@ export function LeftToolbar({ currentTool, setCurrentTool, onClearCanvas, onShow
                     </motion.div>
                 )}
             </AnimatePresence>
+
+
         </div>
     )
 }

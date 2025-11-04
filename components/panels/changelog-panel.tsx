@@ -15,6 +15,21 @@ interface ChangelogPanelProps { }
 
 const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: "3.2.0",
+    date: "November 4, 2025",
+    title: "Split Canvas & Enhanced Toolbar Features",
+    changes: [
+      "🔄 Added Split Canvas mode with independent zoom controls",
+      "🎯 Each canvas in split view has separate zoom levels",
+      "🖱️ Mouse-based zoom targeting - only active canvas zooms",
+      "🎨 Added new shape tools to the toolbar",
+      "⚙️ Implemented customizable toolbar system",
+      "🔧 Users can now personalize their toolbar layout",
+      "📐 Enhanced drawing tools with better precision",
+      "✨ Improved user experience with intuitive controls"
+    ]
+  },
+  {
     version: "3.1.1",
     date: "January 25, 2025",
     title: "Datapack Export Improvements & Color Fixes",

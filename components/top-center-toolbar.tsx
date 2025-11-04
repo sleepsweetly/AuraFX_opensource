@@ -1,6 +1,6 @@
 "use client"
 
-import { Eye, Square, MoveDiagonal, Axis3D, EyeOff, ChevronDown } from "lucide-react"
+import { Eye, Square, MoveDiagonal, Axis3D, EyeOff, ChevronDown, SplitSquareHorizontal } from "lucide-react"
 import { motion, AnimatePresence, Variants } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -12,6 +12,8 @@ interface TopCenterToolbarProps {
   modes?: any
   isRecording?: boolean
   onToggleRecording?: () => void
+  splitViewEnabled?: boolean
+  onToggleSplitView?: () => void
 }
 
 const VIEW_MODES = {
@@ -120,7 +122,7 @@ const dropdownItemVariants: Variants = {
   visible: { opacity: 1, x: 0 },
 }
 
-export function TopCenterToolbar({ viewMode = "top", setViewMode, modes, isRecording, onToggleRecording }: TopCenterToolbarProps) {
+export function TopCenterToolbar({ viewMode = "top", setViewMode, modes, isRecording, onToggleRecording, splitViewEnabled = false, onToggleSplitView }: TopCenterToolbarProps) {
   const { toast } = useToast()
 
   const handleViewModeChange = (mode: "top" | "side" | "diagonal" | "isometric" | "front") => {
@@ -203,6 +205,30 @@ export function TopCenterToolbar({ viewMode = "top", setViewMode, modes, isRecor
             </motion.div>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Split View Button */}
+        <motion.div
+          variants={separatorVariants}
+          className="h-4 w-px bg-gray-300 mx-1"
+          style={{ transformOrigin: 'center' }}
+        />
+        <motion.div whileHover="hover" whileTap="tap" variants={buttonVariants}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleSplitView}
+            className={`h-8 gap-1 transition-colors ${splitViewEnabled ? 'text-purple-600 hover:bg-purple-50 hover:text-purple-700' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}
+            title="Toggle Split View (Side + Top)"
+          >
+            <motion.div
+              animate={{ rotate: splitViewEnabled ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <SplitSquareHorizontal className="h-4 w-4" />
+            </motion.div>
+            <span className="text-xs">Split</span>
+          </Button>
+        </motion.div>
 
         {/* REC Butonu ve Ayırıcı - Gelişmiş Animasyon */}
         <AnimatePresence mode="wait">
