@@ -2592,7 +2592,19 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
         const scaledY = centerY + relativeY * (radius * 2);
         
         const worldPos = canvasToWorld(scaledX, scaledY);
-        let yOffset = settings.yOffset;
+        let yOffset: number;
+
+        // VIEW MODE'A GÖRE YOFFSET HESAPLAMA - ESKİ ŞEKİLLERLE AYNI MANTIK
+        if (viewMode === 'side') {
+          // Side view: yOffset hesaplama
+          yOffset = -((scaledY - (canvasRef.current!.height / 2 + offset.y)) / (10 * scale));
+        } else if (viewMode === 'front') {
+          // Front view: yOffset hesaplama
+          yOffset = (scaledX - (canvasRef.current!.width / 2 + offset.x)) / (10 * scale);
+        } else {
+          // Top, diagonal, isometric views
+          yOffset = settings.yOffset;
+        }
 
         elements.push({
           id: `${shapeId}-${Date.now()}-${i}`,

@@ -21,7 +21,7 @@ import { PerformancePanel } from "@/components/panels/performance-panel"
 import { EffectListPanel } from "@/components/EffectListPanel"
 // import { AnnouncementSystem } from "@/components/announcement-system" // Moved to sidebar panel
 import type { Layer, Element, Tool, ActionRecord } from "@/types"
-import { Toaster } from "@/components/toast-system"
+
 import { v4 as uuidv4 } from "uuid"
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
 import { useSelectionStore } from "@/store/useSelectionStore"
@@ -3072,7 +3072,7 @@ export default function EffectEditor() {
 
   return (
     <>
-      <div className="h-screen bg-black text-white overflow-hidden">
+      <div className="h-screen bg-black text-white overflow-hidden relative">
         {isGenerating && (
           <div className="fixed inset-0 z-[2001000000] flex items-center justify-center bg-black bg-opacity-70">
             <div className="p-8 bg-zinc-9000 rounded-lg shadow-lg flex flex-col items-center">
@@ -3081,7 +3081,7 @@ export default function EffectEditor() {
             </div>
           </div>
         )}
-        <Toaster />
+
 
         {/* Announcement System - Moved to sidebar panel */}
 
@@ -3104,8 +3104,7 @@ export default function EffectEditor() {
           }}
         />
 
-        {/* Footer */}
-        <Footer />
+
 
         {/* 3D Transfer Modal */}
         <Transfer3DModal
@@ -3591,7 +3590,8 @@ export default function EffectEditor() {
         currentTools={selectedToolIds}
       />
 
-
+      {/* Footer */}
+      <Footer />
 
     </>
   )

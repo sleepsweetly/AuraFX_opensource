@@ -141,7 +141,7 @@ export function TopCenterToolbar({ viewMode = "top", setViewMode, modes, isRecor
   const isRecButtonVisible = modes?.chainMode || modes?.actionRecordingMode
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
+    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40">
       <motion.div
         className="flex items-center gap-1 bg-white rounded-full px-3 py-2 shadow-lg border border-gray-200"
         variants={containerVariants}

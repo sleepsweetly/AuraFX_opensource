@@ -37,7 +37,7 @@ const ToastViewport = React.forwardRef<
     <ToastPrimitives.Viewport
         ref={ref}
         className={cn(
-            "fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
+            "fixed top-0 z-[100] flex w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px] pointer-events-none",
             className
         )}
         {...props}
@@ -174,8 +174,8 @@ type ToastProps = React.ComponentPropsWithoutRef<typeof Toast>
 type ToastActionElement = React.ReactElement<typeof ToastAction>
 
 // Toast State Management
-const TOAST_LIMIT = 3
-const TOAST_REMOVE_DELAY = 1000
+const TOAST_LIMIT = 1
+const TOAST_REMOVE_DELAY = 300
 
 type ToasterToast = ToastProps & {
     id: string
@@ -227,8 +227,18 @@ const addToRemoveQueue = (toastId: string) => {
 
 export const reducer = (state: State, action: Action): State => {
     switch (action.type) {
-        case "ADD_TOAST":
-            return { ...state, toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT) }
+        case "ADD_TOAST": {
+            // Sadece açık olan toast'ları say
+            const openToasts = state.toasts.filter(t => t.open !== false)
+            
+            // Limit doluysa yeni toast'ı ekleme
+            if (openToasts.length >= TOAST_LIMIT) {
+                console.log(`Toast limit reached (${TOAST_LIMIT}). New toast ignored.`)
+                return state
+            }
+            
+            return { ...state, toasts: [action.toast, ...state.toasts] }
+        }
         case "UPDATE_TOAST":
             return { ...state, toasts: state.toasts.map((t) => (t.id === action.toast.id ? { ...t, ...action.toast } : t)) }
         case "DISMISS_TOAST": {
@@ -253,15 +263,22 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id">
 
-function toast({ ...props }: Toast) {
+function toast({ duration = 5000, ...props }: Toast) {
     const id = genId()
     const update = (props: ToasterToast) => dispatch({ type: "UPDATE_TOAST", toast: { ...props, id } })
     const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
     dispatch({
         type: "ADD_TOAST",
-        toast: { ...props, id, open: true, onOpenChange: (open) => { if (!open) dismiss() } },
+        toast: { ...props, id, open: true, duration, onOpenChange: (open) => { if (!open) dismiss() } },
     })
+
+    // Auto dismiss after duration
+    if (duration > 0) {
+        setTimeout(() => {
+            dismiss()
+        }, duration)
+    }
 
     return { id: id, dismiss, update }
 }
@@ -273,17 +290,7 @@ function useToast() {
 }
 
 // Progress bar component
-const ProgressBar = ({ variant }: { variant: VariantProps<typeof toastVariants>["variant"] }) => {
-    const [width, setWidth] = React.useState(100)
-
-    React.useEffect(() => {
-        const timer = setTimeout(() => {
-            setWidth(0)
-        }, 100)
-
-        return () => clearTimeout(timer)
-    }, [])
-
+const ProgressBar = ({ variant, duration = 5000 }: { variant: VariantProps<typeof toastVariants>["variant"], duration?: number }) => {
     const progressColor = {
         default: "bg-gray-400",
         destructive: "bg-red-400",
@@ -296,8 +303,8 @@ const ProgressBar = ({ variant }: { variant: VariantProps<typeof toastVariants>[
         <motion.div
             className={`absolute bottom-0 left-0 h-1 ${progressColor}`}
             initial={{ width: "100%" }}
-            animate={{ width: `${width}%` }}
-            transition={{ duration: 5, ease: "linear" }}
+            animate={{ width: "0%" }}
+            transition={{ duration: duration / 1000, ease: "linear" }}
         />
     )
 }
@@ -349,10 +356,13 @@ const itemVariants: Variants = {
 export function Toaster() {
     const { toasts } = useToast()
 
+    // Sadece açık olan toast'ları göster
+    const openToasts = toasts.filter(toast => toast.open !== false)
+
     return (
         <ToastProvider>
             <AnimatePresence mode="popLayout">
-                {toasts.map(function ({ id, title, description, action, variant, icon = true, duration = 5000, ...props }) {
+                {openToasts.map(function ({ id, title, description, action, variant, icon = true, duration = 5000, ...props }) {
                     return (
                         <motion.div
                             key={id}
@@ -365,7 +375,7 @@ export function Toaster() {
                             style={{ originY: 0 }}
                         >
                             <Toast variant={variant} {...props}>
-                                <ProgressBar variant={variant} />
+                                <ProgressBar variant={variant} duration={duration} />
                                 <div className="grid gap-1 flex-1">
                                     <div className="flex items-start gap-3">
                                         {icon && <ToastIcon variant={variant} />}

@@ -1,6 +1,8 @@
 "use client"
 import { motion } from "framer-motion"
-import { Heart, Github } from "lucide-react"
+import { Heart, Github, BookOpen, Sparkles, Palette } from "lucide-react"
+import Link from "next/link"
+import { useState, useEffect } from "react"
 
 // Twitter Bird Icon Component
 const TwitterBird = ({ className }: { className?: string }) => (
@@ -23,10 +25,8 @@ const DiscordIcon = ({ className }: { className?: string }) => (
     <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
   </svg>
 )
-import { useState, useEffect } from "react"
 
 export function Footer() {
-  const [hoveredIcon, setHoveredIcon] = useState<string | null>(null)
   const [discordUrl, setDiscordUrl] = useState<string>("https://discord.gg/aurafx")
 
   useEffect(() => {
@@ -43,7 +43,6 @@ export function Footer() {
         }
       } catch (error) {
         console.log('Discord URL çekilemedi, varsayılan kullanılıyor')
-        // Varsayılan Discord linki
         setDiscordUrl("https://discord.gg/aurafx")
       }
     }
@@ -51,173 +50,128 @@ export function Footer() {
     fetchDiscordUrl()
   }, [])
 
-  const containerVariants = {
-    hidden: { opacity: 0, y: 50, scale: 0.9 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: {
-        type: "spring" as const,
-        stiffness: 200,
-        damping: 25,
-        delay: 0.4,
-        staggerChildren: 0.1,
-        when: "beforeChildren"
-      }
-    }
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        type: "spring" as const,
-        stiffness: 300,
-        damping: 24
-      }
-    }
-  }
-
-  const socialVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        type: "spring" as const,
-        stiffness: 400,
-        damping: 25
-      }
-    }
-  }
-
   return (
-    <motion.footer
-      className="fixed bottom-4 right-4 z-40"
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
+    <div
+      className="relative h-[400px] sm:h-[500px] lg:h-[600px] max-h-[600px]"
+      style={{ clipPath: "polygon(0% 0, 100% 0%, 100% 100%, 0 100%)" }}
     >
-      <motion.div
-        className="flex items-center gap-3 bg-white/90 backdrop-blur-md rounded-full px-4 py-2 shadow-lg border border-gray-200/50"
-        whileHover={{
-          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-          transition: { duration: 0.2 }
-        }}
-      >
-        {/* Made with love */}
-        <motion.div
-          className="flex items-center gap-1 text-xs text-gray-600"
-          variants={itemVariants}
-        >
-          <span>Made with</span>
-          <motion.div
-            whileHover={{ scale: 1.2 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <motion.div
-              animate={{
-                scale: [1, 1.2, 1],
-              }}
-              transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                repeatDelay: 2
-              }}
-            >
-              <Heart className="w-3 h-3 text-red-500 fill-red-500" />
-            </motion.div>
-          </motion.div>
-          <span>by sleepsweety</span>
-        </motion.div>
+      <div className="relative h-[calc(100vh+400px)] sm:h-[calc(100vh+500px)] lg:h-[calc(100vh+600px)] -top-[100vh]">
+        <div className="h-[400px] sm:h-[500px] lg:h-[600px] sticky top-[calc(100vh-400px)] sm:top-[calc(100vh-500px)] lg:top-[calc(100vh-600px)]">
+          <div className="bg-gray-100 py-4 sm:py-6 lg:py-8 px-4 sm:px-6 h-full w-full flex flex-col justify-between">
+            
+            {/* Navigation Links */}
+            <div className="flex shrink-0 gap-8 sm:gap-12 lg:gap-20">
+              <div className="flex flex-col gap-1 sm:gap-2">
+                <h3 className="mb-1 sm:mb-2 uppercase text-gray-600 text-xs sm:text-sm font-semibold">Tools</h3>
+                <Link
+                  href="/3d"
+                  className="text-gray-800 hover:text-purple-600 transition-colors duration-300 text-sm sm:text-base flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  3D Editor
+                </Link>
+                <Link
+                  href="/"
+                  className="text-gray-800 hover:text-blue-600 transition-colors duration-300 text-sm sm:text-base flex items-center gap-2"
+                >
+                  <Palette className="w-4 h-4" />
+                  2D Editor
+                </Link>
+              </div>
+              
+              <div className="flex flex-col gap-1 sm:gap-2">
+                <h3 className="mb-1 sm:mb-2 uppercase text-gray-600 text-xs sm:text-sm font-semibold">Community</h3>
+                <a
+                  href={discordUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-800 hover:text-indigo-600 transition-colors duration-300 text-sm sm:text-base flex items-center gap-2"
+                >
+                  <DiscordIcon className="w-4 h-4" />
+                  Discord
+                </a>
+                <a
+                  href="https://github.com/sleepsweetly"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-800 hover:text-gray-600 transition-colors duration-300 text-sm sm:text-base flex items-center gap-2"
+                >
+                  <Github className="w-4 h-4" />
+                  GitHub
+                </a>
+                <a
+                  href="https://x.com/sleepsweety_"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-800 hover:text-blue-600 transition-colors duration-300 text-sm sm:text-base flex items-center gap-2"
+                >
+                  <TwitterBird className="w-4 h-4" />
+                  Twitter
+                </a>
+              </div>
 
-        {/* Divider */}
-        <motion.div
-          className="w-px h-4 bg-gray-300"
-          variants={itemVariants}
-        />
+              <div className="flex flex-col gap-1 sm:gap-2">
+                <h3 className="mb-1 sm:mb-2 uppercase text-gray-600 text-xs sm:text-sm font-semibold">Support</h3>
+                <Link
+                  href="/wiki"
+                  className="text-gray-800 hover:text-green-600 transition-colors duration-300 text-sm sm:text-base flex items-center gap-2"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Wiki
+                </Link>
+              </div>
+            </div>
 
-        {/* Social Links */}
-        <motion.div
-          className="flex items-center gap-1"
-          variants={itemVariants}
-        >
-          <motion.a
-            href="https://github.com/sleepsweetly"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-1.5 relative overflow-hidden rounded-lg"
-            title="GitHub"
-            variants={socialVariants}
-            whileHover={{ y: -3, scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onMouseEnter={() => setHoveredIcon("github")}
-            onMouseLeave={() => setHoveredIcon(null)}
-          >
-            <motion.div
-              className="absolute inset-0 bg-gray-900 rounded-lg z-0"
-              initial={{ width: "0%", height: "0%" }}
-              animate={{
-                width: hoveredIcon === "github" ? "100%" : "0%",
-                height: hoveredIcon === "github" ? "100%" : "0%"
-              }}
-              transition={{ duration: 0.2 }}
-            />
-            <Github className={`w-3 h-3 relative z-10 transition-colors duration-200 ${hoveredIcon === "github" ? 'text-white' : 'text-gray-600'}`} />
-          </motion.a>
-
-          <motion.a
-            href="https://x.com/sleepsweety_"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-1.5 relative overflow-hidden rounded-lg"
-            title="Twitter"
-            variants={socialVariants}
-            whileHover={{ y: -3, scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onMouseEnter={() => setHoveredIcon("twitter")}
-            onMouseLeave={() => setHoveredIcon(null)}
-          >
-            <motion.div
-              className="absolute inset-0 bg-blue-500 rounded-lg z-0"
-              initial={{ width: "0%", height: "0%" }}
-              animate={{
-                width: hoveredIcon === "twitter" ? "100%" : "0%",
-                height: hoveredIcon === "twitter" ? "100%" : "0%"
-              }}
-              transition={{ duration: 0.2 }}
-            />
-            <TwitterBird className={`w-3 h-3 relative z-10 transition-colors duration-200 ${hoveredIcon === "twitter" ? 'text-white' : 'text-gray-600'}`} />
-          </motion.a>
-
-          <motion.a
-            href={discordUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-1.5 relative overflow-hidden rounded-lg"
-            title="Discord"
-            variants={socialVariants}
-            whileHover={{ y: -3, scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onMouseEnter={() => setHoveredIcon("discord")}
-            onMouseLeave={() => setHoveredIcon(null)}
-          >
-            <motion.div
-              className="absolute inset-0 bg-indigo-500 rounded-lg z-0"
-              initial={{ width: "0%", height: "0%" }}
-              animate={{
-                width: hoveredIcon === "discord" ? "100%" : "0%",
-                height: hoveredIcon === "discord" ? "100%" : "0%"
-              }}
-              transition={{ duration: 0.2 }}
-            />
-            <DiscordIcon className={`w-3 h-3 relative z-10 transition-colors duration-200 ${hoveredIcon === "discord" ? 'text-white' : 'text-gray-600'}`} />
-          </motion.a>
-        </motion.div>
-      </motion.div>
-    </motion.footer>
+            {/* Bottom Section */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 sm:gap-0">
+              <motion.h1 
+                className="text-[18vw] sm:text-[16vw] lg:text-[14vw] leading-[0.8] mt-4 sm:mt-6 lg:mt-10 text-gray-800 font-bold tracking-tight"
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                viewport={{ once: true }}
+              >
+                AURAFX
+              </motion.h1>
+              
+              <div className="flex flex-col items-start sm:items-end gap-2">
+                <motion.div
+                  className="flex items-center gap-2 text-gray-800 text-sm sm:text-base mb-2"
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  viewport={{ once: true }}
+                >
+                  <span>Made with</span>
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.2, 1],
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      repeatDelay: 2
+                    }}
+                  >
+                    <Heart className="w-4 h-4 text-red-500 fill-red-500" />
+                  </motion.div>
+                  <span>by sleepsweety</span>
+                </motion.div>
+                
+                <motion.p 
+                  className="text-gray-600 text-sm sm:text-base"
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                  viewport={{ once: true }}
+                >
+                  ©2024 AuraFX - Minecraft Particle Effects
+                </motion.p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

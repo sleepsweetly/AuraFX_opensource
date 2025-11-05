@@ -188,7 +188,7 @@ export function RightSidebar({
 
   return (
     <motion.div
-      className="fixed top-4 right-4 bottom-4 bg-white rounded-2xl shadow-lg border border-gray-200 flex z-30 overflow-hidden"
+      className="absolute top-4 right-4 bottom-4 bg-white rounded-2xl shadow-lg border border-gray-200 flex z-30 overflow-hidden"
       variants={containerVariants}
       initial="expanded"
       animate={isMinimized ? "collapsed" : "expanded"}

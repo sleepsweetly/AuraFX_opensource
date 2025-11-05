@@ -132,6 +132,7 @@ interface Store3D {
   selectAllObjects: () => void
   clearAllSelections: () => void
   deleteSelectedObjects: () => void
+  duplicateSelectedObjects: () => void
 
   // Actions - Layer Management
   addLayer: (layer: Omit<Layer, "id" | "vertices">) => string
@@ -827,6 +828,124 @@ export const use3DStore = create<Store3D>()(
           get().saveToHistory()
         },
 
+        // BLENDER-STYLE DUPLICATE (Shift+D)
+        duplicateSelectedObjects: () => {
+          const { selectedVertices, selectedShapes, vertices, shapes } = get()
+          if (selectedVertices.length === 0 && selectedShapes.length === 0) return
+
+          const duplicatedShapeIds: string[] = []
+          const duplicatedVertexIds: string[] = []
+          const DUPLICATE_OFFSET = 2 // Blender tarzı offset
+
+          set((state) => {
+            // 1. SHAPE DUPLICATION: Seçili shape'leri kopyala
+            selectedShapes.forEach(shapeId => {
+              const originalShape = state.shapes.find(s => s.id === shapeId)
+              if (!originalShape) return
+
+              // Yeni shape ID'si oluştur
+              const newShapeId = `shape_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+              
+              // Shape'i kopyala ve offset ekle
+              const duplicatedShape: Shape = {
+                ...originalShape,
+                id: newShapeId,
+                position: {
+                  x: originalShape.position.x + DUPLICATE_OFFSET,
+                  y: originalShape.position.y,
+                  z: originalShape.position.z
+                },
+                vertices: [], // Yeni vertex ID'leri gelecek
+                selected: false, // Kopyalar başlangıçta seçili değil
+                name: originalShape.name ? `${originalShape.name} Copy` : 'Shape Copy'
+              }
+
+              // Shape'in vertex'lerini kopyala
+              const newVertexIds: string[] = []
+              originalShape.vertices.forEach(vertexId => {
+                const originalVertex = state.vertices.get(vertexId)
+                if (!originalVertex) return
+
+                const newVertexId = `vertex_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                const duplicatedVertex: Vertex = {
+                  ...originalVertex,
+                  id: newVertexId,
+                  position: {
+                    x: originalVertex.position.x + DUPLICATE_OFFSET,
+                    y: originalVertex.position.y,
+                    z: originalVertex.position.z
+                  },
+                  groupId: newShapeId,
+                  selected: false
+                }
+
+                state.vertices.set(newVertexId, duplicatedVertex)
+                newVertexIds.push(newVertexId)
+                duplicatedVertexIds.push(newVertexId)
+              })
+
+              duplicatedShape.vertices = newVertexIds
+              state.shapes.push(duplicatedShape)
+              duplicatedShapeIds.push(newShapeId)
+            })
+
+            // 2. STANDALONE VERTEX DUPLICATION: Shape'e ait olmayan seçili vertex'leri kopyala
+            const standaloneVertices = selectedVertices.filter(vertexId => {
+              const vertex = state.vertices.get(vertexId)
+              return vertex && !vertex.groupId // groupId yoksa standalone
+            })
+
+            standaloneVertices.forEach(vertexId => {
+              const originalVertex = state.vertices.get(vertexId)
+              if (!originalVertex) return
+
+              const newVertexId = `vertex_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+              const duplicatedVertex: Vertex = {
+                ...originalVertex,
+                id: newVertexId,
+                position: {
+                  x: originalVertex.position.x + DUPLICATE_OFFSET,
+                  y: originalVertex.position.y,
+                  z: originalVertex.position.z
+                },
+                selected: false
+              }
+
+              state.vertices.set(newVertexId, duplicatedVertex)
+              duplicatedVertexIds.push(newVertexId)
+            })
+
+            // 3. SELECTION UPDATE: Kopyalanan objeleri seç (Blender davranışı)
+            state.selectedShapes = duplicatedShapeIds
+            state.selectedVertices = duplicatedVertexIds
+            state.vertexCount = state.vertices.size
+
+            // 4. SHAPE SELECTION STATE UPDATE: Yeni seçili shape'leri işaretle
+            state.shapes.forEach(shape => {
+              shape.selected = duplicatedShapeIds.includes(shape.id)
+            })
+          })
+
+          console.log(`Duplicated ${duplicatedShapeIds.length} shapes and ${duplicatedVertexIds.length} vertices`)
+          
+          // 5. BLENDER-STYLE: Duplicate sonrası otomatik move moduna geç
+          get().setCurrentTool("move")
+          
+          // 6. TOAST NOTIFICATION: Kullanıcıya bilgi ver
+          if (typeof window !== 'undefined') {
+            const totalDuplicated = duplicatedShapeIds.length + duplicatedVertexIds.length
+            const event = new CustomEvent('showDuplicateNotification', {
+              detail: {
+                message: `Duplicated ${totalDuplicated} object${totalDuplicated > 1 ? 's' : ''} (Shift+D)`,
+                type: 'success'
+              }
+            })
+            window.dispatchEvent(event)
+          }
+          
+          get().saveToHistory()
+        },
+
         // Layer Management
         addLayer: (layerData) => {
           const id = `layer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -1193,14 +1312,31 @@ export const use3DStore = create<Store3D>()(
           const scaleFactor = 0.4 // 2D elementleri 3D'de daha küçük yapmak için
 
           // Tüm elementlerin pozisyonlarını scale et ve yOffset'i doğru kullan
-          const scaledElements = elements.map(element => ({
-            ...element,
-            position: {
-              x: element.position.x * scaleFactor,
-              y: (element.yOffset || 0) * scaleFactor, // yOffset'i kullan, position.y değil
-              z: element.position.z * scaleFactor
+          // VIEW MODE'A GÖRE KOORDINAT DÖNÜŞÜMLERİ YAPILMALI
+          const scaledElements = elements.map(element => {
+            // Element'in hangi view mode'da oluşturulduğunu tespit et
+            // Eğer yOffset değeri varsa ve Z pozisyonu 0'a yakınsa, muhtemelen side view'de oluşturulmuş
+            const isFromSideView = (element.yOffset !== undefined && element.yOffset !== 0 && Math.abs(element.position.z) < 0.1)
+            
+            let x, y, z
+            
+            if (isFromSideView) {
+              // Side view'den gelen elementler: X ve yOffset (Y) kullanılır, Z sabit
+              x = element.position.x * scaleFactor
+              y = (element.yOffset || 0) * scaleFactor
+              z = 0 // Side view'de Z ekseni kullanılmaz
+            } else {
+              // Top view'den gelen elementler: X ve Z kullanılır, yOffset Y olur
+              x = element.position.x * scaleFactor
+              y = (element.yOffset || 0) * scaleFactor
+              z = element.position.z * scaleFactor
             }
-          }))
+            
+            return {
+              ...element,
+              position: { x, y, z }
+            }
+          })
 
           // Çizimin merkezini hesapla
           const centerX = scaledElements.reduce((sum, el) => sum + el.position.x, 0) / scaledElements.length
@@ -1303,15 +1439,30 @@ export const use3DStore = create<Store3D>()(
             }
             newLayers.push(adapted3DLayer)
 
-            // Elementleri scale et
-            const scaledElements = layer.elements.map(element => ({
-              ...element,
-              position: {
-                x: element.position.x * scaleFactor,
-                y: (element.yOffset || 0) * scaleFactor,
-                z: element.position.z * scaleFactor
+            // Elementleri scale et - VIEW MODE'A GÖRE KOORDINAT DÖNÜŞÜMLERİ
+            const scaledElements = layer.elements.map(element => {
+              // Element'in hangi view mode'da oluşturulduğunu tespit et
+              const isFromSideView = (element.yOffset !== undefined && element.yOffset !== 0 && Math.abs(element.position.z) < 0.1)
+              
+              let x, y, z
+              
+              if (isFromSideView) {
+                // Side view'den gelen elementler: X ve yOffset (Y) kullanılır, Z sabit
+                x = element.position.x * scaleFactor
+                y = (element.yOffset || 0) * scaleFactor
+                z = 0 // Side view'de Z ekseni kullanılmaz
+              } else {
+                // Top view'den gelen elementler: X ve Z kullanılır, yOffset Y olur
+                x = element.position.x * scaleFactor
+                y = (element.yOffset || 0) * scaleFactor
+                z = element.position.z * scaleFactor
               }
-            }))
+              
+              return {
+                ...element,
+                position: { x, y, z }
+              }
+            })
 
             // Bu katmanın merkezini hesapla
             const centerX = scaledElements.reduce((sum, el) => sum + el.position.x, 0) / scaledElements.length

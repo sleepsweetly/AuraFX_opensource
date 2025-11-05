@@ -130,7 +130,7 @@ export function Header(props: HeaderProps = {}) {
 
   return (
     <motion.div
-      className="fixed top-4 left-4 z-40" // Header'ı en sola taşıdık
+      className="absolute top-4 left-4 z-40" // Header'ı en sola taşıdık
       initial="hidden"
       animate="visible"
       variants={containerVariants}
@@ -474,7 +474,7 @@ export function Header(props: HeaderProps = {}) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
+            className="absolute inset-0 z-[99999] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
             onClick={() => setShowRickroll(false)}
           >
             <motion.div

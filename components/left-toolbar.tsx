@@ -142,7 +142,7 @@ export function LeftToolbar({ currentTool, setCurrentTool, onClearCanvas, onShow
     }
 
     return (
-        <div className="fixed left-6 top-1/2 -translate-y-1/2 -translate-y-12 z-50 flex gap-3">
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 -translate-y-12 z-50 flex gap-3">
             {/* Ana Toolbar */}
             <motion.div
                 className="flex flex-col gap-1 bg-white rounded-full shadow-lg p-2 border border-gray-200"

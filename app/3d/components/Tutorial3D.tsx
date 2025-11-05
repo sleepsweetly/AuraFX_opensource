@@ -62,6 +62,13 @@ const tutorialSteps3D: TutorialStep3D[] = [
     targetSelector: "canvas",
     highlightPadding: 20,
   },
+  {
+    id: "duplicate-objects",
+    title: "Duplicate Objects (Blender-style)",
+    description: "Select objects and press Shift+D to duplicate them. After duplicating, you can immediately move the copies with your mouse - just like in Blender!",
+    targetSelector: "canvas",
+    highlightPadding: 20,
+  },
 ]
 
 interface Tutorial3DProps {

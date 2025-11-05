@@ -125,10 +125,21 @@ export default function ThreeDEditor() {
       });
     };
 
+    // Listen for duplicate notifications
+    const handleDuplicateNotification = (event: CustomEvent) => {
+      toast({
+        title: "Objects Duplicated",
+        description: event.detail.message,
+        duration: 3000,
+      });
+    };
+
     window.addEventListener('showPerformanceNotification', handlePerformanceNotification as EventListener);
+    window.addEventListener('showDuplicateNotification', handleDuplicateNotification as EventListener);
 
     return () => {
       window.removeEventListener('showPerformanceNotification', handlePerformanceNotification as EventListener);
+      window.removeEventListener('showDuplicateNotification', handleDuplicateNotification as EventListener);
     };
   }, [toast]);
 

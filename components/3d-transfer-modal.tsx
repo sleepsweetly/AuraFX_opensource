@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Box, Send, Layers, Eye, EyeOff } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
 import type { Layer, Element } from "@/types"
 
 
@@ -90,80 +88,95 @@ export function Transfer3DModal({ isOpen, onClose, layers, currentLayer, onExpor
 
   if (!isOpen) return null
 
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.9, y: 20 },
+    visible: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.95, y: -10 }
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: 20 }
+  }
+
   return (
     <AnimatePresence>
-      <div
-        className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
+      <motion.div
+        className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         onClick={onClose}
       >
-        <div
-          className="relative w-full max-w-md bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xl"
+        <motion.div
+          className="relative w-full max-w-lg bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-2xl"
+          variants={modalVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
-                <Box className="w-5 h-5 text-white" />
+          {/* Header - 2D Style */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center">
+                <Box className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Send to 3D Editor</h2>
-                <p className="text-xs text-gray-500">Transfer layers to 3D workspace</p>
+                <h2 className="text-xl font-semibold text-gray-900">Export to 3D Editor</h2>
+                <p className="text-gray-500 text-sm mt-1">Transfer layers to 3D workspace</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Content */}
-          <div className="p-6 space-y-4">
+          {/* Content - Modern Light */}
+          <div className="p-6 space-y-6">
             {/* Layer Selection */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900">Select Layers</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-gray-900">
+                  Select Layers to Export
+                </h3>
                 <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
                     onClick={handleSelectAll}
-                    className="h-7 px-2 text-xs"
+                    className="h-7 px-3 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
                   >
                     All
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  </button>
+                  <button
                     onClick={handleDeselectAll}
-                    className="h-7 px-2 text-xs"
+                    className="h-7 px-3 text-xs font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     None
-                  </Button>
+                  </button>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
                 {layers.map((layer) => (
                   <div
                     key={layer.id}
                     className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
                       selectedLayers.includes(layer.id)
-                        ? "border-blue-200 bg-blue-50"
+                        ? "border-blue-300 bg-blue-50"
                         : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                     }`}
                     onClick={() => handleLayerToggle(layer.id)}
                   >
                     <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
-                        layer.visible !== false ? 'bg-gray-100' : 'bg-gray-200 opacity-50'
-                      }`}>
+                      <div className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center">
                         <Layers className="w-3 h-3 text-gray-600" />
                       </div>
                       {layer.visible !== false ? (
-                        <Eye className="w-3 h-3 text-gray-500" />
+                        <Eye className="w-3 h-3 text-green-500" />
                       ) : (
                         <EyeOff className="w-3 h-3 text-gray-400" />
                       )}
@@ -176,13 +189,22 @@ export function Transfer3DModal({ isOpen, onClose, layers, currentLayer, onExpor
                       </div>
                     </div>
 
-                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                      selectedLayers.includes(layer.id)
-                        ? "border-blue-500 bg-blue-500"
-                        : "border-gray-300"
-                    }`}>
+                    <div 
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        selectedLayers.includes(layer.id)
+                          ? "border-blue-500 bg-blue-500"
+                          : "border-gray-300"
+                      }`}
+                    >
                       {selectedLayers.includes(layer.id) && (
-                        <div className="w-2 h-2 bg-white rounded-sm" />
+                        <svg
+                          className="w-3 h-3 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
                       )}
                     </div>
                   </div>
@@ -190,63 +212,80 @@ export function Transfer3DModal({ isOpen, onClose, layers, currentLayer, onExpor
               </div>
             </div>
 
-            {/* Options */}
-            <div className="space-y-3 pt-2 border-t border-gray-200">
+            <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-medium text-gray-900">Clear Existing</div>
-                  <div className="text-xs text-gray-500">Remove current 3D elements</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    Replace Mode
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Clear existing 3D elements before import</div>
                 </div>
-                <Switch
-                  checked={clearExisting}
-                  onCheckedChange={setClearExisting}
-                />
+                <div
+                  className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${
+                    clearExisting ? 'bg-blue-500' : 'bg-gray-300'
+                  }`}
+                  onClick={() => setClearExisting(!clearExisting)}
+                >
+                  <div
+                    className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${
+                      clearExisting ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Summary */}
-            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-              <div className="flex items-center gap-2 text-blue-700">
-                <Send className="w-4 h-4" />
-                <span className="text-sm font-medium">
-                  {selectedElementCount > 0 
-                    ? `Ready to transfer ${selectedElementCount} elements from ${selectedLayers.length} layer${selectedLayers.length !== 1 ? 's' : ''}`
-                    : 'Ready to open 3D Editor (no elements selected)'
-                  }
-                </span>
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <div className="flex items-center gap-3 text-blue-700">
+                <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
+                  <Send className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium">
+                    {selectedElementCount > 0 
+                      ? `Ready to export ${selectedElementCount} elements`
+                      : 'Ready to open 3D Editor'
+                    }
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    {selectedLayers.length > 0 
+                      ? `From ${selectedLayers.length} layer${selectedLayers.length !== 1 ? 's' : ''}`
+                      : 'No layers selected'
+                    }
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Footer */}
+          {/* Footer - 2D Style */}
           <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
-            <Button
-              variant="ghost"
+            <button
               onClick={onClose}
-              className="text-gray-600"
+              className="px-6 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={handleTransfer}
               disabled={isTransferring}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+              className="px-6 py-2.5 text-sm font-medium text-white rounded-lg transition-colors bg-blue-500 hover:bg-blue-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isTransferring ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Opening 3D...
                 </>
               ) : (
                 <>
-                  <Send className="w-4 h-4 mr-2" />
-                  {selectedElementCount > 0 ? `Send ${selectedElementCount} elements to 3D` : 'Open 3D Editor'}
+                  <Send className="w-4 h-4" />
+                  {selectedElementCount > 0 ? `Export ${selectedElementCount} elements` : 'Open 3D Editor'}
                 </>
               )}
-            </Button>
+            </button>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </AnimatePresence>
   )
 }

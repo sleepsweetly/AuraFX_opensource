@@ -145,7 +145,7 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (isDraggingRef.current) {
       const panelWidth = Math.min(360, window.innerWidth * 0.9)
-      const panelHeight = 400 // Estimated, will adjust based on content
+      const panelHeight = Math.min(window.innerHeight * 0.8, 600) // Max 80vh or 600px
 
       const maxX = window.innerWidth - panelWidth - 20
       const maxY = window.innerHeight - panelHeight - 20
@@ -199,7 +199,8 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
           left: panelPosition.x,
           top: panelPosition.y,
           width: '360px',
-          maxWidth: '90vw'
+          maxWidth: '90vw',
+          maxHeight: '80vh'
         }}
         onMouseDown={handleMouseDown}
       >
@@ -232,7 +233,7 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
           {/* Single Element */}
           {selectedVertex && selectedVerticesArray.length === 1 && !selectedShape && (
             <motion.div

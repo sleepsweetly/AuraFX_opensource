@@ -11,6 +11,7 @@ export function KeyboardShortcuts() {
     selectedVertices,
     selectedShapes,
     deleteSelectedObjects,
+    duplicateSelectedObjects,
     undo,
     redo,
     clearAllSelections,
@@ -32,6 +33,14 @@ export function KeyboardShortcuts() {
       if (event.shiftKey && event.key.toLowerCase() === "a") {
         event.preventDefault()
         setShowAddMenu(true)
+      }
+
+      // Shift+D: Duplicate Selected Objects (Blender-style)
+      if (event.shiftKey && event.key.toLowerCase() === "d") {
+        event.preventDefault()
+        if (selectedVertices.length > 0 || selectedShapes.length > 0) {
+          duplicateSelectedObjects()
+        }
       }
 
       // Q: Select Tool
@@ -113,6 +122,7 @@ export function KeyboardShortcuts() {
     showAddMenu,
     setCurrentTool,
     deleteSelectedObjects,
+    duplicateSelectedObjects,
     undo,
     redo,
     clearAllSelections,

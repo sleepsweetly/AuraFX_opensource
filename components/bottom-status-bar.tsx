@@ -55,7 +55,7 @@ const zoomVariants = {
 
 export function BottomStatusBar({ onLayersClick, onZoomIn, onZoomOut, zoomLevel = 100 }: BottomStatusBarProps) {
   return (
-    <div className="fixed bottom-6 left-6 z-50">
+    <div className="absolute bottom-6 left-6 z-50">
       <motion.div
         className="flex items-center gap-3 bg-white rounded-full shadow-lg px-3 py-2 border border-gray-200"
         variants={containerVariants}

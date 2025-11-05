@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/toast-system"
 import Script from "next/script"
 import CookieConsentBanner from "@/components/cookie-banner"
 
