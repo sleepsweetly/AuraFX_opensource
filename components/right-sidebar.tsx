@@ -51,6 +51,8 @@ interface RightSidebarProps {
   activeTabOverride?: number
   onTabChange?: (tabIndex: number) => void
   forceExpand?: boolean
+  splitViewEnabled?: boolean
+  onToggleSplitView?: () => void
 }
 
 // --- ANIMATION VARIANTS ---
@@ -115,7 +117,7 @@ export function RightSidebar({
   currentLayer, onUpdateLayer, layers, onShowCode, updateSelectedElementsParticle, updateSelectedElementsColor, generatedCode, onGenerateCode,
   isGeneratingCode, onFrameSettingsChange, optimize, setOptimize, chainSequence, onChainSequenceChange,
   selectedElementIds: propSelectedElementIds, chainItems, onChainItemsChange, currentLineCount, onOptimize, onApplyTemplate,
-  isRecording, onToggleRecording, activeTabOverride, onTabChange, forceExpand
+  isRecording, onToggleRecording, activeTabOverride, onTabChange, forceExpand, splitViewEnabled = false, onToggleSplitView
 }: RightSidebarProps) {
   const [activeTab, setActiveTab] = useState(0) // 0 = Tools panel
   const [isMinimized, setIsMinimized] = useState(true)
@@ -172,6 +174,8 @@ export function RightSidebar({
         onToolChange={onToolChange}
         updateSelectedElementsColor={updateSelectedElementsColor}
         selectedElementIds={selectedElementIds}
+        splitViewEnabled={splitViewEnabled}
+        onToggleSplitView={onToggleSplitView}
       />
       case "modes": return <ModesPanel modes={modes || {}} onModesChange={onModesChange || (() => { })} modeSettings={modeSettings || {}} onModeSettingsChange={onModeSettingsChange || (() => { })} />
       case "import": return <ImportPanel settings={settings || {}} onSettingsChange={onSettingsChange || (() => { })} />
@@ -204,17 +208,12 @@ export function RightSidebar({
               animate="visible"
               exit="hidden"
             >
+              <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-200">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <h2 className="text-sm font-semibold text-gray-800">{tabs[safeActiveTab]?.name}</h2>
+              </div>
               <motion.div
-                className="flex items-center justify-between px-6 py-4 border-b border-gray-200"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
-              >
-                <h2 className="text-lg font-semibold text-gray-800">{tabs[safeActiveTab]?.name}</h2>
-              </motion.div>
-              <motion.div
-                className="flex-1 overflow-y-auto p-6 scrollbar-hidden panel-container"
+                className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400 panel-container"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -241,6 +240,7 @@ export function RightSidebar({
       <div className="flex flex-col items-center py-3 space-y-1 bg-gray-50/50 border-l border-gray-200/50" style={{ width: `${TAB_BAR_WIDTH}px` }}>
         {tabs.map((tab, index) => {
           const Icon = tab.icon
+          const isActive = index === safeActiveTab
           return (
             <motion.div
               key={tab.id}
@@ -251,10 +251,11 @@ export function RightSidebar({
                 variant="ghost"
                 size="icon"
                 onClick={() => handleTabChange(index)}
-                className={`h-9 w-9 rounded-xl transition-all duration-200 ${index === safeActiveTab
-                  ? "bg-white text-gray-900 shadow-sm border border-gray-200"
-                  : "text-gray-600 hover:bg-white/80 hover:text-gray-900 hover:shadow-sm"
-                  }`}
+                className={`h-9 w-9 rounded-xl transition-all duration-200 ${
+                  isActive
+                    ? "bg-white text-gray-900 shadow-sm border border-gray-200 pointer-events-none"
+                    : "text-gray-600 hover:bg-white/80 hover:text-gray-900 hover:shadow-sm"
+                }`}
               >
                 <Icon size={18} />
               </Button>
@@ -275,6 +276,22 @@ export function RightSidebar({
           {isMinimized ? <Maximize2 size={20} /> : <Minimize2 size={20} />}
         </Button>
       </div>
+
+      <style jsx>{`
+        .scrollbar-thin::-webkit-scrollbar {
+          width: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+          background: #d1d5db;
+          border-radius: 3px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+          background: #9ca3af;
+        }
+      `}</style>
     </motion.div>
   )
 }

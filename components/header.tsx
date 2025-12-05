@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ChevronDown, Hexagon, FileText, FolderOpen, Plus, Grid3X3, Box, BookOpen, Mail, HelpCircle, Shield, FileText as Terms, Info } from "lucide-react"
 import { motion, AnimatePresence, Variants } from "framer-motion"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, memo } from "react"
 
 interface HeaderProps {
   onGenerateCode?: () => void
@@ -23,7 +23,7 @@ interface HeaderProps {
   onShowTutorial?: () => void
 }
 
-export function Header(props: HeaderProps = {}) {
+const HeaderComponent = function Header(props: HeaderProps = {}) {
   const { onNewProject, onSave, onLoad, onShowTutorial } = props
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
@@ -259,73 +259,48 @@ export function Header(props: HeaderProps = {}) {
                 </motion.div>
               </Button>
             </DropdownMenuTrigger>
-            <AnimatePresence>
-              {isDropdownOpen && (
-                <DropdownMenuContent
-                  align="end"
-                  className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl"
-                  sideOffset={8}
-                  asChild
-                  forceMount
-                >
-                  <motion.div
-                    variants={dropdownVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                  >
-                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                      Editors
+            <DropdownMenuContent
+              align="end"
+              className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl"
+              sideOffset={8}
+            >
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Editors
+              </div>
+              <DropdownMenuItem
+                className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
+                onClick={handle3DClick}
+              >
+                <div className="w-full relative flex items-center gap-2">
+                  <Box className="w-4 h-4 text-blue-600" />
+                  <div className="flex-1">
+                    <div className="font-medium flex items-center gap-2">
+                      3D Editor
+                      {show3DBadge && (
+                        <span className="inline-flex items-center justify-center w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse relative">
+                          <span className="absolute inset-0 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></span>
+                        </span>
+                      )}
                     </div>
-                    <DropdownMenuItem
-                      className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
-                      onClick={handle3DClick}
-                      asChild
-                    >
-                      <motion.div
-                        variants={dropdownItemVariants}
-                        whileHover={{ x: 5 }}
-                        className="w-full relative"
-                      >
-                        <Box className="w-4 h-4 text-blue-600" />
-                        <div className="flex-1">
-                          <div className="font-medium flex items-center gap-2">
-                            3D Editor
-                            {show3DBadge && (
-                              <span className="inline-flex items-center justify-center w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse relative">
-                                <span className="absolute inset-0 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></span>
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-500">Advanced 3D particle effects</div>
-                        </div>
-                      </motion.div>
-                    </DropdownMenuItem>
+                    <div className="text-xs text-gray-500">Advanced 3D particle effects</div>
+                  </div>
+                </div>
+              </DropdownMenuItem>
 
-                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide border-t border-gray-100 mt-1">
-                      Resources
-                    </div>
-                    <DropdownMenuItem
-                      className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
-                      onClick={() => window.location.href = '/wiki'}
-                      asChild
-                    >
-                      <motion.div
-                        variants={dropdownItemVariants}
-                        whileHover={{ x: 5 }}
-                        className="w-full"
-                      >
-                        <BookOpen className="w-4 h-4 text-green-600" />
-                        <div>
-                          <div className="font-medium">Wiki</div>
-                          <div className="text-xs text-gray-500">Documentation & guides</div>
-                        </div>
-                      </motion.div>
-                    </DropdownMenuItem>
-                  </motion.div>
-                </DropdownMenuContent>
-              )}
-            </AnimatePresence>
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide border-t border-gray-100 mt-1">
+                Resources
+              </div>
+              <DropdownMenuItem
+                className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
+                onClick={() => window.location.href = '/wiki'}
+              >
+                <BookOpen className="w-4 h-4 text-green-600" />
+                <div>
+                  <div className="font-medium">Wiki</div>
+                  <div className="text-xs text-gray-500">Documentation & guides</div>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
           </DropdownMenu>
         </motion.div>
 
@@ -354,115 +329,60 @@ export function Header(props: HeaderProps = {}) {
                 </motion.div>
               </Button>
             </DropdownMenuTrigger>
-            <AnimatePresence>
-              {isMoreMenuOpen && (
-                <DropdownMenuContent
-                  align="end"
-                  className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl"
-                  sideOffset={8}
-                  asChild
-                  forceMount
-                >
-                  <motion.div
-                    variants={dropdownVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                  >
-                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                      Help & Legal
-                    </div>
-                    <DropdownMenuItem
-                      className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
-                      onClick={() => window.location.href = '/about'}
-                      asChild
-                    >
-                      <motion.div
-                        variants={dropdownItemVariants}
-                        whileHover={{ x: 5 }}
-                        className="w-full"
-                      >
-                        <Info className="w-4 h-4 text-blue-600" />
-                        About
-                      </motion.div>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
-                      onClick={() => window.location.href = '/contact'}
-                      asChild
-                    >
-                      <motion.div
-                        variants={dropdownItemVariants}
-                        whileHover={{ x: 5 }}
-                        className="w-full"
-                      >
-                        <Mail className="w-4 h-4 text-green-600" />
-                        Contact
-                      </motion.div>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
-                      onClick={() => window.location.href = '/faq'}
-                      asChild
-                    >
-                      <motion.div
-                        variants={dropdownItemVariants}
-                        whileHover={{ x: 5 }}
-                        className="w-full"
-                      >
-                        <HelpCircle className="w-4 h-4 text-yellow-600" />
-                        FAQ
-                      </motion.div>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
-                      onClick={onShowTutorial}
-                      asChild
-                    >
-                      <motion.div
-                        variants={dropdownItemVariants}
-                        whileHover={{ x: 5 }}
-                        className="w-full"
-                      >
-                        <HelpCircle className="w-4 h-4 text-purple-600" />
-                        <div>
-                          <div className="font-medium">Tutorial</div>
-                          <div className="text-xs text-gray-500">Show tutorial again</div>
-                        </div>
-                      </motion.div>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
-                      onClick={() => window.location.href = '/privacy-policy'}
-                      asChild
-                    >
-                      <motion.div
-                        variants={dropdownItemVariants}
-                        whileHover={{ x: 5 }}
-                        className="w-full"
-                      >
-                        <Shield className="w-4 h-4 text-red-600" />
-                        Privacy Policy
-                      </motion.div>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
-                      onClick={() => window.location.href = '/terms-of-service'}
-                      asChild
-                    >
-                      <motion.div
-                        variants={dropdownItemVariants}
-                        whileHover={{ x: 5 }}
-                        className="w-full"
-                      >
-                        <Terms className="w-4 h-4 text-gray-700" />
-                        Terms of Service
-                      </motion.div>
-                    </DropdownMenuItem>
-                  </motion.div>
-                </DropdownMenuContent>
-              )}
-            </AnimatePresence>
+            <DropdownMenuContent
+              align="end"
+              className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl"
+              sideOffset={8}
+            >
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Help & Legal
+              </div>
+              <DropdownMenuItem
+                className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
+                onClick={() => window.location.href = '/about'}
+              >
+                <Info className="w-4 h-4 text-blue-600" />
+                About
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
+                onClick={() => window.location.href = '/contact'}
+              >
+                <Mail className="w-4 h-4 text-green-600" />
+                Contact
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
+                onClick={() => window.location.href = '/faq'}
+              >
+                <HelpCircle className="w-4 h-4 text-yellow-600" />
+                FAQ
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
+                onClick={onShowTutorial}
+              >
+                <HelpCircle className="w-4 h-4 text-purple-600" />
+                <div>
+                  <div className="font-medium">Tutorial</div>
+                  <div className="text-xs text-gray-500">Show tutorial again</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
+                onClick={() => window.location.href = '/privacy-policy'}
+              >
+                <Shield className="w-4 h-4 text-red-600" />
+                Privacy Policy
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-gray-900 cursor-pointer flex items-center gap-2 p-2"
+                onClick={() => window.location.href = '/terms-of-service'}
+              >
+                <Terms className="w-4 h-4 text-gray-700" />
+                Terms of Service
+              </DropdownMenuItem>
+            </DropdownMenuContent>
           </DropdownMenu>
         </motion.div>
       </motion.div>
@@ -508,3 +428,5 @@ export function Header(props: HeaderProps = {}) {
     </motion.div>
   )
 }
+
+export const Header = memo(HeaderComponent)

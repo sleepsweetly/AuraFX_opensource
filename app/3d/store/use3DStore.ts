@@ -1205,7 +1205,6 @@ export const use3DStore = create<Store3D>()(
               type: "free",
               position: {
                 x: vertex.position.x,
-                y: vertex.position.y,
                 z: vertex.position.z
               },
               yOffset: vertex.position.y,
@@ -1222,7 +1221,6 @@ export const use3DStore = create<Store3D>()(
               type: shape.type === "cube" ? "square" : shape.type === "sphere" ? "circle" : shape.type === "imported" ? "obj" : shape.type === "edited" ? "free" : shape.type,
               position: {
                 x: shape.position.x,
-                y: shape.position.y,
                 z: shape.position.z
               },
               yOffset: shape.position.y,
@@ -1259,7 +1257,6 @@ export const use3DStore = create<Store3D>()(
               type: "free",
               position: {
                 x: vertex.position.x / 0.4, // Scale'i geri çevir
-                y: vertex.position.y / 0.4,
                 z: vertex.position.z / 0.4
               },
               yOffset: vertex.position.y / 0.4,

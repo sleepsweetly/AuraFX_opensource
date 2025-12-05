@@ -81,6 +81,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
   ref
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const lastDrawTimeRef = useRef<number>(0)
   const { toast } = useToast()
 
   // Selection Store - Use store directly instead of props
@@ -157,6 +158,35 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
   const [lastActionTime, setLastActionTime] = useState<number | null>(null)
   const [idleTimeout, setIdleTimeout] = useState<NodeJS.Timeout | null>(null)
   // const [chainAnimationData, setChainAnimationData] = useState<any[]>([])
+
+  // BATCH BUFFER SYSTEM - Free draw için element buffer
+  const elementBufferRef = useRef<Element[]>([])
+  const flushTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Flush buffer to store - toplu güncelleme
+  const flushElementBuffer = useCallback(() => {
+    if (elementBufferRef.current.length > 0) {
+      const elementsToAdd = [...elementBufferRef.current]
+      elementBufferRef.current = []
+      onAddElement(elementsToAdd)
+    }
+  }, [onAddElement])
+
+  // Mouse up olduğunda buffer'ı flush et
+  useEffect(() => {
+    if (!isDrawing && elementBufferRef.current.length > 0) {
+      flushElementBuffer()
+    }
+  }, [isDrawing, flushElementBuffer])
+
+  // Component unmount olduğunda buffer'ı flush et
+  useEffect(() => {
+    return () => {
+      if (elementBufferRef.current.length > 0) {
+        flushElementBuffer()
+      }
+    }
+  }, [flushElementBuffer])
 
   // Recording wrapper for onAddElement
   const addElementWithRecording = (element: Element | Element[]) => {
@@ -375,13 +405,15 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
   }
 
   // Canvas'ı otomatik yenilemek için useEffect
+  // FIX: Sadece layer ID değiştiğinde force update yap, layers içeriği her değiştiğinde değil.
+  // Layers prop olduğu için React zaten re-render eder. Sürekli forceUpdate döngü yaratabilir.
   useEffect(() => {
     const timer = setTimeout(() => {
       setForceUpdate(prev => prev + 1)
     }, 100) // 100ms sonra canvas'ı yenile
 
     return () => clearTimeout(timer)
-  }, [currentLayerId, layers])
+  }, [currentLayerId]) // 'layers' dependency'den çıkarıldı
 
   // Canvas boyutu değiştiğinde hızlı tepki için useLayoutEffect
   useLayoutEffect(() => {
@@ -865,6 +897,34 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
           ctx.arc(mirrorX, screenY, 3 * scale, 0, 2 * Math.PI)
           ctx.fill()
         }
+      })
+    }
+
+    // Draw buffer elements (free draw sırasında henüz store'a eklenmemiş elementler)
+    if (elementBufferRef.current.length > 0 && currentLayer) {
+      ctx.fillStyle = settings.color
+      elementBufferRef.current.forEach((element) => {
+        let screenX: number, screenY: number
+        if (viewMode === 'top') {
+          screenX = centerX + element.position.x * 10 * scale
+          screenY = centerY + element.position.z * 10 * scale
+        } else if (viewMode === 'side') {
+          screenX = centerX + element.position.x * 10 * scale
+          const yVal = element.yOffset || 0
+          screenY = centerY - yVal * 10 * scale
+        } else if (viewMode === 'front') {
+          const yVal = element.yOffset || 0
+          screenX = centerX + yVal * 10 * scale
+          screenY = centerY + element.position.z * 10 * scale
+        } else {
+          screenX = centerX + element.position.x * 10 * scale
+          screenY = centerY + element.position.z * 10 * scale
+        }
+        
+        // Basit nokta çiz
+        ctx.beginPath()
+        ctx.arc(screenX, screenY, 3 * scale, 0, 2 * Math.PI)
+        ctx.fill()
       })
     }
 
@@ -2071,6 +2131,14 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
     }
 
     if (isDrawing && currentTool === "free" && currentLayer) {
+      // BATCH BUFFER SYSTEM: Throttle 16ms (60 FPS) ama buffer'a ekle, store'a değil
+      // Buffer mouse up'ta toplu olarak flush edilecek - hem hızlı hem güvenli
+      const now = Date.now()
+      if (lastDrawTimeRef.current && now - lastDrawTimeRef.current < 16) {
+        return
+      }
+      lastDrawTimeRef.current = now
+
       // Izgaraya yapıştır
       const coords = snapToGrid(x, y)
       x = coords.x
@@ -2083,7 +2151,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
         // Side view: yOffset hesaplama
         const yOffset = -((y - (canvasRef.current!.height / 2 + offset.y)) / (10 * scale))
         element = {
-          id: Date.now().toString(),
+          id: Date.now().toString() + '_' + Math.random(),
           type: "free",
           position: worldPos,
           color: settings.color,
@@ -2093,7 +2161,7 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
         // Front view: yOffset hesaplama
         const yOffset = (x - (canvasRef.current!.width / 2 + offset.x)) / (10 * scale)
         element = {
-          id: Date.now().toString(),
+          id: Date.now().toString() + '_' + Math.random(),
           type: "free",
           position: worldPos,
           color: settings.color,
@@ -2102,14 +2170,19 @@ const Canvas = forwardRef<CanvasApiHandle, CanvasProps>(function Canvas(
       } else {
         // Top, diagonal, isometric views
         element = {
-          id: Date.now().toString(),
+          id: Date.now().toString() + '_' + Math.random(),
           type: "free",
           position: worldPos,
           color: settings.color,
           yOffset: settings.yOffset,
         }
       }
-      addElementWithRecording(element)
+      
+      // Buffer'a ekle - store'a değil! Mouse up'ta toplu flush edilecek
+      elementBufferRef.current.push(element)
+      
+      // Canvas'ı hemen güncelle (görsel feedback için)
+      setForceUpdate(prev => prev + 1)
     } else if (isDragging && (findShapeById(currentTool) || currentTool === "circle" || currentTool === "square" || currentTool === "triangle" || currentTool === "line")) {
       // Apply snap to grid to drag end point
       const coords = snapToGrid(x, y)

@@ -15,6 +15,8 @@ interface ToolsPanelProps {
   onToolChange?: (tool: any) => void
   updateSelectedElementsColor?: (color: string) => void
   selectedElementIds?: string[]
+  splitViewEnabled?: boolean
+  onToggleSplitView?: () => void
 }
 
 const tools = [
@@ -33,7 +35,9 @@ export function ToolsPanel({
   currentTool,
   onToolChange,
   updateSelectedElementsColor,
-  selectedElementIds = []
+  selectedElementIds = [],
+  splitViewEnabled = false,
+  onToggleSplitView
 }: ToolsPanelProps) {
 
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(true);
@@ -204,6 +208,24 @@ export function ToolsPanel({
                       </motion.div>
                     )}
                   </AnimatePresence>
+                </div>
+
+                {/* Split View */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Split View</span>
+                    <button
+                      onClick={onToggleSplitView}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${splitViewEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                        }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${splitViewEnabled ? 'translate-x-4' : 'translate-x-0.5'
+                          }`}
+                      />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500">Show side and top views simultaneously</p>
                 </div>
 
                 {/* Mirror Mode */}

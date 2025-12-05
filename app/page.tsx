@@ -130,6 +130,7 @@ interface Settings {
   minecraftVersion?: string;
   useRelativeCoords?: boolean;
   useExecute?: boolean;
+  useDirectionalOffsets?: boolean;
 }
 
 interface Modes {
@@ -169,11 +170,26 @@ const generateEffectLine = (
   z: number,
   y: number,
   targeter: string,
-  effectParams?: Layer["effectParams"]
+  effectParams?: Layer["effectParams"],
+  useDirectionalOffsets?: boolean
 ) => {
+  // Offset formatını belirle
+  const formatOffsets = (x: number, z: number, y: number) => {
+    if (useDirectionalOffsets) {
+      // Directional: Oyuncunun baktığı yöne göre (varsayılan: güneye bakıyor)
+      // forward = -z (oyuncu güneye bakıyor, ileri = -z)
+      // side = x (sağ = +x, sol = -x)
+      // up = y (yukarı = +y, aşağı = -y)
+      return `fo=${(-z).toFixed(4)};so=${x.toFixed(4)};uo=${y.toFixed(4)}`;
+    } else {
+      // Normal: xoffset, zoffset, yoffset
+      return `xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}`;
+    }
+  };
+
   switch (effectType) {
     case "particles":
-      return `  - effect:particles{p=${p};c=${c};a=${a};size=1;repeat=${repeat};repeatInterval=${interval}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - effect:particles{p=${p};c=${c};a=${a};size=1;repeat=${repeat};repeatInterval=${interval}} @${targeter}{${formatOffsets(x, z, y)}}`;
 
     case "particlelinehelix":
       const {
@@ -186,7 +202,7 @@ const generateEffectLine = (
         helixRotation = 0,
         maxDistance = 256
       } = effectParams || {};
-      return `  - particlelinehelix{Fo=${fromOrigin};db=${distanceBetween};hl=${helixLength};syo=${startYOffset};tyo=${targetYOffset};particle=${p};color=${c};hr=${helixRadius};speed=${interval}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlelinehelix{Fo=${fromOrigin};db=${distanceBetween};hl=${helixLength};syo=${startYOffset};tyo=${targetYOffset};particle=${p};color=${c};hr=${helixRadius};speed=${interval}} @${targeter}{${formatOffsets(x, z, y)}}`;
 
     case "particleorbital":
       const {
@@ -206,14 +222,14 @@ const generateEffectLine = (
         rotate = false,
         reversed = false
       } = effectParams || {};
-      return `  - particleorbital{r=${radius};points=${points};t=${ticks};i=${orbitalInterval};rotX=${rotationX};rotY=${rotationY};rotZ=${rotationZ};offx=${offsetX};offy=${offsetY};offz=${offsetZ};avx=${angularVelocityX};avy=${angularVelocityY};avz=${angularVelocityZ};rotate=${rotate};reversed=${reversed};particle=${p};color=${c}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particleorbital{r=${radius};points=${points};t=${ticks};i=${orbitalInterval};rotX=${rotationX};rotY=${rotationY};rotZ=${rotationZ};offx=${offsetX};offy=${offsetY};offz=${offsetZ};avx=${angularVelocityX};avy=${angularVelocityY};avz=${angularVelocityZ};rotate=${rotate};reversed=${reversed};particle=${p};color=${c}} @${targeter}{${formatOffsets(x, z, y)}}`;
 
     case "particlering":
       const {
         ringPoints = 8,
         ringRadius = 10
       } = effectParams || {};
-      return `  - particlering{particle=${p};color=${c};radius=${ringRadius};points=${ringPoints};amount=${a}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlering{particle=${p};color=${c};radius=${ringRadius};points=${ringPoints};amount=${a}} @${targeter}{${formatOffsets(x, z, y)}}`;
 
     case "particleline":
       const {
@@ -226,7 +242,7 @@ const generateEffectLine = (
         zigzagOffset = 0.2,
         maxDistance: lineMaxDistance = 256
       } = effectParams || {};
-      return `  - particleline{db=${lineDistance};syo=${lineStartY};tyo=${lineTargetY};fo=${lineFromOrigin};zz=${zigzag};zzs=${zigzags};zzo=${zigzagOffset};md=${lineMaxDistance};particle=${p};color=${c}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particleline{db=${lineDistance};syo=${lineStartY};tyo=${lineTargetY};fo=${lineFromOrigin};zz=${zigzag};zzs=${zigzags};zzo=${zigzagOffset};md=${lineMaxDistance};particle=${p};color=${c}} @${targeter}{${formatOffsets(x, z, y)}}`;
 
     case "particlelinering":
       const {
@@ -238,13 +254,13 @@ const generateEffectLine = (
         ringradius = 0.5,
         maxDistance: ringMaxDistance = 256
       } = effectParams || {};
-      return `  - particlelinering{db=${ringDistance};syo=${ringStartY};tyo=${ringTargetY};fo=${ringFromOrigin};rp=${ringpoints};rr=${ringradius};md=${ringMaxDistance};particle=${p};color=${c}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlelinering{db=${ringDistance};syo=${ringStartY};tyo=${ringTargetY};fo=${ringFromOrigin};rp=${ringpoints};rr=${ringradius};md=${ringMaxDistance};particle=${p};color=${c}} @${targeter}{${formatOffsets(x, z, y)}}`;
 
     case "particlesphere":
       const {
         sphereRadius = 0
       } = effectParams || {};
-      return `  - particlesphere{particle=${p};color=${c};amount=${a};radius=${sphereRadius}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlesphere{particle=${p};color=${c};amount=${a};radius=${sphereRadius}} @${targeter}{${formatOffsets(x, z, y)}}`;
 
     case "particletornado":
       const {
@@ -264,10 +280,10 @@ const generateEffectLine = (
         cloudPSpeed = 2,
         cloudYOffset = 1.8
       } = effectParams || {};
-      return `  - particletornado{p=${p};cp=${cloudParticle};mr=${maxRadius};h=${tornadoHeight};i=${tornadoInterval};d=${tornadoDuration};rs=${rotationSpeed};sh=${sliceHeight};scd=${stopOnCasterDeath};sed=${stopOnEntityDeath};cs=${cloudSize};ca=${cloudAmount};chs=${cloudHSpread};cvs=${cloudVSpread};cps=${cloudPSpeed};cyo=${cloudYOffset}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particletornado{p=${p};cp=${cloudParticle};mr=${maxRadius};h=${tornadoHeight};i=${tornadoInterval};d=${tornadoDuration};rs=${rotationSpeed};sh=${sliceHeight};scd=${stopOnCasterDeath};sed=${stopOnEntityDeath};cs=${cloudSize};ca=${cloudAmount};chs=${cloudHSpread};cvs=${cloudVSpread};cps=${cloudPSpeed};cyo=${cloudYOffset}} @${targeter}{${formatOffsets(x, z, y)}}`;
 
     default:
-      return `  - effect:particles{p=${p};c=${c};a=${a};size=1;repeat=${repeat};repeatInterval=${interval}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - effect:particles{p=${p};c=${c};a=${a};size=1;repeat=${repeat};repeatInterval=${interval}} @${targeter}{${formatOffsets(x, z, y)}}`;
   }
 };
 
@@ -282,7 +298,8 @@ const generateCodeFromElements = async (
   layers: Layer[],
   chainSequence: string[] = [],
   chainItems: Array<{ type: 'element' | 'delay', id: string, elementId?: string, elementIds?: string[], delay?: number }> = [],
-  actionRecords: Array<{ id: string, timestamp: number, type: 'rotate' | 'scale' | 'move' | 'color' | 'particle_count', elementIds: string[], data: any, delayTicks: number }> = []
+  actionRecords: Array<{ id: string, timestamp: number, type: 'rotate' | 'scale' | 'move' | 'color' | 'particle_count', elementIds: string[], data: any, delayTicks: number }> = [],
+  useDirectionalOffsets: boolean = false
 ) => {
   let code = `# Generated with AuraFX - aurafx.online\n${settings.skillName}:\n  Skills:\n`;
 
@@ -435,7 +452,8 @@ const generateCodeFromElements = async (
                 z,
                 y,
                 layer.targeter,
-                layer.effectParams
+                layer.effectParams,
+                useDirectionalOffsets
               ) + "\n";
             });
 
@@ -477,7 +495,8 @@ const generateCodeFromElements = async (
             z,
             y,
             layer.targeter,
-            layer.effectParams
+            layer.effectParams,
+            useDirectionalOffsets
           ) + "\n";
         });
       }
@@ -681,7 +700,8 @@ const generateCodeFromElements = async (
               particleZ,
               y,
               layer.targeter,
-              layer.effectParams
+              layer.effectParams,
+              useDirectionalOffsets
             ) + "\n";
           }
         } else {
@@ -697,7 +717,8 @@ const generateCodeFromElements = async (
             zFinal,
             y,
             layer.targeter,
-            layer.effectParams
+            layer.effectParams,
+            useDirectionalOffsets
           ) + "\n";
         }
 
@@ -986,16 +1007,16 @@ export default function EffectEditor() {
     };
   }, [toast]);
 
-  const togglePanel = (panel: string) => {
+  const togglePanel = useCallback((panel: string) => {
     setOpenPanels((prev) =>
       prev.includes(panel) ? prev.filter((p) => p !== panel) : [...prev, panel]
     );
-  };
+  }, [setOpenPanels]);
 
-  const restorePanel = (panel: string) => {
+  const restorePanel = useCallback((panel: string) => {
     setMinimizedPanels((prev) => prev.filter((p) => p !== panel));
     setOpenPanels((prev) => prev.includes(panel) ? prev : [...prev, panel]);
-  };
+  }, [setMinimizedPanels, setOpenPanels]);
 
   const layers = useLayerStore((state) => state.layers);
   const setLayers = useLayerStore((state) => state.setLayers);
@@ -1070,6 +1091,7 @@ export default function EffectEditor() {
     minecraftVersion: "1.21.0-1.21.1", // Varsayılan Minecraft versiyonu
     useRelativeCoords: true, // Varsayılan relative coordinates
     useExecute: true, // Varsayılan execute at @s
+    useDirectionalOffsets: false, // Varsayılan directional offsets kapalı
   });
 
   const [modes, setModes] = useState<Modes>({
@@ -1187,25 +1209,18 @@ export default function EffectEditor() {
 
   // Batch mode için state'ler
   const [isBatchMode, setIsBatchMode] = useState(false)
-  const [pendingHistorySnapshot, setPendingHistorySnapshot] = useState<any>(null)
+  // pendingHistorySnapshot ve refs kaldırıldı - artık gerekli değil
 
   // Batch mode'da history'yi geciktir
   const saveToHistoryBatch = useCallback((force = false, action?: string) => {
+    // FIX: Batch mode'dayken hiçbir şey yapma (setPendingHistorySnapshot bile çağırma)
+    // Çünkü her state güncellemesi yeni render tetikliyor ve infinite loop yaratıyor
+    // Sadece force=true olduğunda (mouse up) history'ye kaydet
     if (force || !isBatchMode) {
       saveToHistory(action)
-      setPendingHistorySnapshot(null)
-    } else {
-      // Batch mode'da snapshot'ı sakla, mouse up'ta ekle
-      setPendingHistorySnapshot({
-        layers: [...layers],
-        settings: { ...settings },
-        modes: { ...modes },
-        currentTool,
-        selectedShapeIds: [...selectedShapeIds],
-        action
-      })
     }
-  }, [isBatchMode, layers, settings, modes, currentTool, selectedShapeIds, saveToHistory])
+    // Batch mode'dayken sessizce yoksay - mouse up'ta endBatchMode zaten history'ye ekleyecek
+  }, [isBatchMode, saveToHistory])
 
   // Batch mode'u başlat (mouse down)
   const startBatchMode = useCallback(() => {
@@ -1215,11 +1230,10 @@ export default function EffectEditor() {
   // Batch mode'u bitir ve history'yi ekle (mouse up)
   const endBatchMode = useCallback(() => {
     setIsBatchMode(false)
-    if (pendingHistorySnapshot) {
-      pushSnapshot(pendingHistorySnapshot)
-      setPendingHistorySnapshot(null)
-    }
-  }, [pendingHistorySnapshot, pushSnapshot])
+    // FIX: Batch mode bittiğinde mevcut state'i history'ye kaydet
+    // pendingHistorySnapshot kullanmıyoruz çünkü her güncelleme render tetikliyordu
+    saveToHistory("Batch drawing completed")
+  }, [saveToHistory])
 
   // History'den state'i geri yükle
   const restoreFromHistory = useCallback((snapshot: any) => {
@@ -1569,18 +1583,25 @@ export default function EffectEditor() {
     setCurrentLayer(layer)
   }, [])
 
+  // FIX: layers için ref kullan - updateLayer'ın her layers değişiminde yeniden oluşturulmasını engelle
+  const layersRef = useRef(layers);
+  useEffect(() => {
+    layersRef.current = layers;
+  }, [layers]);
+
   const updateLayer = useCallback((layerId: string, updates: Partial<Layer>) => {
-    // Layer güncelleme işlemi - history kaydı yapma, çünkü genellikle başka işlemlerin parçası
-    const newLayers = layers.map((layer) =>
+    // Ref'ten güncel layers'ı al - dependency olarak layers'a ihtiyaç yok
+    const newLayers = layersRef.current.map((layer: Layer) =>
       layer.id === layerId ? { ...layer, ...updates } : layer
     );
     setLayers(newLayers);
+    
     // Eğer güncellenen layer aktif layer ise, currentLayer'ı da güncelle
-    const updated = newLayers.find(l => l.id === layerId);
+    const updated = newLayers.find((l: Layer) => l.id === layerId);
     if (updated && currentLayer?.id === layerId) {
       setCurrentLayer(updated);
     }
-  }, [currentLayer, layers, saveToHistoryBatch]);
+  }, [currentLayer, setLayers, setCurrentLayer]);
 
   const handleAddElement = useCallback((element: Element | Element[]) => {
     if (!currentLayer) return
@@ -1597,7 +1618,7 @@ export default function EffectEditor() {
     // Otomatik seçim yapma - kullanıcı manuel olarak seçsin
     // const newElementIds = elements.map(el => el.id)
     // setSelectedElementIds(newElementIds)
-  }, [currentLayer, updateLayer, saveToHistoryBatch, modes.chainMode, chainItems, setChainItems, setSelectedElementIds])
+  }, [currentLayer, updateLayer, saveToHistoryBatch])
 
   const handleClearCanvas = useCallback(() => {
     if (!currentLayer) return
@@ -1727,7 +1748,8 @@ export default function EffectEditor() {
           optimizeCircleFrames,
           optimizeIdleRepeat
         },
-        exportFormat || settings.exportFormat || 'mythicmobs' // Export format ekle
+        exportFormat || settings.exportFormat || 'mythicmobs', // Export format ekle
+        settings.useDirectionalOffsets || false // Directional offsets ekle
       );
       setGeneratedCode(code);
       setIsGenerating(false);
@@ -1745,7 +1767,7 @@ export default function EffectEditor() {
     }
   }, [layers, settings, modes, modeSettings, frameMode, manualFrameCount, captureCanvasAsBase64, actionRecords, chainSequence, chainItems, optimizeCircleFrames, optimizeIdleRepeat]);
 
-  const newProject = () => {
+  const newProject = useCallback(() => {
     // Tüm state'leri sıfırla
     const initialLayer: Layer = {
       id: uuidv4(),
@@ -1800,6 +1822,7 @@ export default function EffectEditor() {
       minecraftVersion: "1.21.0-1.21.1",
       useRelativeCoords: true,
       useExecute: true,
+      useDirectionalOffsets: false,
     })
 
     // Modes'u default'a döndür
@@ -1828,9 +1851,9 @@ export default function EffectEditor() {
       description: "All layers and settings have been reset",
       duration: 2000,
     })
-  }
+  }, [setLayers, setCurrentLayer, setSelectedElementIds, setSelectedShapeIds, setChainItems, setChainSequence, setGeneratedCode, setSettings, setModes, saveToHistory, toast])
 
-  const saveProject = () => {
+  const saveProject = useCallback(() => {
     const projectData = {
       layers,
       settings,
@@ -1844,7 +1867,7 @@ export default function EffectEditor() {
     a.download = "effect.fxp"
     a.click()
     URL.revokeObjectURL(url)
-  }
+  }, [layers, settings, modes, modeSettings])
 
   const handleYamlImport = (yamlContent: string) => {
     try {
@@ -2168,7 +2191,7 @@ export default function EffectEditor() {
     }
   }
 
-  const loadProject = () => {
+  const loadProject = useCallback(() => {
     const input = document.createElement("input")
     input.type = "file"
     input.accept = ".fxp,.yaml,.yml"
@@ -2204,7 +2227,7 @@ export default function EffectEditor() {
       reader.readAsText(file)
     }
     input.click()
-  }
+  }, [handleYamlImport, setLayers, setSettings, setModes, setModeSettings, setCurrentLayer])
 
   const handleShapeSelect = (elementIds: string[]) => {
     setSelectedShapeIds(elementIds);
@@ -2492,15 +2515,8 @@ export default function EffectEditor() {
     updateLayer(currentLayer.id, { elements: updatedElements });
   }, [currentLayer, selectedShapeIds, updateLayer, saveToHistoryBatch]);
 
-  // Synchronize currentLayer with layers array to prevent stale references
-  useEffect(() => {
-    if (currentLayer) {
-      const updated = layers.find(l => l.id === currentLayer.id)
-      if (updated && updated !== currentLayer) {
-        setCurrentLayer(updated)
-      }
-    }
-  }, [layers])
+  // FIX: Synchronize useEffect kaldırıldı - sonsuz döngüye sebep oluyordu
+  // updateLayer fonksiyonu zaten currentLayer'ı manuel olarak güncelliyor, bu useEffect gereksiz
 
   const bringPanelToFront = (panelId: string) => {
     setOpenPanels((prev) => {
@@ -2783,12 +2799,20 @@ export default function EffectEditor() {
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'c') {
           e.preventDefault()
-          // Copy selected elements
-          if (selectedShapeIds.length > 0 && currentLayer) {
+          // Copy selected elements - hem selectedShapeIds hem selectedElementIds'i kontrol et
+          const selectedIds = selectedElementIds.length > 0 ? selectedElementIds : selectedShapeIds
+          if (selectedIds.length > 0 && currentLayer) {
             const elementsToCopy = currentLayer.elements.filter(
-              element => selectedShapeIds.includes(element.id)
+              element => selectedIds.includes(element.id)
             )
-            copyElements(elementsToCopy)
+            if (elementsToCopy.length > 0) {
+              copyElements(elementsToCopy)
+              toast({
+                title: "Copied",
+                description: `${elementsToCopy.length} element${elementsToCopy.length !== 1 ? 's' : ''} copied`,
+                duration: 1500,
+              })
+            }
           }
         } else if (e.key === 'v') {
           e.preventDefault()
@@ -2807,10 +2831,17 @@ export default function EffectEditor() {
               updateLayer(currentLayer.id, { elements: updatedElements })
 
               // Update selection to newly pasted elements
+              setSelectedElementIds(newElements.map(el => el.id))
               setSelectedShapeIds(newElements.map(el => el.id))
 
               // Add to history
               saveToHistoryBatch(true, `Pasted ${pasted.length} element${pasted.length !== 1 ? 's' : ''} to ${currentLayer.name}`)
+              
+              toast({
+                title: "Pasted",
+                description: `${pasted.length} element${pasted.length !== 1 ? 's' : ''} pasted`,
+                duration: 1500,
+              })
             }
           }
         }
@@ -2819,7 +2850,7 @@ export default function EffectEditor() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentLayer, selectedShapeIds, copyElements, pasteElements, updateLayer, saveToHistoryBatch, toast]);
+  }, [currentLayer, selectedShapeIds, selectedElementIds, copyElements, pasteElements, updateLayer, saveToHistoryBatch, toast, setSelectedElementIds]);
 
   const [showGettingStarted, setShowGettingStarted] = useState(false);
   const [isTutorialActive, setIsTutorialActive] = useState(false);
@@ -3070,6 +3101,24 @@ export default function EffectEditor() {
     checkTransferData();
   }, [layers, currentLayer, updateLayer, setLayers, setCurrentLayer, saveToHistoryBatch, toast])
 
+  // Memoize Header callbacks to prevent re-renders
+  const handleGenerateCode = useCallback(() => {
+    setOpenPanels((prev) => [...prev.filter((p) => p !== "code"), "code"]);
+    generateCode(optimize);
+  }, [setOpenPanels, generateCode, optimize])
+
+  const handleToggleGridCoordinates = useCallback(() => {
+    setShowGridCoordinates(prev => !prev)
+  }, [setShowGridCoordinates])
+
+  const handleShowChangelog = useCallback(() => {
+    setOpenPanels((prev) => [...prev.filter((p) => p !== "changelog"), "changelog"])
+  }, [setOpenPanels])
+
+  const handleShowTutorial = useCallback(() => {
+    setShowTutorial2D(true)
+  }, [setShowTutorial2D])
+
   return (
     <>
       <div className="h-screen bg-black text-white overflow-hidden relative">
@@ -3087,21 +3136,16 @@ export default function EffectEditor() {
 
         {/* Header */}
         <Header
-          onGenerateCode={() => {
-            setOpenPanels((prev) => [...prev.filter((p) => p !== "code"), "code"]);
-            generateCode(optimize);
-          }}
+          onGenerateCode={handleGenerateCode}
           onNewProject={newProject}
           onSave={saveProject}
           onLoad={loadProject}
           minimizedPanels={minimizedPanels}
           onRestorePanel={restorePanel}
           showGridCoordinates={showGridCoordinates}
-          onToggleGridCoordinates={() => setShowGridCoordinates(!showGridCoordinates)}
-          onShowChangelog={() => setOpenPanels((prev) => [...prev.filter((p) => p !== "changelog"), "changelog"])}
-          onShowTutorial={() => {
-            setShowTutorial2D(true)
-          }}
+          onToggleGridCoordinates={handleToggleGridCoordinates}
+          onShowChangelog={handleShowChangelog}
+          onShowTutorial={handleShowTutorial}
         />
 
 
@@ -3203,6 +3247,8 @@ export default function EffectEditor() {
           activeTabOverride={rightSidebarActiveTab}
           onTabChange={(tabIndex: number) => setRightSidebarActiveTab(undefined)}
           forceExpand={forceExpandSidebar}
+          splitViewEnabled={splitViewEnabled}
+          onToggleSplitView={handleToggleSplitView}
         />
 
         {/* Top Center Toolbar */}
@@ -3212,8 +3258,6 @@ export default function EffectEditor() {
           modes={modes}
           isRecording={storeIsRecording}
           onToggleRecording={handleToggleRecording}
-          splitViewEnabled={splitViewEnabled}
-          onToggleSplitView={handleToggleSplitView}
         />
 
         {/* Layers Panel */}

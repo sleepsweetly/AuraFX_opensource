@@ -610,13 +610,28 @@ function generateEffectLine(
   z: number,
   y: number,
   targeter: string,
-  effectParams?: Layer["effectParams"]
+  effectParams?: Layer["effectParams"],
+  useDirectionalOffsets?: boolean
 ) {
+  // Offset formatını belirle
+  const formatOffsets = (x: number, z: number, y: number) => {
+    if (useDirectionalOffsets) {
+      // Directional: Oyuncunun baktığı yöne göre (varsayılan: güneye bakıyor)
+      // forward = -z (oyuncu güneye bakıyor, ileri = -z)
+      // side = x (sağ = +x, sol = -x)
+      // up = y (yukarı = +y, aşağı = -y)
+      return `fo=${(-z).toFixed(4)};so=${x.toFixed(4)};uo=${y.toFixed(4)}`;
+    } else {
+      // Normal: xoffset, zoffset, yoffset
+      return `xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}`;
+    }
+  };
+
   // Her effect type için doğru format kullan
   switch (effectType) {
     case "particles": {
       const params = buildParams({ particle: p, color: c, amount: a, size: 1, repeat, repeatInterval: interval });
-      return `  - e:p{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - e:p{${params}} @${targeter}{${formatOffsets(x, z, y)}}`;
     }
     case "particlelinehelix": {
       const {
@@ -630,7 +645,7 @@ function generateEffectLine(
         maxDistance
       } = effectParams || {};
       const params = buildParams({ Fo: fromOrigin, db: distanceBetween, hl: helixLength, syo: startYOffset, tyo: targetYOffset, particle: p, color: c, hr: helixRadius, speed: interval, md: maxDistance });
-      return `  - particlelinehelix{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlelinehelix{${params}} @${targeter}{${formatOffsets(x, z, y)}}`;
     }
     case "particleorbital": {
       const {
@@ -651,12 +666,12 @@ function generateEffectLine(
         reversed
       } = effectParams || {};
       const params = buildParams({ r: radius, points, t: ticks, i: orbitalInterval, rotX: rotationX, rotY: rotationY, rotZ: rotationZ, offx: offsetX, offy: offsetY, offz: offsetZ, avx: angularVelocityX, avy: angularVelocityY, avz: angularVelocityZ, rotate, reversed, particle: p, color: c });
-      return `  - particleorbital{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particleorbital{${params}} @${targeter}{${formatOffsets(x, z, y)}}`;
     }
     case "particlering": {
       const { ringPoints, ringRadius } = effectParams || {};
       const params = buildParams({ particle: p, color: c, radius: ringRadius, points: ringPoints, amount: a });
-      return `  - particlering{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlering{${params}} @${targeter}{${formatOffsets(x, z, y)}}`;
     }
     case "particleline": {
       const {
@@ -670,7 +685,7 @@ function generateEffectLine(
         maxDistance: lineMaxDistance
       } = effectParams || {};
       const params = buildParams({ db: lineDistance, syo: lineStartY, tyo: lineTargetY, fo: lineFromOrigin, zz: zigzag, zzs: zigzags, zzo: zigzagOffset, md: lineMaxDistance, particle: p, color: c });
-      return `  - particleline{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particleline{${params}} @${targeter}{${formatOffsets(x, z, y)}}`;
     }
     case "particlelinering": {
       const {
@@ -683,12 +698,12 @@ function generateEffectLine(
         maxDistance: ringMaxDistance
       } = effectParams || {};
       const params = buildParams({ db: ringDistance, syo: ringStartY, tyo: ringTargetY, fo: ringFromOrigin, rp: ringpoints, rr: ringradius, md: ringMaxDistance, particle: p, color: c });
-      return `  - particlelinering{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlelinering{${params}} @${targeter}{${formatOffsets(x, z, y)}}`;
     }
     case "particlesphere": {
       const { sphereRadius } = effectParams || {};
       const params = buildParams({ particle: p, color: c, amount: a, radius: sphereRadius });
-      return `  - particlesphere{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlesphere{${params}} @${targeter}{${formatOffsets(x, z, y)}}`;
     }
     case "particletornado": {
       const {
@@ -709,11 +724,11 @@ function generateEffectLine(
         cloudYOffset
       } = effectParams || {};
       const params = buildParams({ p: p, cp: cloudParticle, mr: maxRadius, h: tornadoHeight, i: tornadoInterval, d: tornadoDuration, rs: rotationSpeed, sh: sliceHeight, scd: stopOnCasterDeath, sed: stopOnEntityDeath, cs: cloudSize, ca: cloudAmount, chs: cloudHSpread, cvs: cloudVSpread, cps: cloudPSpeed, cyo: cloudYOffset });
-      return `  - particletornado{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particletornado{${params}} @${targeter}{${formatOffsets(x, z, y)}}`;
     }
     default: {
       const params = buildParams({ particle: p, color: c, amount: a, size: 1, repeat, repeatInterval: interval });
-      return `  - e:p{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - e:p{${params}} @${targeter}{${formatOffsets(x, z, y)}}`;
     }
   }
 }
@@ -735,7 +750,8 @@ export const generateEffectCode = async (
     optimizeCircleFrames?: boolean;
     optimizeIdleRepeat?: boolean;
   },
-  exportFormat: string = 'mythicmobs'
+  exportFormat: string = 'mythicmobs',
+  useDirectionalOffsets: boolean = false
 ) => {
   // Export format kontrolü - vanilla veya datapack ise ilgili fonksiyonu çağır
   if (exportFormat === 'vanilla') {
@@ -767,6 +783,23 @@ export const generateEffectCode = async (
 
   // MythicMobs formatı (varsayılan) - mevcut kod devam eder
   const totalElements = layers.reduce((sum, l) => sum + l.elements.length, 0);
+
+  // Helper function - useDirectionalOffsets'i otomatik ekler
+  const genLine = (
+    effectType: string,
+    p: string,
+    c: string,
+    a: number,
+    repeat: number,
+    interval: number,
+    x: number,
+    z: number,
+    y: number,
+    targeter: string,
+    effectParams?: Layer["effectParams"]
+  ) => {
+    return generateEffectLine(effectType, p, c, a, repeat, interval, x, z, y, targeter, effectParams, useDirectionalOffsets);
+  };
 
   // Action recording'leri işle ve element pozisyonlarını güncelle
   const updatedElementPositions = processActionRecords(actionRecords, layers);
@@ -856,7 +889,7 @@ export const generateEffectCode = async (
           const z = position.z;
           const y = yOffset + (settings.yOffset ?? 0);
 
-          const effectLine = generateEffectLine(
+          const effectLine = genLine(
             elementType,
             particle,
             color,
@@ -981,7 +1014,7 @@ export const generateEffectCode = async (
             };
             let radius = items.reduce((sum, { fe }) => sum + Math.hypot(fe.x - center.x, fe.z - center.z), 0) / items.length;
             const y = (items[0].fe.yOffset || 0) + (elementLayer.yOffset ?? 0) + (settings.yOffset ?? 0);
-            const effectLine = generateEffectLine(
+            const effectLine = genLine(
               "particlering",
               elementLayer.particle,
               colors[0],
@@ -1002,7 +1035,7 @@ export const generateEffectCode = async (
               const z = fe.z;
               const y = fe.yOffset + (elementLayer.yOffset ?? 0) + (settings.yOffset ?? 0);
               const color = liveColors[el.id] || (el as any).color || elementLayer.color;
-              const effectLine = generateEffectLine(
+              const effectLine = genLine(
                 elementLayer.effectType || "particles",
                 elementLayer.particle,
                 color,
@@ -1069,7 +1102,7 @@ export const generateEffectCode = async (
           const repeat = element.elementCount || layer.repeat;
 
           // Doğru effect line formatı kullan
-          const effectLine = generateEffectLine(
+          const effectLine = genLine(
             layer.effectType || "particles",
             layer.particle,
             color,
@@ -1170,7 +1203,7 @@ export const generateEffectCode = async (
             const { x, z } = element.position;
             const y = (element.yOffset ?? 0) + (layer.yOffset ?? 0) + (settings.yOffset ?? 0);
             const repeat = element.elementCount || layer.repeat;
-            const effectLine = generateEffectLine(
+            const effectLine = genLine(
               layer.effectType || "particles",
               layer.particle,
               element.color || layer.color,
@@ -1273,7 +1306,7 @@ export const generateEffectCode = async (
           }
           const points = groupElements.length;
           const y = (layer.yOffset ?? 0) + (settings.yOffset ?? 0);
-          codeLines.push(generateEffectLine(
+          codeLines.push(genLine(
             "particlering",
             layer.particle,
             firstColor,
@@ -1293,7 +1326,7 @@ export const generateEffectCode = async (
           const end = groupElements[groupElements.length - 1].position;
           const y1 = (layer.yOffset ?? 0) + (settings.yOffset ?? 0);
           const y2 = y1; // 2D'de y aynı, istenirse farklı alınabilir
-          codeLines.push(generateEffectLine(
+          codeLines.push(genLine(
             "particleline_direct",
             layer.particle,
             firstColor,
@@ -1322,7 +1355,7 @@ export const generateEffectCode = async (
             const { x, z } = element.position;
             const y = (element.yOffset ?? 0) + (layer.yOffset ?? 0) + (settings.yOffset ?? 0);
             const repeat = element.elementCount || layer.repeat;
-            codeLines.push(generateEffectLine(
+            codeLines.push(genLine(
               layer.effectType || "particles",
               layer.particle,
               element.color || layer.color,
@@ -1422,7 +1455,7 @@ export const generateEffectCode = async (
         elementsToProcessFiltered.forEach((element) => {
           const { x, z } = element.position;
           const y = (element.yOffset ?? 0) + (layer.yOffset ?? 0) + (settings.yOffset ?? 0);
-          codeLines.push(generateEffectLine(
+          codeLines.push(genLine(
             layer.effectType || "particles",
             layer.particle,
             color,
@@ -1454,7 +1487,7 @@ export const generateEffectCode = async (
         const hue = elementsToProcessFiltered.length > 1 ? idx / (elementsToProcessFiltered.length - 1) : 0;
         const rgb = hsvToRgb(hue, 1, 1);
         const color = `#${rgb[0].toString(16).padStart(2, '0')}${rgb[1].toString(16).padStart(2, '0')}${rgb[2].toString(16).padStart(2, '0')}`;
-        codeLines.push(generateEffectLine(
+        codeLines.push(genLine(
           layer.effectType || "particles",
           layer.particle,
           color,
@@ -1480,7 +1513,7 @@ export const generateEffectCode = async (
         const { x, z } = element.position
         const y = (element.yOffset ?? 0) + (layer.yOffset ?? 0) + (settings.yOffset ?? 0);
         const repeat = element.elementCount || layer.repeat
-        codeLines.push(generateEffectLine(
+        codeLines.push(genLine(
           layer.effectType || "particles",
           layer.particle,
           element.color || layer.color,
@@ -1628,7 +1661,7 @@ export const generateEffectCode = async (
         } else {
           currentColor = element.color || layer.color;
         }
-        codeLines.push(generateEffectLine(
+        codeLines.push(genLine(
           layer.effectType || "particles",
           layer.particle,
           currentColor,
@@ -1778,7 +1811,8 @@ export const generateMultiEffectCode = async (
           position.z,
           position.yOffset,
           layer.targeter || "Origin",
-          layer.effectParams
+          layer.effectParams,
+          false // Multi-effect export'ta directional offsets kullanılmaz
         );
 
         code += effectLine + "\n";

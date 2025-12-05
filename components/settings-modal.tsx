@@ -14,6 +14,8 @@ interface SettingsModalProps {
   onClose: () => void
   currentTheme: string
   onThemeChange: (theme: string) => void
+  splitViewEnabled?: boolean
+  onToggleSplitView?: () => void
 }
 
 export function SettingsModal({
@@ -22,6 +24,8 @@ export function SettingsModal({
   onClose,
   currentTheme,
   onThemeChange,
+  splitViewEnabled = false,
+  onToggleSplitView,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState("general")
 
@@ -148,8 +152,15 @@ export function SettingsModal({
 
             {activeTab === "interface" && (
               <>
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded p-4">
-                  <p className="text-blue-400 text-sm">Interface Settings - coming soon</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-white">Split View</Label>
+                    <p className="text-gray-400 text-xs mt-1">Show side and top views simultaneously</p>
+                  </div>
+                  <Switch
+                    checked={splitViewEnabled}
+                    onCheckedChange={onToggleSplitView}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between">
