@@ -1,0 +1,337 @@
+// /components/panels/modes-panel.tsx
+
+"use client"
+import { RotateCw, Link2, Sparkles, Palette, Globe, Move3d, Video, Zap, ChevronDown, ChevronUp } from "lucide-react"
+import { DirectionWidget, getDirectionLabel } from "@/components/ui/direction-widget"
+import { motion, AnimatePresence } from "framer-motion"
+import React, { useState } from "react"
+
+interface ModesPanelProps {
+  modes: any
+  onModesChange: (modes: any) => void
+  modeSettings: any
+  onModeSettingsChange: (settings: any) => void
+  onImageColorModeChange?: (val: boolean) => void
+  expandedModes?: Record<string, boolean>
+  onExpandedModesChange?: (modes: Record<string, boolean>) => void
+}
+
+// --- ÖZEL SLIDER BİLEŞENİ ---
+interface CustomSliderProps {
+  value: number
+  onChange: (value: number) => void
+  min: number
+  max: number
+  step: number
+  accentColor?: string
+}
+
+const CustomSlider: React.FC<CustomSliderProps> = ({ value, onChange, min, max, step, accentColor = "#eab308" }) => {
+  return (
+    <div className="relative w-full group">
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full h-2 rounded-lg appearance-none cursor-pointer slider"
+        style={{
+          background: `linear-gradient(to right, ${accentColor} 0%, ${accentColor} ${((value - min) / (max - min)) * 100}%, var(--theme-border) ${((value - min) / (max - min)) * 100}%, var(--theme-border) 100%)`
+        }}
+      />
+      <style jsx>{`
+        .slider::-webkit-slider-thumb {
+          appearance: none;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #ffffff;
+          cursor: pointer;
+          border: 3px solid ${accentColor};
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+          transition: all 0.2s ease;
+        }
+        :global(.dark) .slider::-webkit-slider-thumb {
+          background: #18181b;
+        }
+        .slider::-webkit-slider-thumb:hover {
+          transform: scale(1.2);
+        }
+        .slider::-moz-range-thumb {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #ffffff;
+          cursor: pointer;
+          border: 3px solid ${accentColor};
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+          transition: all 0.2s ease;
+        }
+        :global(.dark) .slider::-moz-range-thumb {
+          background: #18181b;
+        }
+        .slider::-moz-range-thumb:hover {
+          transform: scale(1.2);
+        }
+      `}</style>
+    </div>
+  );
+}
+
+
+const MODES = [
+  {
+    id: "rotateMode",
+    name: "Global Rotation",
+    icon: Globe,
+    settings: [
+      { key: "speed", label: "Speed", min: 1, max: 10, step: 1, default: 1 },
+      { key: "frames", label: "Frames", min: 12, max: 120, step: 6, default: 60 },
+    ],
+  },
+  {
+    id: "localRotateMode",
+    name: "Self Rotation",
+    icon: RotateCw,
+    settings: [
+      { key: "speed", label: "Speed", min: 0.1, max: 5, step: 0.1, default: 1 },
+      { key: "radius", label: "Radius", min: 0.1, max: 2, step: 0.1, default: 0.5 },
+    ],
+  },
+  {
+    id: "moveMode",
+    name: "Movement",
+    icon: Move3d,
+    settings: [
+      { key: "speed", label: "Speed", min: 0.1, max: 10, step: 0.1, default: 0.5 },
+      { key: "maxDistance", label: "Distance", min: 1, max: 20, step: 1, default: 10 },
+      { key: "direction", label: "Direction", min: -1, max: 7, step: 1, default: -1 },
+    ],
+  },
+  {
+    id: "rainbowMode",
+    name: "Dynamic Rainbow",
+    icon: Palette,
+    settings: [
+      { key: "period", label: "Period", min: 1, max: 20, step: 0.1, default: 3 },
+    ],
+  },
+  {
+    id: "staticRainbowMode",
+    name: "Static Rainbow",
+    icon: Sparkles,
+  },
+  {
+    id: "chainMode",
+    name: "Chain Sequence",
+    icon: Link2,
+  },
+  {
+    id: "actionRecordingMode",
+    name: "Action Recording",
+    icon: Video,
+  },
+]
+
+export function ModesPanel({
+  modes,
+  onModesChange,
+  modeSettings,
+  onModeSettingsChange,
+  onImageColorModeChange,
+}: ModesPanelProps) {
+
+  const [expandedModes, setExpandedModes] = useState<string[]>([]);
+
+  const CONFLICTS: Record<string, string[]> = {
+    rainbowMode: ["staticRainbowMode"],
+    staticRainbowMode: ["rainbowMode"],
+  }
+
+  const handleToggle = (id: string, checked: boolean) => {
+    const nextModes = { ...modes, [id]: checked }
+    if (checked && CONFLICTS[id]) {
+      for (const conflictId of CONFLICTS[id]) {
+        if (nextModes[conflictId]) nextModes[conflictId] = false
+      }
+    }
+    onModesChange(nextModes)
+
+    // Mode aktif edildiğinde otomatik olarak expand et
+    const mode = MODES.find(m => m.id === id);
+    if (checked && mode?.settings) {
+      setExpandedModes(prev => prev.includes(id) ? prev : [...prev, id]);
+    }
+    // Mode deaktif edildiğinde collapse et
+    if (!checked) {
+      setExpandedModes(prev => prev.filter(modeId => modeId !== id));
+    }
+
+    if (id === "imageColorMode" && onImageColorModeChange) {
+      onImageColorModeChange(checked)
+    }
+  }
+
+  const handleSettingChange = (modeId: string, key: string, value: number) => {
+    onModeSettingsChange({
+      ...modeSettings,
+      [modeId]: {
+        ...modeSettings[modeId],
+        [key]: value,
+      },
+    })
+  }
+
+  const toggleExpanded = (modeId: string) => {
+    setExpandedModes(prev =>
+      prev.includes(modeId)
+        ? prev.filter(id => id !== modeId)
+        : [...prev, modeId]
+    );
+  }
+
+  const activeCount = Object.values(modes || {}).filter(Boolean).length
+
+  return (
+    <div className="h-full w-full bg-white dark:bg-zinc-950 flex flex-col text-sm text-zinc-900 dark:text-zinc-100">
+
+      {/* --- HEADER (ToolsPanel ile tutarlı) --- */}
+      <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-zinc-800">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg">
+            <Zap className="w-5 h-5 text-yellow-600 dark:text-yellow-450" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-900 dark:text-zinc-100 text-lg">Animation Effects</h3>
+            <p className="text-sm text-gray-505 dark:text-zinc-400">
+              {activeCount} active effect{activeCount !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* --- MODS LİSTESİ (ToolsPanel ile tutarlı) --- */}
+      <div className="flex-1 overflow-y-auto p-1 scrollbar-hidden bg-transparent">
+        {MODES.map((mode) => {
+          const isActive = modes?.[mode.id];
+          const isExpanded = expandedModes.includes(mode.id);
+          const hasSettings = mode.settings && mode.settings.length > 0;
+
+          return (
+            <div key={mode.id} className="mb-1">
+              <motion.div
+                layout
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 relative ${isActive
+                    ? "bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-450"
+                    : "text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-900/50"
+                  }`}
+                whileHover={{ x: 2 }}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="activeModeBar"
+                    className="absolute left-0 w-1 h-7 bg-yellow-500 rounded-r"
+                  />
+                )}
+                <mode.icon className="w-4 h-4 flex-shrink-0" />
+                <span className="font-medium flex-1">{mode.name}</span>
+
+                {hasSettings && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleExpanded(mode.id);
+                    }}
+                    className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-zinc-455"
+                  >
+                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                )}
+
+                <button
+                  onClick={() => handleToggle(mode.id, !isActive)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isActive ? 'bg-yellow-500' : 'bg-gray-300 dark:bg-zinc-800'
+                    }`}
+                >
+                  <motion.span
+                    layout
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isActive ? 'translate-x-4' : 'translate-x-0.5'
+                      }`}
+                  />
+                </button>
+              </motion.div>
+
+              <AnimatePresence>
+                {hasSettings && isExpanded && (
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: [0.4, 0.0, 0.2, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-3 pb-3 pl-7">
+                      <div className="bg-gray-50 dark:bg-zinc-900/40 rounded-md p-3 space-y-3 border border-gray-100 dark:border-zinc-800/60">
+                        {mode.settings.map((setting) => (
+                          <div key={setting.key} className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-semibold text-gray-600 dark:text-zinc-400 uppercase tracking-wider">{setting.label}</span>
+                              <span className="text-xs bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 px-2 py-1 rounded font-mono border border-gray-200 dark:border-zinc-800">
+                                {setting.key === "direction"
+                                  ? getDirectionLabel(modeSettings?.[mode.id]?.[setting.key] ?? setting.default)
+                                  : modeSettings?.[mode.id]?.[setting.key] ?? setting.default}
+                              </span>
+                            </div>
+
+                            {setting.key === "direction" && mode.id === "moveMode" ? (
+                              <div className="bg-white dark:bg-zinc-900 rounded-lg p-2 border border-gray-200 dark:border-zinc-800">
+                                <DirectionWidget
+                                  value={modeSettings?.[mode.id]?.[setting.key] ?? setting.default}
+                                  onChange={val => handleSettingChange(mode.id, setting.key, val)}
+                                  elevation={modeSettings?.[mode.id]?.elevation ?? 0}
+                                  onElevationChange={val => handleSettingChange(mode.id, "elevation", val)}
+                                />
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                <CustomSlider
+                                  value={modeSettings?.[mode.id]?.[setting.key] ?? setting.default}
+                                  onChange={(value) => handleSettingChange(mode.id, setting.key, value)}
+                                  min={setting.min}
+                                  max={setting.max}
+                                  step={setting.step}
+                                  accentColor="#eab308" // Sarı renk teması
+                                />
+                                <div className="flex justify-between text-xs text-gray-450 dark:text-zinc-500">
+                                  <span>{setting.min}</span>
+                                  <span>{setting.max}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )
+        })}
+      </div>
+
+      <style jsx>{`
+        .scrollbar-hidden::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hidden {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+    </div>
+  )
+}

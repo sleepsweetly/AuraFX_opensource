@@ -1,0 +1,10 @@
+yeni ozellik:
+✅ erase boyutunu ayarlama gelicek. - TAMAMLANDI
+✅ code panelinde fazla satir kod olduğunda panel açılmayacak kadar kasiyor kodlar virtual scrolling ile optimize edildi - TAMAMLANDI
+✅ brush size ayarlamasi kaldirildi - TAMAMLANDI
+✅ changelog modalini sidebara ekle otomatik olarak acilma olayini kaldir - TAMAMLANDI
+✅ about sayfasindaki watch demo kismini youtube kanalina bagla - TAMAMLANDI
+✅ about sayfasini doldur ve detaylandir - TAMAMLANDI
+✅ faq sayfasinda mobil uyumluluk aciklamasini guncelle - TAMAMLANDI
+✅ terms of service sayfasindaki typescript hatalarini duzelt - TAMAMLANDI
+✅ custom scrollbar stillerini beyaz tema ile uyumlu hale getir - TAMAMLANDI

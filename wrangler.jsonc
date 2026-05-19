@@ -1,0 +1,6 @@
+{
+  // Cloudflare Analytics Engine dataset binding ayarları
+  "analytics_engine_datasets": [
+    { "binding": "x", "dataset": "x" }
+  ]
+} 
