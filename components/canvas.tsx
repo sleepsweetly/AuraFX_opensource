@@ -13,6 +13,7 @@ import { RotateCw, MoveDiagonal } from "lucide-react"
 import { Pencil, MousePointerClick, Eraser, Circle, Square, Slash, Triangle } from "lucide-react"
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
 import { useSelectionStore } from "@/store/useSelectionStore"
+import { useElementStore } from "@/store/useElementStore"
 import { useToast } from "@/components/toast-system"
 
 interface CanvasProps {
@@ -96,15 +97,19 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     addElementDelay
   } = useActionRecordingStore()
 
+  // Element Store for optimized O(1) mutations
+  const elementStoreState = useElementStore()
+
   // Helper: Determine current particle count for selected shape/group
   const getCurrentParticleCount = () => {
     if (actualSelectedElementIds.length > 0) {
       const currentLayer = layers.find(layer => layer.id === currentLayerId)
       if (currentLayer) {
-        const selectedElement = currentLayer.elements.find(el => actualSelectedElementIds.includes(el.id))
+        // use latest elements from store
+        const layerElements = currentLayer.elements.map(el => elementStoreState.elements[el.id] || el)
+        const selectedElement = actualSelectedElementIds.length > 0 ? elementStoreState.elements[actualSelectedElementIds[0]] : null;
         if (selectedElement && selectedElement.groupId) {
-          // Daha güvenilir: grup boyutunu say
-          const groupCount = currentLayer.elements.filter(el => el.groupId === selectedElement.groupId).length
+          const groupCount = layerElements.filter(el => el.groupId === selectedElement.groupId).length
           if (groupCount > 0) return groupCount
         }
       }
@@ -117,7 +122,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     if (actualSelectedElementIds.length > 0) {
       const currentLayer = layers.find(layer => layer.id === currentLayerId)
       if (currentLayer) {
-        const el = currentLayer.elements.find(e => actualSelectedElementIds.includes(e.id))
+        const layerElements = currentLayer.elements.map(el => elementStoreState.elements[el.id] || el)
+        const el = actualSelectedElementIds.length > 0 ? elementStoreState.elements[actualSelectedElementIds[0]] : null;
         if (el && (el.type === "circle" || el.type === "square" || el.type === "line")) return el.type
       }
     }
@@ -337,7 +343,14 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   const prevScaleRef = useRef(scale);
   const prevOffsetRef = useRef(offset);
 
-  const currentLayer = layers.find(layer => layer.id === currentLayerId) || null
+  const currentLayerRaw = layers.find(layer => layer.id === currentLayerId) || null
+  const currentLayer = useMemo(() => {
+    if (!currentLayerRaw) return null;
+    return {
+      ...currentLayerRaw,
+      elements: currentLayerRaw.elements.map(el => elementStoreState.elements[el.id] || el)
+    };
+  }, [currentLayerRaw, elementStoreState.elements])
 
   // Sidebar artık yok, bu değişkenler kullanılmıyor
 
@@ -731,9 +744,11 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       ];
       let globalIdx = 0;
       layers.filter(layer => layer.visible).forEach(layer => {
-        const elementsToRender = performanceMode
+        let elementsToRender = performanceMode
           ? layer.elements.filter((_, index) => index % 2 === 0)
           : layer.elements;
+
+        elementsToRender = elementsToRender.map(el => elementStoreState.elements[el.id] || el);
 
         // === BATCH DRAWING ===
         // Grupla: renk + tip (image/normal)
@@ -813,8 +828,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
               screenY = centerY + elementZ * 10 * scale; // Değişti
             }
             const isPng = element.type === 'image';
-            ctx.moveTo(screenX + (isPng ? 0.6 : 3 * scale), screenY);
-            ctx.arc(screenX, screenY, isPng ? 0.6 : 3 * scale, 0, 2 * Math.PI);
+            const dotRadius = isPng ? Math.max(0.6, 1.5 * scale) : 3 * scale;
+            ctx.moveTo(screenX + dotRadius, screenY);
+            ctx.arc(screenX, screenY, dotRadius, 0, 2 * Math.PI);
           });
           ctx.fill();
         });
@@ -1109,17 +1125,33 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       if (canvas) {
         const centerX = canvas.width / 2 + offset.x
         const centerY = canvas.height / 2 + offset.y
-        const selectedEls = currentLayer.elements.filter(element => actualSelectedElementIds.includes(element.id))
-        if (selectedEls.length > 0) {
-          const xs = selectedEls.map(element => centerX + element.position.x * 10 * scale)
-          const ys = selectedEls.map(element => {
-            if (viewMode === 'side') {
-              const yVal = typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0)
-              return centerY - yVal * 10 * scale
-            } else {
-              return centerY + element.position.z * 10 * scale
-            }
-          })
+        const xs: number[] = [];
+        const ys: number[] = [];
+
+        actualSelectedElementIds.forEach(id => {
+          const element = elementStoreState.elements[id];
+          if (!element) return;
+
+          let ex = element.position.x;
+          let ez = element.position.z;
+          let ey = typeof element.yOffset === 'number' ? element.yOffset : (typeof element.position.y === 'number' ? element.position.y : 0);
+
+          if (draggingSelection && dragDelta && dragStartInfoRef.current?.positions.has(id)) {
+            const st = dragStartInfoRef.current.positions.get(id)!;
+            ex = st.x + dragDelta.x;
+            ez = st.z + dragDelta.z;
+            ey = st.yOffset + dragDelta.yOffset;
+          }
+
+          xs.push(centerX + ex * 10 * scale);
+          if (viewMode === 'side') {
+            ys.push(centerY - ey * 10 * scale);
+          } else {
+            ys.push(centerY + ez * 10 * scale);
+          }
+        });
+
+        if (xs.length > 0) {
           let minX = Math.min(...xs)
           let minY = Math.min(...ys)
           let maxX = Math.max(...xs)
@@ -1156,7 +1188,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       ctx.restore();
     }
 
-  }, [layers, performanceMode, modes, scale, offset, viewMode, currentLayer, dragStart, dragEnd, isDragging, currentTool, selectionBox, actualSelectedElementIds, isRotating, isScaling, scaleStart, chainItems, animationTick, forceUpdate, mousePosition, showGridCoordinates, settings, backgroundColor, dragDelta]);
+  }, [layers, performanceMode, modes, scale, offset, viewMode, currentLayer, dragStart, dragEnd, isDragging, currentTool, selectionBox, actualSelectedElementIds, isRotating, isScaling, scaleStart, chainItems, animationTick, forceUpdate, mousePosition, showGridCoordinates, settings, backgroundColor, dragDelta, elementStoreState.elements]);
 
   // Chain Animation Web Worker - Kaldırıldı
   // useEffect(() => {
@@ -1293,7 +1325,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     const handleKeyDown = (e: KeyboardEvent) => {
       if (currentTool === "select" && actualSelectedElementIds.length > 0 && (e.key === "Backspace" || e.key === "Delete")) {
         if (!currentLayer || !onUpdateLayer) return
-        const newElements = currentLayer.elements.filter(element => !actualSelectedElementIds.includes(element.id))
+        const idsSet = new Set(actualSelectedElementIds);
+        const newElements = currentLayer.elements.filter(element => !idsSet.has(element.id))
         onUpdateLayer(currentLayer.id, { elements: newElements })
         actualSetSelectedElementIds([])
         setFixedSelectionBox(null) // Fixed selection box'ı da temizle
@@ -1437,7 +1470,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       const mouseY = e.clientY - rect.top
       const centerX = canvas.width / 2 + offset.x
       const centerY = canvas.height / 2 + offset.y
-      const selectedEls = currentLayer.elements.filter(element => actualSelectedElementIds.includes(element.id))
+      const selectedEls = actualSelectedElementIds.map(id => elementStoreState.elements[id]).filter(Boolean);
       if (selectedEls.length > 0) {
         const xs = selectedEls.map(element => centerX + element.position.x * 10 * scale)
         const ys = selectedEls.map(element => centerY + element.position.z * 10 * scale)
@@ -1549,7 +1582,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
         // 3. Kutunun içindeysek, spesifik bir elemente mi tıkladık? (Cursor için)
         if (clickedOnSelectionBox) {
-          const selectedEls = currentLayer.elements.filter(el => actualSelectedElementIds.includes(el.id))
+          const selectedEls = actualSelectedElementIds.map(id => elementStoreState.elements[id]).filter(Boolean);
           for (const element of selectedEls) {
             let elementX, elementY
             if (viewMode === 'side') {
@@ -1578,7 +1611,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         // === YENİ KOD BAŞLANGIÇ: Delta-based dragging ===
         // Sürükleme başladığında tüm seçili elementlerin orijinal pozisyonlarını kaydet
         const positions = new Map<string, { x: number, z: number, yOffset: number }>();
-        const selectedEls = currentLayer.elements.filter(el => actualSelectedElementIds.includes(el.id));
+        const selectedEls = actualSelectedElementIds.map(id => elementStoreState.elements[id]).filter(Boolean);
         selectedEls.forEach(el => {
           positions.set(el.id, {
             x: el.position.x,
@@ -1777,7 +1810,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           const minScaleChange = 0.01 // %1 minimum ölçeklendirme değişikliği
           if (Math.abs(scaleFactor - 1) > minScaleChange) {
             const currentPositions = actualSelectedElementIds.map(id => {
-              const element = currentLayer.elements.find(el => el.id === id);
+              const element = elementStoreState.elements[id];
               if (!element) return { id, x: 0, z: 0, yOffset: 0 };
               return {
                 id,
@@ -1799,20 +1832,21 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       const centerZ = scaleStart.initialPositions.reduce((sum, p) => sum + p.z, 0) / scaleStart.initialPositions.length;
       const centerY = scaleStart.initialPositions.reduce((sum, p) => sum + p.yOffset, 0) / scaleStart.initialPositions.length;
 
-      const updatedElements = currentLayer.elements.map(el => {
-        const found = scaleStart.initialPositions.find(p => p.id === el.id);
-        if (!found) return el;
-        return {
-          ...el,
+      // O(K): Sadece seçili elementleri güncelle, 10K elementin hepsini dolaşma
+      const updates: Record<string, Partial<Element>> = {};
+      scaleStart.initialPositions.forEach(found => {
+        const el = elementStoreState.elements[found.id];
+        if (!el) return;
+        updates[found.id] = {
           position: {
             x: centerX + (found.x - centerX) * scaleFactor,
             z: centerZ + (found.z - centerZ) * scaleFactor,
-            y: el.position.y // Y position'ı koruyalım (eğer varsa)
+            y: el.position.y
           },
           yOffset: centerY + (found.yOffset - centerY) * scaleFactor
         };
       });
-      onUpdateLayer(currentLayer.id, { elements: updatedElements });
+      useElementStore.getState().updateElements(updates);
 
       // Fixed selection box sabit kalıyor, güncellemeye gerek yok
 
@@ -1860,7 +1894,7 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           const minRotation = 0.01 // ~0.57 derece minimum döndürme
           if (Math.abs(deltaAngle) > minRotation) {
             const currentPositions = actualSelectedElementIds.map(id => {
-              const element = currentLayer.elements.find(el => el.id === id);
+              const element = elementStoreState.elements[id];
               if (!element) return { id, x: 0, z: 0, yOffset: 0 };
               return {
                 id,
@@ -1882,20 +1916,18 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         const centerX = rotateStart.initialPositions.reduce((sum, p) => sum + p.x, 0) / rotateStart.initialPositions.length;
         const centerY = rotateStart.initialPositions.reduce((sum, p) => sum + p.yOffset, 0) / rotateStart.initialPositions.length;
 
-        const updatedElements = currentLayer.elements.map(el => {
-          const found = rotateStart.initialPositions.find(p => p.id === el.id);
-          if (!found) return el;
-          // Merkezden vektör (X ve Y düzleminde)
+        // O(K): Sadece seçili elementleri güncelle
+        const cosA = Math.cos(deltaAngle);
+        const sinA = Math.sin(deltaAngle);
+        const updates: Record<string, Partial<Element>> = {};
+        rotateStart.initialPositions.forEach(found => {
+          const el = elementStoreState.elements[found.id];
+          if (!el) return;
           let dx = found.x - centerX;
           let dy = found.yOffset - centerY;
-          // Apply optional scaling
           dx *= scaleFactorCombined;
           dy *= scaleFactorCombined;
-          // Z ekseni etrafında dönüş
-          const cosA = Math.cos(deltaAngle);
-          const sinA = Math.sin(deltaAngle);
-          return {
-            ...el,
+          updates[found.id] = {
             position: {
               ...el.position,
               x: centerX + dx * cosA - dy * sinA
@@ -1903,36 +1935,31 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
             yOffset: centerY + dx * sinA + dy * cosA
           };
         });
-        onUpdateLayer(currentLayer.id, { elements: updatedElements });
+        useElementStore.getState().updateElements(updates);
 
         // Fixed selection box sabit kalıyor, güncellemeye gerek yok
       } else {
         // Top view: Y ekseni etrafında döndürme (X ve Z koordinatlarını değiştir) - mevcut davranış
         const centerX = rotateStart.initialPositions.reduce((sum, p) => sum + p.x, 0) / rotateStart.initialPositions.length;
         const centerZ = rotateStart.initialPositions.reduce((sum, p) => sum + p.z, 0) / rotateStart.initialPositions.length;
-        const updatedElements = currentLayer.elements.map(el => {
-          const found = rotateStart.initialPositions.find(p => p.id === el.id);
-          if (!found) return el;
-          // Merkezden vektör
+        // O(K): Sadece seçili elementleri güncelle
+        const cosA = Math.cos(deltaAngle);
+        const sinA = Math.sin(deltaAngle);
+        const updates: Record<string, Partial<Element>> = {};
+        rotateStart.initialPositions.forEach(found => {
           let dx = found.x - centerX;
           let dz = found.z - centerZ;
-          // Apply optional scaling
           dx *= scaleFactorCombined;
           dz *= scaleFactorCombined;
-          // Dönüş
-          const cosA = Math.cos(deltaAngle);
-          const sinA = Math.sin(deltaAngle);
-          return {
-            ...el,
+          updates[found.id] = {
             position: {
               x: centerX + dx * cosA - dz * sinA,
               z: centerZ + dx * sinA + dz * cosA
             },
-            // yOffset'i koru
             yOffset: found.yOffset
           };
         });
-        onUpdateLayer(currentLayer.id, { elements: updatedElements });
+        useElementStore.getState().updateElements(updates);
 
         // Fixed selection box sabit kalıyor, güncellemeye gerek yok
       }
@@ -2097,29 +2124,26 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
         if (dragDelta && dragStartInfoRef.current && currentLayer && onUpdateLayer) {
           const startPositions = dragStartInfoRef.current.positions;
 
-          // O(N) optimizasyonu: Tüm katmanı map'le, O(1) hızında Map'ten kontrol et
-          const updatedElements = currentLayer.elements.map(element => {
-            const startPos = startPositions.get(element.id); // Hızlı O(1) lookup
+          const updates: Record<string, Partial<Element>> = {};
 
-            // Eğer element seçili değilse, dokunma
-            if (!startPos) {
-              return element;
+          actualSelectedElementIds.forEach(id => {
+            const startPos = startPositions.get(id);
+            if (startPos) {
+              const currentElement = elementStoreState.elements[id];
+              if (currentElement) {
+                updates[id] = {
+                  position: {
+                    ...currentElement.position,
+                    x: startPos.x + dragDelta.x,
+                    z: startPos.z + dragDelta.z
+                  },
+                  yOffset: startPos.yOffset + dragDelta.yOffset
+                };
+              }
             }
-
-            // Eğer seçiliyse, nihai pozisyonunu hesapla ve güncelle
-            return {
-              ...element,
-              position: {
-                ...element.position, // 'y' gibi diğer pozisyonları koru
-                x: startPos.x + dragDelta.x,
-                z: startPos.z + dragDelta.z
-              },
-              yOffset: startPos.yOffset + dragDelta.yOffset
-            };
           });
 
-          // Global state'i SADECE 1 KEZ güncelle
-          onUpdateLayer(currentLayer.id, { elements: updatedElements });
+          useElementStore.getState().updateElements(updates);
 
           // Action Recording 'end' (mevcut kodunuzdan taşıyabilirsiniz)
           if (modes.actionRecordingMode) {
@@ -2775,7 +2799,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     const centerX = canvas.width / 2 + offset.x;
     const centerY = canvas.height / 2 + offset.y;
-    const selectedEls = currentLayer.elements.filter(element => actualSelectedElementIds.includes(element.id));
+    if (!currentLayer) return;
+    const selectedEls = actualSelectedElementIds.map(id => elementStoreState.elements[id]).filter(Boolean);
     if (selectedEls.length === 0) return null;
 
     const xs = selectedEls.map(element => centerX + element.position.x * 10 * scale);
@@ -2821,7 +2846,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
   // Overlay butonları için event handler'ları
   const handleDeleteClick = () => {
     if (!currentLayer || !onUpdateLayer) return;
-    const newElements = currentLayer.elements.filter(element => !actualSelectedElementIds.includes(element.id));
+    if (!currentLayer) return;
+    const idsSet = new Set(actualSelectedElementIds);
+    const newElements = currentLayer.elements.filter(element => !idsSet.has(element.id));
     onUpdateLayer(currentLayer.id, { elements: newElements });
     actualSetSelectedElementIds([]);
     setFixedSelectionBox(null); // Fixed selection box'ı da temizle
@@ -2838,7 +2865,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     setIsRotating(true);
     const boxCenter = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
-    const selectedEls = currentLayer.elements.filter(element => actualSelectedElementIds.includes(element.id));
+    if (!currentLayer) return;
+    const selectedEls = actualSelectedElementIds.map(id => elementStoreState.elements[id]).filter(Boolean);
 
     // Canvas koordinatlarına dönüştür
     const canvas = canvasRef.current;
@@ -2883,7 +2911,8 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
     setIsScaling(true);
     const boxCenter = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
-    const selectedEls = currentLayer.elements.filter(element => actualSelectedElementIds.includes(element.id));
+    if (!currentLayer) return;
+    const selectedEls = actualSelectedElementIds.map(id => elementStoreState.elements[id]).filter(Boolean);
     const initialPositions = selectedEls.map(el => ({
       id: el.id,
       x: el.position.x,

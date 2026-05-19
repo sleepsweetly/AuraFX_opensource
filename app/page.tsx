@@ -37,6 +37,7 @@ import { Settings, Grid3X3, Zap, Hash, Palette, X, Sparkles } from "lucide-react
 import { use3DStore } from "@/app/3d/store/use3DStore"
 import { useClipboardStore } from "@/store/useClipboardStore"
 import { useLayerStore } from "@/store/useLayerStore"
+import { useElementStore } from "@/store/useElementStore"
 import { useToast } from "@/components/toast-system"
 import { analyzeEffectLines, optimizeEffects, applyTemplate } from "@/lib/effect-optimizer"
 import type { OptimizationSettings } from "@/lib/effect-optimizer"
@@ -302,10 +303,11 @@ const generateCodeFromElements = async (
     code += `\n`;
   }
 
-  // Tüm layer'ları ve elementleri kopyala
+  // Tüm layer'ları ve elementleri (ElementStore eşliğinde en güncel haliyle) kopyala
+  const elementStoreMap = useElementStore.getState().elements;
   const layersCopy = layers.map(layer => ({
     ...layer,
-    elements: [...layer.elements]
+    elements: layer.elements.map(el => elementStoreMap[el.id] || el)
   }));
 
   layersCopy.forEach((layer: Layer) => {
@@ -2567,10 +2569,7 @@ export default function EffectEditor() {
               onClose={() => setOpenPanels((prev) => prev.filter((p) => p !== "action-recording"))}
               onMinimize={() => togglePanel("action-recording")}
             >
-              <ActionRecordingPanel
-                isRecording={false}
-                onToggleRecording={() => { }}
-              />
+              <ActionRecordingPanel />
             </DraggablePanel>
           );
 

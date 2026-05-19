@@ -8,3 +8,9 @@ yeni ozellik:
 ✅ faq sayfasinda mobil uyumluluk aciklamasini guncelle - TAMAMLANDI
 ✅ terms of service sayfasindaki typescript hatalarini duzelt - TAMAMLANDI
 ✅ custom scrollbar stillerini beyaz tema ile uyumlu hale getir - TAMAMLANDI
+
+
+yapılcaklar:
+✅ headerdeki oyun kaldırılacak - TAMAMLANDI
+✅ element işlemleri optimize edilecek 0dan mimari kurulacak element işlemleri uzerine - TAMAMLANDI
+✅ action recording modu icin 3d onizleme ortamı olusturulacak persfektif acidan elementlerin hareketlerini izleyebilecegiz - TAMAMLANDI

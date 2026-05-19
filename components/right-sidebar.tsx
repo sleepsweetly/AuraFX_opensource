@@ -178,7 +178,7 @@ export function RightSidebar({
       case "element-config": return <ElementSettingsPanel layers={layers || []} currentLayer={currentLayer} onUpdateLayer={onUpdateLayer || (() => { })} modes={modes || {}} onShowCode={onShowCode || (() => { })} updateSelectedElementsParticle={updateSelectedElementsParticle} updateSelectedElementsColor={updateSelectedElementsColor} />
       case "code": return <CodePanel code={generatedCode || ""} onGenerateCode={onGenerateCode || (() => Promise.resolve())} isGenerating={isGeneratingCode} settings={settings || {}} onSettingsChange={onSettingsChange || (() => { })} layers={layers || []} onUpdateLayer={onUpdateLayer || (() => { })} currentLayer={currentLayer} modes={modes || {}} onFrameSettingsChange={onFrameSettingsChange} optimize={optimize || false} setOptimize={setOptimize || (() => { })} />
       case "chain": return <ChainPanel layers={layers || []} currentLayerId={currentLayer?.id || null} chainSequence={chainSequence || []} onChainSequenceChange={onChainSequenceChange || (() => { })} selectedElementIds={selectedElementIds || []} chainItems={chainItems || []} onChainItemsChange={onChainItemsChange || (() => { })} />
-      case "recording": return <ActionRecordingPanel isRecording={isRecording || false} onToggleRecording={onToggleRecording || (() => { })} />
+      case "recording": return <ActionRecordingPanel />
       case "performance": return <PerformancePanel currentLineCount={currentLineCount || 0} onOptimize={onOptimize || (() => { })} onApplyTemplate={onApplyTemplate || (() => { })} />
       case "announcements": return <AnnouncementPanel />
       case "changelog": return <ChangelogPanel />

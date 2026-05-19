@@ -314,7 +314,13 @@ export const use3DStore = create<Store3D>()(
 
       // Ana sistemin store'unu güncelle
       const mainStore = useElementStore.getState()
-      mainStore.setElements(elements)
+      
+      const elementMap: Record<string, Element> = {}
+      elements.forEach(el => {
+        elementMap[el.id] = el
+      })
+      
+      mainStore.setElements(elementMap)
     },
 
     // Element işlemleri

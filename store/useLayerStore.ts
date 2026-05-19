@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Layer, Element } from "../types";
+import { useElementStore } from "./useElementStore";
 
 interface LayerStore {
   layers: Layer[];
@@ -22,18 +23,38 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   currentLayerId: null,
   performanceMode: false,
   copiedLayer: null,
-  setLayers: (layers) => set((state) => ({
-    layers,
-    currentLayerId: state.currentLayerId || (layers.find(l => l.id === "default")?.id ?? (layers[0]?.id ?? null)),
-  })),
+  setLayers: (layers) => {
+    // Tüm layerlardaki elementleri ElementStore'a yükle (hydrate)
+    const allElements: Element[] = [];
+    layers.forEach(l => {
+      if (l.elements) {
+        allElements.push(...l.elements);
+      }
+    });
+    if (allElements.length > 0) {
+      useElementStore.getState().addElements(allElements);
+    }
+
+    set((state) => ({
+      layers,
+      currentLayerId: state.currentLayerId || (layers.find(l => l.id === "default")?.id ?? (layers[0]?.id ?? null)),
+    }));
+  },
   setCurrentLayerId: (id) => set({ currentLayerId: id }),
   setPerformanceMode: (enabled) => set({ performanceMode: enabled }),
   setCopiedLayer: (layer) => set({ copiedLayer: layer }),
-  addLayer: (layer) => set((state) => ({
-    layers: [...state.layers, layer],
-    currentLayerId: state.currentLayerId || layer.id
-  })),
-  addElementsToLayer: (layerId, elements, clearExisting = false) =>
+  addLayer: (layer) => {
+    if (layer.elements && layer.elements.length > 0) {
+      useElementStore.getState().addElements(layer.elements);
+    }
+    set((state) => ({
+      layers: [...state.layers, layer],
+      currentLayerId: state.currentLayerId || layer.id
+    }));
+  },
+  addElementsToLayer: (layerId, elements, clearExisting = false) => {
+    useElementStore.getState().addElements(elements);
+    
     set((state) => ({
       layers: state.layers.map((layer) =>
         layer.id === layerId
@@ -45,20 +66,26 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
             }
           : layer
       ),
-    })),
+    }));
+  },
   copyLayer: (layerId) => {
     const state = get();
     const layerToCopy = state.layers.find(layer => layer.id === layerId);
     if (layerToCopy) {
-      // Elementleri de kopyalayarak yeni bir layer oluştur
+      // Elementleri en güncel halleriyle ElementStore'dan alarak kopyala
+      const currentElementMap = useElementStore.getState().elements;
+      
       const copiedLayer: Layer = {
         ...layerToCopy,
         id: `copied_${Date.now()}`, // Geçici ID
         name: `${layerToCopy.name} (Copy)`,
-        elements: layerToCopy.elements.map(element => ({
-          ...element,
-          id: `copied_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` // Yeni element ID'leri
-        }))
+        elements: layerToCopy.elements.map(element => {
+          const freshElement = currentElementMap[element.id] || element;
+          return {
+            ...freshElement,
+            id: `copied_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` // Yeni element ID'leri
+          };
+        })
       };
       set({ copiedLayer: copiedLayer });
     }
@@ -75,6 +102,11 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
           id: `element_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         }))
       };
+      
+      if (newLayer.elements.length > 0) {
+        useElementStore.getState().addElements(newLayer.elements);
+      }
+      
       set((state) => ({
         layers: [...state.layers, newLayer],
         currentLayerId: newLayer.id

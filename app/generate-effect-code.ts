@@ -1,6 +1,7 @@
 import type { Layer, Element, ActionRecord } from "@/types"
 import type { EffectSession, EffectProject } from "@/types/effect-session"
 import { getDiscordInviteUrl } from "@/lib/config"
+import { useElementStore } from "@/store/useElementStore"
 
 // Action recording işleme fonksiyonları
 function processActionRecords(actionRecords: ActionRecord[], layers: Layer[]): { [elementId: string]: { x: number, z: number, yOffset: number } } {
@@ -510,6 +511,13 @@ export const generateEffectCode = async (
     debugFrameComments?: boolean;
   }
 ) => {
+  // ElementStore'daki O(1) hash map güncellemelerini asıl koda entegre et:
+  const elementStoreMap = useElementStore.getState().elements;
+  layers = layers.map(layer => ({
+    ...layer,
+    elements: layer.elements.map(el => ({ ...el, ...(elementStoreMap[el.id] || {}) }))
+  }));
+
   const totalElements = layers.reduce((sum, l) => sum + l.elements.length, 0);
 
   // Action recording'leri işle ve element pozisyonlarını güncelle
