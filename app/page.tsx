@@ -108,6 +108,7 @@ interface Settings {
   objScale: number;
   performanceMode: boolean;
   imageColorMode: boolean;
+  useRelativeOffsets?: boolean;
   snapToGridMode: boolean;
   gridSize: number;
   alphaThreshold: number;
@@ -142,6 +143,14 @@ export type EffectType =
   | "particlesphere"
   | "particletornado";
 
+// Relative offset (fo/so/uo) vs global offset (xoffset/zoffset/yoffset) builder for legacy code path
+function buildLegacyTargeterOffset(targeter: string, x: number, z: number, y: number, useRelativeOffsets: boolean = false): string {
+  if (useRelativeOffsets) {
+    return `@${targeter}{fo=${z.toFixed(4)};so=${x.toFixed(4)};uo=${y.toFixed(4)}}`;
+  }
+  return `@${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+}
+
 const generateEffectLine = (
   effectType: EffectType,
   p: string,
@@ -153,11 +162,13 @@ const generateEffectLine = (
   z: number,
   y: number,
   targeter: string,
-  effectParams?: Layer["effectParams"]
+  effectParams?: Layer["effectParams"],
+  useRelativeOffsets: boolean = false
 ) => {
+  const offsetStr = buildLegacyTargeterOffset(targeter, x, z, y, useRelativeOffsets);
   switch (effectType) {
     case "particles":
-      return `  - effect:particles{p=${p};c=${c};a=${a};size=1;repeat=${repeat};repeatInterval=${interval}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - effect:particles{p=${p};c=${c};a=${a};size=1;repeat=${repeat};repeatInterval=${interval}} ${offsetStr}`;
 
     case "particlelinehelix":
       const {
@@ -170,7 +181,7 @@ const generateEffectLine = (
         helixRotation = 0,
         maxDistance = 256
       } = effectParams || {};
-      return `  - particlelinehelix{Fo=${fromOrigin};db=${distanceBetween};hl=${helixLength};syo=${startYOffset};tyo=${targetYOffset};particle=${p};color=${c};hr=${helixRadius};speed=${interval}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlelinehelix{Fo=${fromOrigin};db=${distanceBetween};hl=${helixLength};syo=${startYOffset};tyo=${targetYOffset};particle=${p};color=${c};hr=${helixRadius};speed=${interval}} ${offsetStr}`;
 
     case "particleorbital":
       const {
@@ -190,14 +201,14 @@ const generateEffectLine = (
         rotate = false,
         reversed = false
       } = effectParams || {};
-      return `  - particleorbital{r=${radius};points=${points};t=${ticks};i=${orbitalInterval};rotX=${rotationX};rotY=${rotationY};rotZ=${rotationZ};offx=${offsetX};offy=${offsetY};offz=${offsetZ};avx=${angularVelocityX};avy=${angularVelocityY};avz=${angularVelocityZ};rotate=${rotate};reversed=${reversed};particle=${p};color=${c}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particleorbital{r=${radius};points=${points};t=${ticks};i=${orbitalInterval};rotX=${rotationX};rotY=${rotationY};rotZ=${rotationZ};offx=${offsetX};offy=${offsetY};offz=${offsetZ};avx=${angularVelocityX};avy=${angularVelocityY};avz=${angularVelocityZ};rotate=${rotate};reversed=${reversed};particle=${p};color=${c}} ${offsetStr}`;
 
     case "particlering":
       const {
         ringPoints = 8,
         ringRadius = 10
       } = effectParams || {};
-      return `  - particlering{particle=${p};color=${c};radius=${ringRadius};points=${ringPoints};amount=${a}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlering{particle=${p};color=${c};radius=${ringRadius};points=${ringPoints};amount=${a}} ${offsetStr}`;
 
     case "particleline":
       const {
@@ -210,7 +221,7 @@ const generateEffectLine = (
         zigzagOffset = 0.2,
         maxDistance: lineMaxDistance = 256
       } = effectParams || {};
-      return `  - particleline{db=${lineDistance};syo=${lineStartY};tyo=${lineTargetY};fo=${lineFromOrigin};zz=${zigzag};zzs=${zigzags};zzo=${zigzagOffset};md=${lineMaxDistance};particle=${p};color=${c}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particleline{db=${lineDistance};syo=${lineStartY};tyo=${lineTargetY};fo=${lineFromOrigin};zz=${zigzag};zzs=${zigzags};zzo=${zigzagOffset};md=${lineMaxDistance};particle=${p};color=${c}} ${offsetStr}`;
 
     case "particlelinering":
       const {
@@ -222,13 +233,13 @@ const generateEffectLine = (
         ringradius = 0.5,
         maxDistance: ringMaxDistance = 256
       } = effectParams || {};
-      return `  - particlelinering{db=${ringDistance};syo=${ringStartY};tyo=${ringTargetY};fo=${ringFromOrigin};rp=${ringpoints};rr=${ringradius};md=${ringMaxDistance};particle=${p};color=${c}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlelinering{db=${ringDistance};syo=${ringStartY};tyo=${ringTargetY};fo=${ringFromOrigin};rp=${ringpoints};rr=${ringradius};md=${ringMaxDistance};particle=${p};color=${c}} ${offsetStr}`;
 
     case "particlesphere":
       const {
         sphereRadius = 0
       } = effectParams || {};
-      return `  - particlesphere{particle=${p};color=${c};amount=${a};radius=${sphereRadius}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlesphere{particle=${p};color=${c};amount=${a};radius=${sphereRadius}} ${offsetStr}`;
 
     case "particletornado":
       const {
@@ -248,10 +259,10 @@ const generateEffectLine = (
         cloudPSpeed = 2,
         cloudYOffset = 1.8
       } = effectParams || {};
-      return `  - particletornado{p=${p};cp=${cloudParticle};mr=${maxRadius};h=${tornadoHeight};i=${tornadoInterval};d=${tornadoDuration};rs=${rotationSpeed};sh=${sliceHeight};scd=${stopOnCasterDeath};sed=${stopOnEntityDeath};cs=${cloudSize};ca=${cloudAmount};chs=${cloudHSpread};cvs=${cloudVSpread};cps=${cloudPSpeed};cyo=${cloudYOffset}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particletornado{p=${p};cp=${cloudParticle};mr=${maxRadius};h=${tornadoHeight};i=${tornadoInterval};d=${tornadoDuration};rs=${rotationSpeed};sh=${sliceHeight};scd=${stopOnCasterDeath};sed=${stopOnEntityDeath};cs=${cloudSize};ca=${cloudAmount};chs=${cloudHSpread};cvs=${cloudVSpread};cps=${cloudPSpeed};cyo=${cloudYOffset}} ${offsetStr}`;
 
     default:
-      return `  - effect:particles{p=${p};c=${c};a=${a};size=1;repeat=${repeat};repeatInterval=${interval}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - effect:particles{p=${p};c=${c};a=${a};size=1;repeat=${repeat};repeatInterval=${interval}} ${offsetStr}`;
   }
 };
 
@@ -1158,6 +1169,7 @@ export default function EffectEditor() {
   const saveToHistory = useCallback((action?: string) => {
     pushSnapshot({
       layers: [...layers],
+      elements: { ...useElementStore.getState().elements },
       settings: { ...settings },
       modes: { ...modes },
       currentTool,
@@ -1179,6 +1191,7 @@ export default function EffectEditor() {
       // Batch mode'da snapshot'ı sakla, mouse up'ta ekle
       setPendingHistorySnapshot({
         layers: [...layers],
+        elements: { ...useElementStore.getState().elements },
         settings: { ...settings },
         modes: { ...modes },
         currentTool,
@@ -1209,6 +1222,10 @@ export default function EffectEditor() {
       if (snapshot.layers.length > 0) {
         setCurrentLayer(snapshot.layers[0])
       }
+    }
+    // Element store'u senkronize et (Kritik!)
+    if (snapshot.elements) {
+      useElementStore.getState().setElements(snapshot.elements)
     }
     if (snapshot.settings) {
       setSettings(snapshot.settings)

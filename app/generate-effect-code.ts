@@ -8,12 +8,14 @@ function processActionRecords(actionRecords: ActionRecord[], layers: Layer[]): {
   const elementPositions: { [elementId: string]: { x: number, z: number, yOffset: number } } = {};
   
   // İlk olarak tüm element'lerin başlangıç pozisyonlarını al
+  const currentElementMap = useElementStore.getState().elements;
   layers.forEach(layer => {
     layer.elements.forEach(element => {
+      const fresh = currentElementMap[element.id] || element;
       elementPositions[element.id] = {
-        x: element.position.x,
-        z: element.position.z,
-        yOffset: element.yOffset || 0
+        x: fresh.position.x,
+        z: fresh.position.z,
+        yOffset: fresh.yOffset || 0
       };
     });
   });
@@ -373,6 +375,18 @@ function buildParams(params: Record<string, any>) {
     .join(";");
 }
 
+// Relative offset (fo/so/uo) vs global offset (xoffset/zoffset/yoffset) builder
+// fo = forward (maps to editor Z axis), so = side (maps to editor X axis), uo = up (maps to editor Y axis)
+function buildTargeterOffset(targeter: string, x: number, z: number, y: number, useRelativeOffsets: boolean = false): string {
+  if (useRelativeOffsets) {
+    return `@${targeter}{fo=${z.toFixed(4)};so=${x.toFixed(4)};uo=${y.toFixed(4)}}`;
+  }
+  return `@${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+}
+
+// Module-level flag set by generateEffectCode, consumed by generateEffectLine
+let _useRelativeOffsets = false;
+
 function generateEffectLine(
   effectType: string,
   p: string,
@@ -386,11 +400,12 @@ function generateEffectLine(
   targeter: string,
   effectParams?: Layer["effectParams"]
 ) {
+  const offsetStr = buildTargeterOffset(targeter, x, z, y, _useRelativeOffsets);
   // Her effect type için doğru format kullan
   switch (effectType) {
     case "particles": {
       const params = buildParams({ particle: p, color: c, amount: a, size: 1, repeat, repeatInterval: interval });
-      return `  - e:p{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - e:p{${params}} ${offsetStr}`;
     }
     case "particlelinehelix": {
       const {
@@ -404,7 +419,7 @@ function generateEffectLine(
         maxDistance
       } = effectParams || {};
       const params = buildParams({ Fo: fromOrigin, db: distanceBetween, hl: helixLength, syo: startYOffset, tyo: targetYOffset, particle: p, color: c, hr: helixRadius, speed: interval, md: maxDistance });
-      return `  - particlelinehelix{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlelinehelix{${params}} ${offsetStr}`;
     }
     case "particleorbital": {
       const {
@@ -425,12 +440,12 @@ function generateEffectLine(
         reversed
       } = effectParams || {};
       const params = buildParams({ r: radius, points, t: ticks, i: orbitalInterval, rotX: rotationX, rotY: rotationY, rotZ: rotationZ, offx: offsetX, offy: offsetY, offz: offsetZ, avx: angularVelocityX, avy: angularVelocityY, avz: angularVelocityZ, rotate, reversed, particle: p, color: c });
-      return `  - particleorbital{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particleorbital{${params}} ${offsetStr}`;
     }
     case "particlering": {
       const { ringPoints, ringRadius } = effectParams || {};
       const params = buildParams({ particle: p, color: c, radius: ringRadius, points: ringPoints, amount: a });
-      return `  - particlering{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlering{${params}} ${offsetStr}`;
     }
     case "particleline": {
       const {
@@ -444,7 +459,7 @@ function generateEffectLine(
         maxDistance: lineMaxDistance
       } = effectParams || {};
       const params = buildParams({ db: lineDistance, syo: lineStartY, tyo: lineTargetY, fo: lineFromOrigin, zz: zigzag, zzs: zigzags, zzo: zigzagOffset, md: lineMaxDistance, particle: p, color: c });
-      return `  - particleline{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particleline{${params}} ${offsetStr}`;
     }
     case "particlelinering": {
       const {
@@ -457,12 +472,12 @@ function generateEffectLine(
         maxDistance: ringMaxDistance
       } = effectParams || {};
       const params = buildParams({ db: ringDistance, syo: ringStartY, tyo: ringTargetY, fo: ringFromOrigin, rp: ringpoints, rr: ringradius, md: ringMaxDistance, particle: p, color: c });
-      return `  - particlelinering{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlelinering{${params}} ${offsetStr}`;
     }
     case "particlesphere": {
       const { sphereRadius } = effectParams || {};
       const params = buildParams({ particle: p, color: c, amount: a, radius: sphereRadius });
-      return `  - particlesphere{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particlesphere{${params}} ${offsetStr}`;
     }
     case "particletornado": {
       const {
@@ -483,11 +498,11 @@ function generateEffectLine(
         cloudYOffset
       } = effectParams || {};
       const params = buildParams({ p: p, cp: cloudParticle, mr: maxRadius, h: tornadoHeight, i: tornadoInterval, d: tornadoDuration, rs: rotationSpeed, sh: sliceHeight, scd: stopOnCasterDeath, sed: stopOnEntityDeath, cs: cloudSize, ca: cloudAmount, chs: cloudHSpread, cvs: cloudVSpread, cps: cloudPSpeed, cyo: cloudYOffset });
-      return `  - particletornado{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - particletornado{${params}} ${offsetStr}`;
     }
     default: {
       const params = buildParams({ particle: p, color: c, amount: a, size: 1, repeat, repeatInterval: interval });
-      return `  - e:p{${params}} @${targeter}{xoffset=${x.toFixed(4)};zoffset=${z.toFixed(4)};yoffset=${y.toFixed(4)}}`;
+      return `  - e:p{${params}} ${offsetStr}`;
     }
   }
 }
@@ -511,6 +526,9 @@ export const generateEffectCode = async (
     debugFrameComments?: boolean;
   }
 ) => {
+  // Set relative offsets flag from settings
+  _useRelativeOffsets = settings.useRelativeOffsets !== false; // Default to true
+
   // ElementStore'daki O(1) hash map güncellemelerini asıl koda entegre et:
   const elementStoreMap = useElementStore.getState().elements;
   layers = layers.map(layer => ({

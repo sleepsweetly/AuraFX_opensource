@@ -6,6 +6,7 @@ interface HistorySnapshot {
   id: string
   timestamp: number
   layers: Layer[]
+  elements: Record<string, Element>
   settings: any
   modes: any
   currentTool: string
@@ -34,6 +35,8 @@ interface HistoryState {
   canRedo: () => boolean
 }
 
+const MAX_HISTORY_SIZE = 50
+
 export const useHistoryStore = create<HistoryState>((set, get) => ({
   past: [],
   future: [],
@@ -41,29 +44,43 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
   pushSnapshot: (snapshot) => {
     const newSnapshot: HistorySnapshot = {
       ...snapshot,
+      // Verileri derin kopyala (önemli!)
+      layers: JSON.parse(JSON.stringify(snapshot.layers)),
+      elements: JSON.parse(JSON.stringify(snapshot.elements || {})),
       id: Date.now().toString(),
       timestamp: Date.now()
     }
     
-    set((state) => ({
-      past: [...state.past, newSnapshot],
-      future: [] // Yeni işlem yapıldığında future'ı temizle
-    }))
+    set((state) => {
+      const newPast = [...state.past, newSnapshot]
+      // Limit uygula
+      if (newPast.length > MAX_HISTORY_SIZE) {
+        newPast.shift()
+      }
+      return {
+        past: newPast,
+        future: [] // Yeni işlem yapıldığında future'ı temizle
+      }
+    })
   },
   
   undo: () => {
     const { past, future } = get()
-    if (past.length === 0) return null
+    if (past.length <= 1) return null // Şu anki state'i tutmak için en az 1 eleman lazım mı?
+    // Aslında past'ın sonuncusu şu anki state ise, bir öncekine gitmeliyiz.
     
-    const lastSnapshot = past[past.length - 1]
-    const newPast = past.slice(0, -1)
+    const newPast = [...past]
+    const currentSnapshot = newPast.pop()!
+    const previousSnapshot = newPast[newPast.length - 1]
+    
+    if (!previousSnapshot) return null
     
     set({
       past: newPast,
-      future: [lastSnapshot, ...future]
+      future: [currentSnapshot, ...future]
     })
     
-    return lastSnapshot
+    return previousSnapshot
   },
   
   redo: () => {

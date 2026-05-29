@@ -60,6 +60,8 @@ interface HistoryEntry {
   vertices: [string, Vertex][];
   shapes: Shape[];
   layers: Layer[];
+  selectedVertices: string[];
+  selectedShapes: string[];
   timestamp: number;
 }
 
@@ -891,15 +893,32 @@ export const use3DStore = create<Store3D>()(
         saveToHistory: (force = false) => {
           const state = get();
           const now = Date.now();
+          
+          // Çok sık kayıt almayı önle (throttle - eğer force değilse)
+          if (!force && state.historyIndex >= 0) {
+            const lastEntry = state.history[state.historyIndex];
+            if (now - lastEntry.timestamp < 100) return; // 100ms throttle
+          }
+
           const snapshot: HistoryEntry = {
             vertices: Array.from(state.vertices.entries()),
             shapes: JSON.parse(JSON.stringify(state.shapes)),
             layers: JSON.parse(JSON.stringify(state.layers)),
+            selectedVertices: [...state.selectedVertices],
+            selectedShapes: [...state.selectedShapes],
             timestamp: now,
           };
+
           set((state) => {
             const newHistory = state.history.slice(0, state.historyIndex + 1);
             newHistory.push(snapshot);
+            
+            // Limit history size
+            const MAX_HISTORY = 50;
+            if (newHistory.length > MAX_HISTORY) {
+              newHistory.shift();
+            }
+            
             return {
               history: newHistory,
               historyIndex: newHistory.length - 1,
@@ -915,9 +934,9 @@ export const use3DStore = create<Store3D>()(
               vertices: new Map(previousState.vertices),
               shapes: JSON.parse(JSON.stringify(previousState.shapes)),
               layers: JSON.parse(JSON.stringify(previousState.layers)),
+              selectedVertices: [...(previousState.selectedVertices || [])],
+              selectedShapes: [...(previousState.selectedShapes || [])],
               historyIndex: state.historyIndex - 1,
-              selectedVertices: [],
-              selectedShapes: [],
               vertexCount: previousState.vertices.length,
             });
           }
@@ -931,9 +950,9 @@ export const use3DStore = create<Store3D>()(
               vertices: new Map(nextState.vertices),
               shapes: JSON.parse(JSON.stringify(nextState.shapes)),
               layers: JSON.parse(JSON.stringify(nextState.layers)),
+              selectedVertices: [...(nextState.selectedVertices || [])],
+              selectedShapes: [...(nextState.selectedShapes || [])],
               historyIndex: state.historyIndex + 1,
-              selectedVertices: [],
-              selectedShapes: [],
               vertexCount: nextState.vertices.length,
             });
           }
@@ -1006,7 +1025,7 @@ export const use3DStore = create<Store3D>()(
               const y = vertex.position.y.toFixed(4)
               const z = vertex.position.z.toFixed(4)
 
-              yaml += `  - effect:particles{p=${vertex.effectType};c=${vertex.color};a=1} @Origin{xoffset=${x};yoffset=${y};zoffset=${z}}\n`
+              yaml += `  - effect:particles{p=${vertex.effectType};c=${vertex.color};a=1} @Origin{fo=${z};so=${x};uo=${y}}\n`
             })
             yaml += "\n"
           })
@@ -1714,19 +1733,22 @@ export const use3DStore = create<Store3D>()(
 
           // immer kullandığımız için 'set' içinde doğrudan mutasyon yapacağız
           set((state) => {
+            const selectedVerticesSet = new Set(state.selectedVertices)
+            const selectedShapesSet = new Set(state.selectedShapes)
+
             // 1. Vertex'leri güncelle
             tempPositions.forEach((newPos, id) => {
-              if (selectedVertices.includes(id)) {
+              if (selectedVerticesSet.has(id)) {
                 const vertex = state.vertices.get(id)
                 if (vertex) {
-                  vertex.position = { x: newPos.x, y: newPos.y, z: newPos.z } // Doğrudan mutasyon (immer sayesinde)
+                  vertex.position = { x: newPos.x, y: newPos.y, z: newPos.z }
                 }
               }
             })
 
             // 2. Shape'leri güncelle
             state.shapes.forEach((shape, index) => {
-              if (selectedShapes.includes(shape.id)) {
+              if (selectedShapesSet.has(shape.id)) {
                 const newPos = tempPositions.get(shape.id)
                 const newRot = tempRotations.get(shape.id)
                 const newScale = tempScales.get(shape.id)

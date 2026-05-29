@@ -136,14 +136,15 @@ function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
   const tempPositions = use3DStore((state) => state.tempPositions)
 
   const visibleVertices = useMemo(() => {
-    const allVisible = Array.from(vertices.values()).filter(
-      (vertex) => vertex.visible
-    )
+    const results: any[] = []
+    vertices.forEach(v => {
+      if (v.visible) results.push(v)
+    })
     
-    if (performanceMode) {
-      return allVisible.filter((_, index) => index % 2 === 0)
+    if (performanceMode && results.length > 500) {
+      return results.filter((_, index) => index % 2 === 0)
     }
-    return allVisible
+    return results
   }, [vertices, performanceMode])
 
   // Element sayısı azsa normal render, çoksa instanced
@@ -297,7 +298,7 @@ export function Scene3DEditor() {
         <directionalLight
           position={[10, 10, 5]}
           intensity={1.2}
-          castShadow={!performanceMode && Array.from(vertices.values()).length < 1000}
+          castShadow={!performanceMode && vertices.size < 1000}
           shadow-mapSize-width={performanceMode ? 512 : 1024}
           shadow-mapSize-height={performanceMode ? 512 : 1024}
         />
@@ -305,7 +306,7 @@ export function Scene3DEditor() {
         <pointLight position={[10, -10, 10]} intensity={0.3} />
 
         {/* Grid */}
-        {sceneConfig.showGrid && (!performanceMode || Array.from(vertices.values()).length < 2000) && (
+        {sceneConfig.showGrid && (!performanceMode || vertices.size < 2000) && (
           <DoubleSidedGrid size={50} divisions={50} color={xrayMode ? "#555555" : "#333333"} />
         )}
 

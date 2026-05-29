@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { Layers, Plus, Minus, Box, Eye, EyeOff } from "lucide-react"
+import { Layers, Plus, Minus, Box, Eye, EyeOff, Undo2, Redo2 } from "lucide-react"
 import { motion, Variants } from "framer-motion"
 import { use3DStore } from "../store/use3DStore"
 
@@ -53,7 +53,9 @@ export function BottomStatusBar3D({
   zoomLevel = 100,
   objectCount = 0 
 }: BottomStatusBar3DProps) {
-  const { xrayMode, setXrayMode } = use3DStore()
+  const { xrayMode, setXrayMode, undo, redo, historyIndex, history } = use3DStore()
+  const canUndo = historyIndex > 0
+  const canRedo = historyIndex < history.length - 1
   return (
     <div className="fixed bottom-6 left-6 z-50">
       <motion.div
@@ -87,6 +89,48 @@ export function BottomStatusBar3D({
             </motion.div>
           </Button>
         </motion.div>
+
+        {/* Undo / Redo */}
+        <div className="flex items-center gap-0.5 bg-white/5 rounded-full px-1 py-1">
+          <motion.div whileHover="hover" whileTap="tap" variants={buttonVariants}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className={`h-7 w-7 rounded-full transition-all duration-200 ${
+                canUndo
+                  ? "hover:bg-white/10 text-white/80 hover:text-white"
+                  : "text-white/20 cursor-not-allowed"
+              }`}
+              onClick={() => canUndo && undo()}
+              title="Undo (Ctrl+Z)"
+              disabled={!canUndo}
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+            </Button>
+          </motion.div>
+
+          {/* Step counter */}
+          <span className="text-xs text-white/40 px-1 tabular-nums">
+            {historyIndex}/{Math.max(0, history.length - 1)}
+          </span>
+
+          <motion.div whileHover="hover" whileTap="tap" variants={buttonVariants}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className={`h-7 w-7 rounded-full transition-all duration-200 ${
+                canRedo
+                  ? "hover:bg-white/10 text-white/80 hover:text-white"
+                  : "text-white/20 cursor-not-allowed"
+              }`}
+              onClick={() => canRedo && redo()}
+              title="Redo (Ctrl+Y)"
+              disabled={!canRedo}
+            >
+              <Redo2 className="h-3.5 w-3.5" />
+            </Button>
+          </motion.div>
+        </div>
 
         {/* X-Ray Mode Toggle */}
         <motion.div

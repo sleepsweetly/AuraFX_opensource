@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, Box, Send, Layers, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useElementStore } from "@/store/useElementStore"
 import type { Layer, Element } from "@/types"
 
 interface Transfer3DModalProps {
@@ -47,14 +48,22 @@ export function Transfer3DModal({ isOpen, onClose, layers, currentLayer, onExpor
     setIsTransferring(true)
     
     try {
-      // Get elements from selected layers
+      // Get fresh elements from ElementStore for selected layers
       const elementsToTransfer: Element[] = []
+      const currentElementMap = useElementStore.getState().elements
       
       selectedLayers.forEach(layerId => {
         const layer = layers.find(l => l.id === layerId)
-        if (layer) {
-          console.log(`Adding ${layer.elements.length} elements from layer: ${layer.name}`)
-          elementsToTransfer.push(...layer.elements)
+        if (layer && layer.elements) {
+          console.log(`Syncing ${layer.elements.length} elements from layer: ${layer.name}`)
+          
+          // Map to fresh elements from ElementStore
+          const freshElements = layer.elements.map(el => {
+            const fresh = currentElementMap[el.id]
+            return fresh ? { ...el, ...fresh } : el
+          })
+          
+          elementsToTransfer.push(...freshElements)
         }
       })
 
