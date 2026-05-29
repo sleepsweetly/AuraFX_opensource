@@ -24,31 +24,19 @@ const DiscordIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 import { useState, useEffect } from "react"
+import { siteConfig, getDiscordInviteUrl } from "@/lib/config"
 
 export function Footer() {
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null)
-  const [discordUrl, setDiscordUrl] = useState<string>("https://discord.gg/aurafx")
+  const [discordUrl, setDiscordUrl] = useState<string>(siteConfig.discordInviteUrl)
 
   useEffect(() => {
-    // GitHub'tan Discord linkini çek
-    const fetchDiscordUrl = async () => {
-      try {
-        const response = await fetch('https://raw.githubusercontent.com/sleepsweetly/AuraFX-Launcher-Apps/refs/heads/main/discord-url.txt')
-        if (response.ok) {
-          const url = await response.text()
-          const cleanUrl = url.trim()
-          if (cleanUrl && cleanUrl.startsWith('https://discord.gg/')) {
-            setDiscordUrl(cleanUrl)
-          }
-        }
-      } catch (error) {
-        console.log('Discord URL çekilemedi, varsayılan kullanılıyor')
-        // Varsayılan Discord linki
-        setDiscordUrl("https://discord.gg/aurafx")
-      }
-    }
-
-    fetchDiscordUrl()
+    // Merkezi config'den Discord linkini al
+    getDiscordInviteUrl().then(url => {
+      setDiscordUrl(url)
+    }).catch(() => {
+      setDiscordUrl(siteConfig.discordInviteUrl)
+    })
   }, [])
 
   const containerVariants = {

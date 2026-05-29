@@ -1,7 +1,18 @@
 // Site konfigürasyonu - Discord linki ve diğer ayarlar
 
+// Env variable'dan Discord URL'ini al (varsa öncelik ver)
+const ENV_DISCORD_URL = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || '';
+
+// Default fallback URL
+const DEFAULT_DISCORD_URL = 'https://discord.gg/4vAYUT9Mce';
+
 // GitHub raw linkinden Discord URL'ini almak için async fonksiyon
 async function getDiscordUrlFromGitHub(): Promise<string> {
+    // Env variable varsa direkt onu kullan, GitHub'a gitmeye gerek yok
+    if (ENV_DISCORD_URL) {
+        return ENV_DISCORD_URL;
+    }
+
     try {
         // GitHub raw link - targeterlerdeki gibi tamamen aynı yöntem
         const githubRawUrl = 'https://raw.githubusercontent.com/sleepsweetly/AuraFX-Launcher-Apps/refs/heads/main/discord-url.txt';
@@ -18,7 +29,7 @@ async function getDiscordUrlFromGitHub(): Promise<string> {
     } catch (error) {
         console.warn('GitHub\'dan Discord URL alınamadı, fallback kullanılıyor:', error);
         // Fallback URL
-        return 'https://discord.gg/YqXdY4GD';
+        return DEFAULT_DISCORD_URL;
     }
 }
 
@@ -45,8 +56,8 @@ export async function getDiscordInviteUrl(): Promise<string> {
 }
 
 export const siteConfig = {
-    // Discord davet linki - GitHub raw linkinden alınır (fallback ile)
-    discordInviteUrl: 'https://discord.gg/YqXdY4GD', // Default fallback
+    // Discord davet linki - Öncelik: ENV > GitHub raw > Default fallback
+    discordInviteUrl: ENV_DISCORD_URL || DEFAULT_DISCORD_URL,
 
     // Diğer site ayarları buraya eklenebilir
     siteName: 'AuraFX - Particle Effects Studio',
@@ -55,7 +66,7 @@ export const siteConfig = {
 
     // Sosyal medya linkleri
     social: {
-        discord: 'https://discord.gg/YqXdY4GD', // Default fallback
+        discord: ENV_DISCORD_URL || DEFAULT_DISCORD_URL,
         // Gelecekte Twitter, GitHub vs. eklenebilir
     }
 };

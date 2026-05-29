@@ -10,6 +10,7 @@ import { ChevronDown, Hexagon, FileText, FolderOpen, Plus, Grid3X3, Box, BookOpe
 import { motion, AnimatePresence, Variants } from "framer-motion"
 import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
+import { siteConfig, getDiscordInviteUrl } from "@/lib/config"
 // Twitter Bird Icon Component
 const TwitterBird = ({ className }: { className?: string }) => (
   <svg
@@ -50,7 +51,7 @@ export function Header(props: HeaderProps = {}) {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null)
-  const [discordUrl, setDiscordUrl] = useState<string>("https://discord.gg/aurafx")
+  const [discordUrl, setDiscordUrl] = useState<string>(siteConfig.discordInviteUrl)
   
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -58,24 +59,12 @@ export function Header(props: HeaderProps = {}) {
   useEffect(() => {
     setMounted(true)
 
-    // GitHub'tan Discord linkini çek
-    const fetchDiscordUrl = async () => {
-      try {
-        const response = await fetch('https://raw.githubusercontent.com/sleepsweetly/AuraFX-Launcher-Apps/refs/heads/main/discord-url.txt')
-        if (response.ok) {
-          const url = await response.text()
-          const cleanUrl = url.trim()
-          if (cleanUrl && cleanUrl.startsWith('https://discord.gg/')) {
-            setDiscordUrl(cleanUrl)
-          }
-        }
-      } catch (error) {
-        console.log('Discord URL çekilemedi, varsayılan kullanılıyor')
-        setDiscordUrl("https://discord.gg/aurafx")
-      }
-    }
-
-    fetchDiscordUrl()
+    // Merkezi config'den Discord linkini al
+    getDiscordInviteUrl().then(url => {
+      setDiscordUrl(url)
+    }).catch(() => {
+      setDiscordUrl(siteConfig.discordInviteUrl)
+    })
   }, [])
   
 
