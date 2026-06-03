@@ -1,13 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useThree } from "@react-three/fiber"
 import { Vector3, Raycaster, Vector2 } from "three"
 import { use3DStore } from "../store/use3DStore"
 
 export function SelectionBox() {
   const { gl, camera } = useThree()
-  const { vertices, shapes, selectVertex, selectShape, clearAllSelections, currentTool, xrayMode } = use3DStore()
+  // OPTIMIZATION: Only subscribe to minimal state
+  const currentTool = use3DStore((state) => state.currentTool)
+  const xrayMode = use3DStore((state) => state.xrayMode)
 
   const [isSelecting, setIsSelecting] = useState(false)
   const [startPoint, setStartPoint] = useState<Vector2 | null>(null)
@@ -37,7 +39,7 @@ export function SelectionBox() {
 
       // Clear selection if not holding shift
       if (!event.shiftKey) {
-        clearAllSelections()
+        use3DStore.getState().clearAllSelections()
       }
     }
 
@@ -91,23 +93,35 @@ export function SelectionBox() {
         const raycaster = new Raycaster()
         raycaster.setFromCamera(mouse, camera)
 
-        // Improved single click selection
+        // OPTIMIZATION: Get vertices from store
+        const store = use3DStore.getState()
+        const vertices = store.vertices
+
+        // OPTIMIZATION: Early exit if no vertices
+        if (vertices.size === 0) {
+          if (!event.shiftKey) store.clearAllSelections()
+          setIsSelecting(false)
+          setStartPoint(null)
+          setEndPoint(null)
+          return
+        }
+
+        // OPTIMIZATION: Use Array.from once, not creating new array in loop
         const vertexArray = Array.from(vertices.values())
-        const intersections: Array<{ vertex: any, distance: number }> = []
+        const intersections: Array<{ vertexId: string, distance: number }> = []
+        const selectionRadius = xrayMode ? 0.3 : 0.2
 
         // Check all vertices for intersection with proper depth testing
-        vertexArray.forEach(vertex => {
+        for (let i = 0; i < vertexArray.length; i++) {
+          const vertex = vertexArray[i]
           const vertexPos = new Vector3(vertex.position.x, vertex.position.y, vertex.position.z)
-          const distance = raycaster.ray.distanceToPoint(vertexPos)
+          const rayDistance = raycaster.ray.distanceToPoint(vertexPos)
           
-          // Slightly more generous selection radius
-          const selectionRadius = xrayMode ? 0.3 : 0.2
-          
-          if (distance < selectionRadius) {
+          if (rayDistance < selectionRadius) {
             const distanceFromCamera = camera.position.distanceTo(vertexPos)
-            intersections.push({ vertex, distance: distanceFromCamera })
+            intersections.push({ vertexId: vertex.id, distance: distanceFromCamera })
           }
-        })
+        }
 
         if (intersections.length > 0) {
           // Sort by distance from camera (closest first)
@@ -115,32 +129,37 @@ export function SelectionBox() {
           
           if (xrayMode) {
             // X-ray mode: Select all intersecting vertices
-            const vertexIds = intersections.map(i => i.vertex.id)
+            const vertexIds = intersections.map(i => i.vertexId)
             if (event.shiftKey) {
-              vertexIds.forEach(id => selectVertex(id, true))
+              vertexIds.forEach(id => store.selectVertex(id, true))
             } else {
-              clearAllSelections()
-              vertexIds.forEach(id => selectVertex(id, true))
+              store.clearAllSelections()
+              vertexIds.forEach(id => store.selectVertex(id, true))
             }
           } else {
             // Normal mode: Select only the closest vertex (proper depth testing)
-            const closestVertex = intersections[0].vertex
-            selectVertex(closestVertex.id, event.shiftKey)
+            const closestVertexId = intersections[0].vertexId
+            store.selectVertex(closestVertexId, event.shiftKey)
           }
         } else {
           // No vertex clicked, clear selection if not holding shift
           if (!event.shiftKey) {
-            clearAllSelections()
+            store.clearAllSelections()
           }
         }
       } else {
         // Box selection - optimized for large datasets (vertices only)
         let selectedVertices: any[] = []
 
-        // Optimize: Use requestIdleCallback for large datasets
+        // OPTIMIZATION: Get store once
+        const store = use3DStore.getState()
+        const vertices = store.vertices
+
+        // OPTIMIZATION: Use requestAnimationFrame for smoother experience
         const processSelection = () => {
           const vertexArray = Array.from(vertices.entries())
-          const batchSize = Math.min(1000, Math.max(100, Math.floor(vertexArray.length / 10)))
+          // OPTIMIZATION: Larger batch size for better performance
+          const batchSize = Math.min(2000, Math.max(500, Math.floor(vertexArray.length / 5)))
 
           let processedCount = 0
 
@@ -162,9 +181,9 @@ export function SelectionBox() {
                   // X-Ray mode: Select all
                   selectedVertices.push(id)
                 } else {
-                  // Normal mode: Add with distance and world position for later filtering
+                  // Normal mode: Add with distance for later filtering
                   const distance = camera.position.distanceTo(worldPos)
-                  selectedVertices.push({ id, distance, worldPos })
+                  selectedVertices.push({ id, distance })
                 }
               }
             }
@@ -179,17 +198,16 @@ export function SelectionBox() {
               if (selectedVertices.length > 0) {
                 if (xrayMode) {
                   // X-Ray mode: Select all vertices
-                  use3DStore.getState().selectMultipleVertices(selectedVertices as string[], true)
+                  store.selectMultipleVertices(selectedVertices as string[], true)
                 } else {
-                  // === OPTIMIZED: O(N log N) instead of O(N²) ===
-                  const candidateVertices = (selectedVertices as Array<{ id: string, distance: number, worldPos: Vector3 }>).sort((a, b) => a.distance - b.distance)
+                  // OPTIMIZATION: O(N log N) sort and slice - much faster than O(N²)
+                  const candidateVertices = (selectedVertices as Array<{ id: string, distance: number }>).sort((a, b) => a.distance - b.distance)
                   
-                  // Instead of O(N²) occlusion culling, just take the closest elements
-                  // This is much faster and still provides reasonable selection behavior
-                  const visibleLimit = Math.max(50, Math.min(candidateVertices.length, candidateVertices.length / 2));
+                  // Take closest half or at least 50 elements
+                  const visibleLimit = Math.max(50, Math.min(candidateVertices.length, Math.floor(candidateVertices.length / 2)));
                   const visibleVertices = candidateVertices.slice(0, visibleLimit).map(v => v.id);
 
-                  use3DStore.getState().selectMultipleVertices(visibleVertices, true)
+                  store.selectMultipleVertices(visibleVertices, true)
                 }
               }
             }
@@ -198,61 +216,48 @@ export function SelectionBox() {
           processBatch()
         }
 
-        // For small datasets, process immediately
-        if (vertices.size < 1000) {
-          if (xrayMode) {
-            // X-Ray mode: Select all vertices in box, ignore depth
-            vertices.forEach((vertex, id) => {
-              const screenPos = new Vector3(vertex.position.x, vertex.position.y, vertex.position.z)
-              screenPos.project(camera)
+        // OPTIMIZATION: Increase threshold for immediate processing
+        if (vertices.size < 5000) {
+          // OPTIMIZATION: Use single loop for both modes
+          const candidateVertices: Array<{ id: string, distance: number }> = []
 
-              const screenX = (screenPos.x * 0.5 + 0.5) * rect.width
-              const screenY = (-screenPos.y * 0.5 + 0.5) * rect.height
+          vertices.forEach((vertex, id) => {
+            const worldPos = new Vector3(vertex.position.x, vertex.position.y, vertex.position.z)
+            const screenPos = worldPos.clone()
+            screenPos.project(camera)
 
-              if (screenX >= minX && screenX <= maxX && screenY >= minY && screenY <= maxY) {
+            const screenX = (screenPos.x * 0.5 + 0.5) * rect.width
+            const screenY = (-screenPos.y * 0.5 + 0.5) * rect.height
+
+            if (screenX >= minX && screenX <= maxX && screenY >= minY && screenY <= maxY) {
+              if (xrayMode) {
+                // X-Ray mode: Just collect IDs
                 selectedVertices.push(id)
-              }
-            })
-          } else {
-            // Normal mode: Improved selection with better depth handling
-            const candidateVertices: Array<{ id: string, distance: number, worldPos: Vector3, screenPos: Vector3 }> = []
-
-            // Collect candidates with their distances and world positions
-            vertices.forEach((vertex, id) => {
-              const worldPos = new Vector3(vertex.position.x, vertex.position.y, vertex.position.z)
-              const screenPos = worldPos.clone()
-              screenPos.project(camera)
-
-              const screenX = (screenPos.x * 0.5 + 0.5) * rect.width
-              const screenY = (-screenPos.y * 0.5 + 0.5) * rect.height
-
-              if (screenX >= minX && screenX <= maxX && screenY >= minY && screenY <= maxY) {
+              } else {
+                // Normal mode: Collect with distance
                 const distance = camera.position.distanceTo(worldPos)
-                candidateVertices.push({ id, distance, worldPos, screenPos })
+                candidateVertices.push({ id, distance })
               }
-            })
+            }
+          })
 
-            // Sort by distance (closest first)
-            candidateVertices.sort((a, b) => a.distance - b.distance)
-
-            // === OPTIMIZED: O(N log N) instead of O(N²) ===
-            if (xrayMode) {
-              // X-Ray mode: Select all candidates
-              selectedVertices = candidateVertices.map(v => v.id)
-            } else {
-              // Normal mode: Select closest elements without expensive occlusion culling
-              // This is much faster and still provides reasonable selection behavior
-              const visibleLimit = Math.max(50, Math.min(candidateVertices.length, candidateVertices.length / 2));
-              selectedVertices = candidateVertices.slice(0, visibleLimit).map(v => v.id);
+          // Apply selection based on mode
+          if (xrayMode) {
+            // X-Ray mode: Select all
+            if (selectedVertices.length > 0) {
+              store.selectMultipleVertices(selectedVertices as string[], true)
+            }
+          } else {
+            // Normal mode: Sort and take closest
+            if (candidateVertices.length > 0) {
+              candidateVertices.sort((a, b) => a.distance - b.distance)
+              const visibleLimit = Math.max(50, Math.min(candidateVertices.length, Math.floor(candidateVertices.length / 2)));
+              const visibleVertices = candidateVertices.slice(0, visibleLimit).map(v => v.id);
+              store.selectMultipleVertices(visibleVertices, true)
             }
           }
-
-          // Apply vertex selections only
-          if (selectedVertices.length > 0) {
-            use3DStore.getState().selectMultipleVertices(selectedVertices as string[], true)
-          }
         } else {
-          // For large datasets, process asynchronously
+          // For large datasets (5000+), process asynchronously
           processSelection()
         }
       }
@@ -274,15 +279,13 @@ export function SelectionBox() {
   }, [
     gl,
     camera,
-    vertices,
-    shapes,
-    selectVertex,
-    selectShape,
-    clearAllSelections,
+    currentTool,
     isSelecting,
     startPoint,
     endPoint,
     isTransformControlsActive,
+    xrayMode,
+    // OPTIMIZATION: Removed vertices, shapes, selectVertex, etc - they cause re-creation of handlers
   ])
 
   // SELECTION BOX - Only show if not using transform controls

@@ -83,6 +83,7 @@
   * {
     @apply border-border;
   }
+  
   body {
     @apply bg-background text-foreground;
   }
@@ -461,9 +462,32 @@ html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover, *::-we
   }
 }
 
-.text-balance {
-  text-wrap: balance;
+/* ================================================
+   Theme Transition — ripple effect (sol üst → sağ alt)
+   ================================================ */
+
+/* ================================================
+   Theme Transition — ripple effect (sol üst → sağ alt)
+   ================================================ */
+
+/* Group animasyon süresini ayarla */
+::view-transition-group(root) {
+  animation-duration: 0.8s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* Eski tema: animasyon yok, arkada kalsın */
+::view-transition-old(root) {
+  animation: none;
+  z-index: -1;
+}
+
+/* Yeni tema: clip-path animasyonuyla açılacak (JS'te tanımlanacak) */
+::view-transition-new(root) {
+  animation: none;
+}
+
+
 
 /* Custom Slider Styles */
 .slider-thumb::-webkit-slider-thumb {

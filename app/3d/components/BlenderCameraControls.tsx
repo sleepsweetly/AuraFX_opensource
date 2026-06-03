@@ -7,13 +7,27 @@ import { use3DStore } from "../store/use3DStore"
 
 export function BlenderCameraControls() {
   const { gl, camera } = useThree()
-  const { updateCamera } = use3DStore()
+  const { camera: storeCamera, updateCamera } = use3DStore()
 
   const isOrbiting = useRef(false)
   const isPanning = useRef(false)
   const isZooming = useRef(false)
   const lastMouse = useRef(new Vector2())
   const cameraTarget = useRef(new Vector3(0, 0, 0))
+
+  useEffect(() => {
+    cameraTarget.current.set(storeCamera.target.x, storeCamera.target.y, storeCamera.target.z)
+    camera.position.set(storeCamera.position.x, storeCamera.position.y, storeCamera.position.z)
+    camera.lookAt(cameraTarget.current)
+  }, [
+    camera,
+    storeCamera.position.x,
+    storeCamera.position.y,
+    storeCamera.position.z,
+    storeCamera.target.x,
+    storeCamera.target.y,
+    storeCamera.target.z,
+  ])
 
   useEffect(() => {
     const canvas = gl.domElement

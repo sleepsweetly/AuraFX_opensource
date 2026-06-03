@@ -7,6 +7,7 @@ import { LeftSidebar } from "./components/LeftSidebar"
 import { BottomStatusBar3D } from "./components/BottomStatusBar3D"
 import { RightToolbar3D } from "./components/RightToolbar3D"
 import { SendTo2DButton } from "./components/SendTo2DButton"
+import { CodePanel3D } from "./components/CodePanel3D"
 
 
 import { useToast } from "@/hooks/use-toast"
@@ -31,6 +32,7 @@ export default function ThreeDEditor() {
 
   const [useOptimizedRenderer, setUseOptimizedRenderer] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showCodePanel, setShowCodePanel] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
   const { toast } = useToast();
 
@@ -137,6 +139,8 @@ export default function ThreeDEditor() {
       <TopToolbar
         useOptimizedRenderer={useOptimizedRenderer}
         setUseOptimizedRenderer={setUseOptimizedRenderer}
+        onCodeClick={() => setShowCodePanel(!showCodePanel)}
+        isCodeOpen={showCodePanel}
         onNewProject={() => {
           // 3D için yeni proje fonksiyonu
           const { clearScene } = use3DStore.getState()
@@ -206,9 +210,17 @@ export default function ThreeDEditor() {
         {/* Send to 2D Button */}
         <SendTo2DButton />
 
+        {/* Live Code Panel */}
+        <CodePanel3D
+          isOpen={showCodePanel}
+          onClose={() => setShowCodePanel(false)}
+        />
+
         {/* Bottom Status Bar */}
         <BottomStatusBar3D
           onLayersClick={() => setShowSidebar(!showSidebar)}
+          onCodeClick={() => setShowCodePanel((open) => !open)}
+          isCodeOpen={showCodePanel}
           onZoomIn={() => {
             // 3D kamera zoom in
             if (window._zoomCamera) {
@@ -236,4 +248,4 @@ export default function ThreeDEditor() {
       <Toaster />
     </div>
   )
-} 
+}

@@ -28,11 +28,17 @@ export function TransformControlsManager() {
   const controlsRef = useRef<any>(null)
   const dummyRef = useRef<Object3D>(new Object3D())
   const [isDragging, setIsDragging] = useState(false)
-  const [startPositions, setStartPositions] = useState<Map<string, Vector3>>(new Map())
-  const [startRotations, setStartRotations] = useState<Map<string, Vector3>>(new Map())
-  const [startScales, setStartScales] = useState<Map<string, Vector3>>(new Map())
-  const [startCenter, setStartCenter] = useState<Vector3 | null>(null)
-  const [startDummyTransform, setStartDummyTransform] = useState<{position: Vector3, rotation: Vector3, scale: Vector3} | null>(null)
+  
+  // OPTIMIZATION: Use refs instead of state for start positions (no re-renders)
+  const startPositionsRef = useRef<Map<string, Vector3>>(new Map())
+  const startRotationsRef = useRef<Map<string, Vector3>>(new Map())
+  const startScalesRef = useRef<Map<string, Vector3>>(new Map())
+  const startCenterRef = useRef<Vector3 | null>(null)
+  const startDummyTransformRef = useRef<{position: Vector3, rotation: Vector3, scale: Vector3} | null>(null)
+  
+  // OPTIMIZATION: requestAnimationFrame throttling for transform updates
+  const rafIdRef = useRef<number | null>(null)
+  const pendingTransformRef = useRef<boolean>(false)
   
   // Convert arrays to Sets for performance
   const selectedVerticesSet = useMemo(() => new Set(selectedVertices), [selectedVertices])
@@ -74,7 +80,7 @@ export function TransformControlsManager() {
   }, [selectedVertices, selectedShapes, vertices, shapes, hasSelection, isDragging])
 
   const handleDragStart = () => {
-    console.log('handleDragStart called')
+    console.log('🚀 OPTIMIZED: handleDragStart called')
     setIsDragging(true)
     setIsTransforming(true)
     const positions = new Map<string, Vector3>()
@@ -107,31 +113,36 @@ export function TransformControlsManager() {
       const center = new Vector3()
       centerPositions.forEach(pos => center.add(pos))
       center.divideScalar(centerPositions.length)
-      setStartCenter(center)
+      startCenterRef.current = center
     }
 
     // Dummy'nin başlangıç transformunu kaydet
     if (dummyRef.current) {
-      setStartDummyTransform({
+      startDummyTransformRef.current = {
         position: dummyRef.current.position.clone(),
         rotation: new Vector3(dummyRef.current.rotation.x, dummyRef.current.rotation.y, dummyRef.current.rotation.z),
         scale: dummyRef.current.scale.clone()
-      })
+      }
     }
 
-    setStartPositions(positions)
-    setStartRotations(rotations)
-    setStartScales(scales)
+    // OPTIMIZATION: Use refs instead of state (no re-renders during drag)
+    startPositionsRef.current = positions
+    startRotationsRef.current = rotations
+    startScalesRef.current = scales
     
-    console.log('Drag started:', {
+    console.log('✅ OPTIMIZED: Drag started (using refs):', {
       selectedVertices: selectedVertices.length,
       selectedShapes: selectedShapes.length,
       startPositions: positions.size
     })
   }
 
-  const handleObjectChange = () => {
-    if (!dummyRef.current || !isDragging || !startCenter || !startDummyTransform) return
+  // OPTIMIZATION: requestAnimationFrame-throttled transform calculation
+  const calculateTransform = useCallback(() => {
+    if (!dummyRef.current || !isDragging || !startCenterRef.current || !startDummyTransformRef.current) {
+      pendingTransformRef.current = false
+      return
+    }
 
     const dummy = dummyRef.current
     const toolMode = getToolMode()
@@ -139,8 +150,14 @@ export function TransformControlsManager() {
     const newTempRotations = new Map<string, Vector3>()
     const newTempScales = new Map<string, Vector3>()
 
+    const startCenter = startCenterRef.current
+    const startDummyTransform = startDummyTransformRef.current
+    const startPositions = startPositionsRef.current
+    const startRotations = startRotationsRef.current
+    const startScales = startScalesRef.current
+
     if (toolMode === "translate") {
-      // Translate işlemi - sadece geçici pozisyonları hesapla
+      // OPTIMIZATION: Delta-based translation (like 2D dragDelta)
       const delta = dummy.position.clone().sub(startDummyTransform.position)
       
       // Vertex'lerin geçici pozisyonlarını hesapla
@@ -172,7 +189,7 @@ export function TransformControlsManager() {
         }
       })
     } else if (toolMode === "rotate") {
-      // Rotate işlemi - sadece geçici pozisyonları hesapla
+      // OPTIMIZATION: Delta-based rotation
       const deltaRotation = new Vector3(
         dummy.rotation.x - startDummyTransform.rotation.x,
         dummy.rotation.y - startDummyTransform.rotation.y,
@@ -222,7 +239,7 @@ export function TransformControlsManager() {
         }
       })
     } else if (toolMode === "scale") {
-      // Scale işlemi - sadece geçici pozisyonları hesapla
+      // OPTIMIZATION: Delta-based scaling
       const scaleFactor = new Vector3(
         dummy.scale.x / startDummyTransform.scale.x,
         dummy.scale.y / startDummyTransform.scale.y,
@@ -278,18 +295,30 @@ export function TransformControlsManager() {
     setTempRotations(newTempRotations)
     setTempScales(newTempScales)
     
-    // Debug
-    console.log('Transform update:', {
-      isDragging,
-      toolMode,
-      tempPositionsCount: newTempPositions.size,
-      selectedVertices: selectedVertices.length,
-      selectedShapes: selectedShapes.length
+    pendingTransformRef.current = false
+  }, [isDragging, selectedVerticesSet, selectedShapesSet, shapes, vertices])
+
+  const handleObjectChange = useCallback(() => {
+    // OPTIMIZATION: Throttle with requestAnimationFrame (like 2D canvas)
+    if (pendingTransformRef.current) return
+    
+    pendingTransformRef.current = true
+    if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current)
+    
+    rafIdRef.current = requestAnimationFrame(() => {
+      calculateTransform()
     })
-  }
+  }, [calculateTransform])
 
   const handleMouseUp = useCallback(() => {
-    console.log('handleMouseUp called, isDragging:', isDragging)
+    console.log('🚀 OPTIMIZED: handleMouseUp called, isDragging:', isDragging)
+    
+    // Cancel any pending animation frames
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current)
+      rafIdRef.current = null
+    }
+    pendingTransformRef.current = false
     
     // Mouse bırakıldığında gerçek pozisyon güncellemelerini yap
     if (isDragging && tempPositions.size > 0) {
@@ -302,11 +331,13 @@ export function TransformControlsManager() {
 
     setIsDragging(false)
     setIsTransforming(false)
-    setStartPositions(new Map())
-    setStartRotations(new Map())
-    setStartScales(new Map())
-    setStartCenter(null)
-    setStartDummyTransform(null)
+    
+    // OPTIMIZATION: Clear refs instead of state
+    startPositionsRef.current = new Map()
+    startRotationsRef.current = new Map()
+    startScalesRef.current = new Map()
+    startCenterRef.current = null
+    startDummyTransformRef.current = null
     clearTempPositions()
     
     if (dummyRef.current) {
@@ -314,10 +345,10 @@ export function TransformControlsManager() {
       dummyRef.current.scale.set(1, 1, 1)
     }
     
-    console.log('✅ OPTIMIZED: Transform completed, cleared all temp data')
-  }, [isDragging, tempPositions, tempRotations, tempScales, selectedVertices, selectedShapes, applyTempTransforms, setIsTransforming, clearTempPositions])
+    console.log('✅ OPTIMIZED: Transform completed, cleared all temp data (refs)')
+  }, [isDragging, tempPositions, applyTempTransforms, setIsTransforming, clearTempPositions])
 
-  // Global mouse up listener for more reliable detection
+  // Global mouse up listener for more reliable detection + cleanup on unmount
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       if (isDragging) {
@@ -329,6 +360,11 @@ export function TransformControlsManager() {
     document.addEventListener('mouseup', handleGlobalMouseUp)
     return () => {
       document.removeEventListener('mouseup', handleGlobalMouseUp)
+      // OPTIMIZATION: Cancel any pending animation frames on cleanup
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
+      }
     }
   }, [isDragging, handleMouseUp])
 

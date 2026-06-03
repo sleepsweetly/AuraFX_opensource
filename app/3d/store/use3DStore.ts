@@ -404,10 +404,13 @@ export const use3DStore = create<Store3D>()(
 
             state.selectedVertices = newSelected
 
-            // AUTO-SELECT SHAPE: If all vertices of a shape are selected, select the shape too
+            // OPTIMIZATION: AUTO-SELECT SHAPE - Use Set for O(1) lookup instead of O(n)
+            const selectedVerticesSet = new Set(state.selectedVertices)
+            
             state.shapes.forEach((shape: Shape) => {
+              // OPTIMIZATION: Use Set.has() instead of Array.includes() - O(m) instead of O(n*m)
               const allVerticesSelected = shape.vertices.length > 0 &&
-                shape.vertices.every(vertexId => state.selectedVertices.includes(vertexId))
+                shape.vertices.every(vertexId => selectedVerticesSet.has(vertexId))
 
               if (allVerticesSelected && !state.selectedShapes.includes(shape.id)) {
                 state.selectedShapes = [...state.selectedShapes, shape.id]
@@ -449,11 +452,14 @@ export const use3DStore = create<Store3D>()(
             // state.vertices.forEach(...) KISMINI TAMAMEN SİLDİK
             // Bu, 40 saniyelik beklemeye neden olan kısımdı.
 
-            // AUTO-SELECT SHAPE: If all vertices of a shape are selected, select the shape too
+            // OPTIMIZATION: AUTO-SELECT SHAPE - Use Set for O(1) lookup instead of O(n)
+            const selectedVerticesSet = new Set(state.selectedVertices)
             let newSelectedShapes = [...state.selectedShapes]
+            
             state.shapes.forEach((shape: Shape) => {
+              // OPTIMIZATION: Use Set.has() instead of Array.includes() - O(m) instead of O(n*m)
               const allVerticesSelected = shape.vertices.length > 0 &&
-                shape.vertices.every(vertexId => state.selectedVertices.includes(vertexId))
+                shape.vertices.every(vertexId => selectedVerticesSet.has(vertexId))
 
               if (allVerticesSelected && !newSelectedShapes.includes(shape.id)) {
                 newSelectedShapes.push(shape.id)
@@ -711,44 +717,26 @@ export const use3DStore = create<Store3D>()(
               const isSelected = state.selectedShapes.includes(id)
 
               if (isSelected) {
-                // Shape'i ve vertex'lerini seçimden çıkar
-                const updatedVertices = new Map(Array.from(state.vertices.values()).map(vertex => [
-                  vertex.id,
-                  { ...vertex, selected: shape.vertices.includes(vertex.id) ? false : vertex.selected }
-                ]))
-
+                // OPTIMIZATION: Don't update vertex.selected property - only update arrays
                 return {
                   selectedShapes: state.selectedShapes.filter((sid: string) => sid !== id),
                   selectedVertices: state.selectedVertices.filter(vid => !shape.vertices.includes(vid)),
                   shapes: state.shapes.map((s: Shape) => (s.id === id ? { ...s, selected: false } : s)),
-                  vertices: updatedVertices,
                 }
               } else {
-                // Shape'i ve vertex'lerini seç
-                const updatedVertices = new Map(Array.from(state.vertices.values()).map(vertex => [
-                  vertex.id,
-                  { ...vertex, selected: shape.vertices.includes(vertex.id) ? true : vertex.selected }
-                ]))
-
+                // OPTIMIZATION: Don't update vertex.selected property - only update arrays
                 return {
                   selectedShapes: [...state.selectedShapes, id],
                   selectedVertices: [...state.selectedVertices, ...shape.vertices],
                   shapes: state.shapes.map((s: Shape) => (s.id === id ? { ...s, selected: true } : s)),
-                  vertices: updatedVertices,
                 }
               }
             } else {
-              // Tek seçim: sadece bu shape'i ve vertex'lerini seç
-              const updatedVertices = new Map(Array.from(state.vertices.values()).map(vertex => [
-                vertex.id,
-                { ...vertex, selected: shape.vertices.includes(vertex.id) }
-              ]))
-
+              // OPTIMIZATION: Single selection - don't update vertex.selected property
               return {
                 selectedShapes: [id],
                 selectedVertices: shape.vertices,
                 shapes: state.shapes.map((s: Shape) => ({ ...s, selected: s.id === id })),
-                vertices: updatedVertices,
               }
             }
           })
@@ -766,20 +754,17 @@ export const use3DStore = create<Store3D>()(
           set((state) => ({
             selectedVertices: Array.from(state.vertices.values()).map((v: Vertex) => v.id),
             selectedShapes: state.shapes.map((s: Shape) => s.id),
-            vertices: new Map(Array.from(state.vertices.values()).map((v: Vertex) => [v.id, { ...v, selected: true }])),
+            // OPTIMIZATION: Don't update vertex.selected property
             shapes: state.shapes.map((s: Shape) => ({ ...s, selected: true })),
           }))
         },
 
         clearAllSelections: () => {
           set((state) => {
-            // Clear vertex selections
-            const updatedVertices = new Map(Array.from(state.vertices.values()).map((vertex: Vertex) => [vertex.id, { ...vertex, selected: false }]))
-
+            // OPTIMIZATION: Don't update vertex.selected property
             return {
               selectedVertices: [],
               selectedShapes: [],
-              vertices: updatedVertices,
               shapes: state.shapes.map((s: Shape) => ({ ...s, selected: false }))
             }
           })

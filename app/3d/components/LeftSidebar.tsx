@@ -142,7 +142,7 @@ export function LeftSidebar({ isOpen, onClose }: LeftSidebarProps) {
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: -320, opacity: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="fixed left-4 top-20 bottom-4 w-80 bg-black/95 backdrop-blur-md border border-white/20 rounded-2xl flex flex-col select-none overflow-hidden shadow-2xl z-30"
+        className="fixed left-4 top-20 bottom-24 w-80 bg-black/95 backdrop-blur-md border border-white/20 rounded-2xl flex flex-col select-none overflow-hidden shadow-2xl z-30"
       >
       <div className="flex-none p-4 space-y-4">
         {/* Header */}

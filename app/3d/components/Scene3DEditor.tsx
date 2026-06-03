@@ -3,12 +3,14 @@
 import { Canvas } from "@react-three/fiber"
 import { Grid, Html, Instances, Instance } from "@react-three/drei"
 import { Suspense, useMemo, useRef, useEffect, useState } from "react"
+import React from "react"
 import { VertexRenderer } from "./VertexRenderer"
 import { ShapeRenderer } from "./ShapeRenderer"
 import { SceneAxes } from "./SceneAxes"
 import { TransformControlsManager } from "./TransformControlsManager"
 import { SelectionBox } from "./SelectionBox"
 import { BlenderCameraControls } from "./BlenderCameraControls"
+import { CameraAxisGizmo } from "./CameraAxisGizmo"
 import { ZoomLogic } from "./ZoomControls"
 import { use3DStore } from "../store/use3DStore"
 import * as THREE from "three"
@@ -27,10 +29,20 @@ interface InstancedElementsProps {
   geometryArgs?: number[];
 }
 
-function InstancedElements({ elements, geometryType, colorKey = "color", geometryArgs = [] }: InstancedElementsProps) {
+// OPTIMIZATION: Memoize InstancedElements to prevent unnecessary re-renders
+const InstancedElements = React.memo(function InstancedElements({ elements, geometryType, colorKey = "color", geometryArgs = [] }: InstancedElementsProps) {
   const meshRef = useRef<InstancedMesh>(null)
   const isTransforming = use3DStore((state) => state.isTransforming)
   const tempPositions = use3DStore((state) => state.tempPositions)
+  // OPTIMIZATION: Use selector to get selectedVertices and convert to Set for O(1) lookup
+  const selectedVertices = use3DStore((state) => state.selectedVertices)
+  const selectedVerticesSet = useMemo(() => new Set(selectedVertices), [selectedVertices])
+  
+  // OPTIMIZATION: Track previous values to avoid unnecessary updates
+  const prevElementsRef = useRef<any[]>([])
+  const prevTransformingRef = useRef<boolean>(false)
+  const prevTempPositionsRef = useRef<Map<string, any>>(new Map())
+  const prevSelectedSetRef = useRef<Set<string>>(new Set())
   
   // Geometry oluştur
   const geometry = useMemo(() => {
@@ -46,6 +58,17 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
   
   useEffect(() => {
     if (!meshRef.current || !geometry) return
+    
+    // OPTIMIZATION: Check if anything actually changed
+    const elementsChanged = prevElementsRef.current.length !== elements.length
+    const transformingChanged = prevTransformingRef.current !== isTransforming
+    const tempPosChanged = prevTempPositionsRef.current.size !== tempPositions.size
+    const selectionChanged = prevSelectedSetRef.current.size !== selectedVerticesSet.size
+    
+    // Skip update if nothing changed
+    if (!elementsChanged && !transformingChanged && !tempPosChanged && !selectionChanged && elements.length > 0) {
+      return
+    }
     
     const mesh = meshRef.current
     const dummy = new THREE.Object3D()
@@ -66,14 +89,13 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
     })
     mesh.instanceMatrix.needsUpdate = true
     
-    // 2) Renk buffer'ını hazırla - seçili elementler için özel renk
-    const { selectedVertices } = use3DStore.getState()
+    // 2) Renk buffer'ını hazırla - OPTIMIZATION: Use Set membership instead of array
     const count = elements.length
     const colorArray = new Float32Array(count * 3)
     
     for (let i = 0; i < count; i++) {
       const element = elements[i]
-      const selectedVerticesSet = new Set(selectedVertices)
+      // OPTIMIZATION: O(1) Set lookup instead of O(n) array.includes
       const isSelected = selectedVerticesSet.has(element.id)
       
       // Seçili elementler için parlak yeşil, diğerleri için normal renk
@@ -118,7 +140,13 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
     instancedColors.needsUpdate = true
     mesh.count = elements.length
     
-  }, [elements, geometry, isTransforming, tempPositions])
+    // Update refs
+    prevElementsRef.current = elements
+    prevTransformingRef.current = isTransforming
+    prevTempPositionsRef.current = tempPositions
+    prevSelectedSetRef.current = selectedVerticesSet
+    
+  }, [elements, geometry, isTransforming, tempPositions, selectedVerticesSet])
 
   if (!geometry) return null
 
@@ -127,10 +155,10 @@ function InstancedElements({ elements, geometryType, colorKey = "color", geometr
       <meshBasicMaterial color="#ffffff" />
     </instancedMesh>
   )
-}
+})
 
-// Performance optimized vertex list component (Instanced)
-function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
+// OPTIMIZATION: Memoize Performance optimized vertex list component (Instanced)
+const OptimizedVertexList = React.memo(function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
   const performanceMode = use3DStore((state) => state.performanceMode)
   const isTransforming = use3DStore((state) => state.isTransforming)
   const tempPositions = use3DStore((state) => state.tempPositions)
@@ -147,8 +175,9 @@ function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
     return results
   }, [vertices, performanceMode])
 
-  // Element sayısı azsa normal render, çoksa instanced
-  if (visibleVertices.length < 100) {
+  // OPTIMIZATION: Always use instanced rendering for better performance
+  // Individual rendering should only be used for very small counts
+  if (visibleVertices.length < 20) {
     return (
       <>
         {visibleVertices.map((vertex) => (
@@ -158,16 +187,15 @@ function OptimizedVertexList({ vertices }: { vertices: Map<string, any> }) {
     )
   }
 
-  // Çok element varsa instanced render kullan (VR modu gibi)
-  // InstancedElements kendi içinde geçici pozisyonları kontrol edecek
+  // Use instanced rendering for 20+ vertices (much more efficient)
   return (
     <InstancedElements 
       elements={visibleVertices} 
       geometryType="sphere" 
-      geometryArgs={[0.07, 8, 8]} 
+      geometryArgs={[0.05, 8, 8]} 
     />
   )
-}
+})
 
 // Custom double-sided grid
 function DoubleSidedGrid({ size = 50, divisions = 50, color = "#404040" }) {
@@ -354,6 +382,8 @@ export function Scene3DEditor() {
           onClose={() => setShowPropertiesPanel(false)}
         />
       )}
+
+      <CameraAxisGizmo />
     </div>
   )
 }

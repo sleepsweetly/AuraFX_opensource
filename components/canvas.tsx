@@ -967,7 +967,34 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
       const endY = snapEndY
       const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2))
 
-      ctx.strokeStyle = "#000000"
+      // Adaptive colors based on background luminance
+      const getShapeLuminance = (colorStr: string): number => {
+        if (!colorStr) return 255;
+        const normalized = colorStr.trim().toLowerCase();
+        if (normalized.startsWith('rgb')) {
+          const match = normalized.match(/\d+/g);
+          if (match && match.length >= 3) {
+            return 0.299 * parseInt(match[0]) + 0.587 * parseInt(match[1]) + 0.114 * parseInt(match[2]);
+          }
+        }
+        const hex = normalized.replace('#', '');
+        const r = parseInt(hex.substring(0, 2) || 'ff', 16);
+        const g = parseInt(hex.substring(2, 4) || 'ff', 16);
+        const b = parseInt(hex.substring(4, 6) || 'ff', 16);
+        return 0.299 * r + 0.587 * g + 0.114 * b;
+      };
+      const bgLuminance = getShapeLuminance(backgroundColor);
+      const isDarkBg = bgLuminance < 128;
+      // Stroke and text colors adapt to background
+      const previewStrokeColor = isDarkBg ? "#ffffff" : "#000000";
+      const previewTextColor = isDarkBg ? "#ffffff" : "#000000";
+      const previewDotOuterColor = isDarkBg ? "#000000" : "#ffffff";
+      const previewDotInnerColor = isDarkBg ? "#ffffff" : "#000000";
+      // Glassmorphism colors adapt to background
+      const glassBase = isDarkBg ? "0, 0, 0" : "255, 255, 255";
+      const glassBorderBase = isDarkBg ? "255, 255, 255" : "0, 0, 0";
+
+      ctx.strokeStyle = previewStrokeColor
       ctx.lineWidth = 2
       ctx.setLineDash([5, 5])
 
@@ -1005,14 +1032,14 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           const boxX = startX + radius + 16
           const boxY = startY - radius - 16
 
-          // Glassmorphism background
+          // Glassmorphism background (adapts to dark/light bg)
           const gradient = ctx.createLinearGradient(boxX, boxY, boxX, boxY + boxHeight)
-          gradient.addColorStop(0, "rgba(255, 255, 255, 0.25)")
-          gradient.addColorStop(1, "rgba(255, 255, 255, 0.1)")
+          gradient.addColorStop(0, `rgba(${glassBase}, 0.25)`)
+          gradient.addColorStop(1, `rgba(${glassBase}, 0.1)`)
 
           // Backdrop blur simulation (multiple layers)
           for (let i = 0; i < 3; i++) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${0.08 - i * 0.02})`
+            ctx.fillStyle = `rgba(${glassBase}, ${0.08 - i * 0.02})`
             ctx.beginPath()
             ctx.roundRect(boxX - i, boxY - i, boxWidth + i * 2, boxHeight + i * 2, cornerRadius + i)
             ctx.fill()
@@ -1026,9 +1053,9 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
 
           // Border gradient
           const borderGradient = ctx.createLinearGradient(boxX, boxY, boxX + boxWidth, boxY + boxHeight)
-          borderGradient.addColorStop(0, "rgba(255, 255, 255, 0.6)")
-          borderGradient.addColorStop(0.5, "rgba(255, 255, 255, 0.2)")
-          borderGradient.addColorStop(1, "rgba(255, 255, 255, 0.4)")
+          borderGradient.addColorStop(0, `rgba(${glassBorderBase}, 0.6)`)
+          borderGradient.addColorStop(0.5, `rgba(${glassBorderBase}, 0.2)`)
+          borderGradient.addColorStop(1, `rgba(${glassBorderBase}, 0.4)`)
 
           ctx.strokeStyle = borderGradient
           ctx.lineWidth = 1.5
@@ -1037,34 +1064,34 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
           ctx.stroke()
 
           // Inner highlight
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"
+          ctx.strokeStyle = `rgba(${glassBorderBase}, 0.8)`
           ctx.lineWidth = 0.5
           ctx.beginPath()
           ctx.roundRect(boxX + 1, boxY + 1, boxWidth - 2, boxHeight - 2, cornerRadius - 1)
           ctx.stroke()
 
-          // Center koordinatları (modern typography)
-          ctx.fillStyle = "#000000"
+          // Center koordinatları
+          ctx.fillStyle = previewTextColor
           ctx.font = "600 13px -apple-system, system-ui, 'SF Pro Display', sans-serif"
           ctx.textAlign = "center"
           ctx.fillText(centerText, boxX + boxWidth / 2, boxY + 18)
 
-          // Radius (siyah)
-          ctx.fillStyle = "#000000"
+          // Radius
+          ctx.fillStyle = previewTextColor
           ctx.font = "500 12px -apple-system, system-ui, 'SF Pro Display', sans-serif"
           ctx.fillText(radiusText, boxX + boxWidth / 2, boxY + 34)
 
-          // Modern center point (white with subtle shadow)
-          ctx.shadowColor = "rgba(0, 0, 0, 0.3)"
+          // Modern center point
+          ctx.shadowColor = isDarkBg ? "rgba(255, 255, 255, 0.3)" : "rgba(0, 0, 0, 0.3)"
           ctx.shadowBlur = 4
-          ctx.fillStyle = "#ffffff"
+          ctx.fillStyle = previewDotOuterColor
           ctx.beginPath()
           ctx.arc(startX, startY, 4, 0, 2 * Math.PI)
           ctx.fill()
 
-          // Inner black dot for contrast
+          // Inner dot for contrast
           ctx.shadowBlur = 0
-          ctx.fillStyle = "#000000"
+          ctx.fillStyle = previewDotInnerColor
           ctx.beginPath()
           ctx.arc(startX, startY, 1.5, 0, 2 * Math.PI)
           ctx.fill()

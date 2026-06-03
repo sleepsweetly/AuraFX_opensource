@@ -6,6 +6,7 @@ import { use3DStore } from "../store/use3DStore"
 import { VertexRenderer } from "./VertexRenderer"
 import { SceneAxes } from "./SceneAxes"
 import { BlenderCameraControls } from "./BlenderCameraControls"
+import { CameraAxisGizmo } from "./CameraAxisGizmo"
 import { ZoomLogic } from "./ZoomControls"
 import { SelectionBox } from "./SelectionBox"
 import { TransformControlsManager } from "./TransformControlsManager"
@@ -265,6 +266,8 @@ export function OptimizedScene3D() {
                     onClose={() => setShowPropertiesPanel(false)}
                 />
             )}
+
+            <CameraAxisGizmo />
         </div>
     )
 }

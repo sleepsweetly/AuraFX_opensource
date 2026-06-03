@@ -19,7 +19,7 @@ export function VertexRenderer({ vertex }: VertexRendererProps) {
   const selectedVerticesSet = useMemo(() => new Set(selectedVertices), [selectedVertices])
   const isSelected = selectedVerticesSet.has(vertex.id)
 
-  // Enhanced animation for selected vertices
+  // OPTIMIZATION: Single useFrame for selection animation (removed duplicate)
   useFrame((state) => {
     if (!meshRef.current) return
 
@@ -83,14 +83,6 @@ export function VertexRenderer({ vertex }: VertexRendererProps) {
       shouldRender: true,
     }
   }, [pos, camera.position])
-
-  // Animation - no throttling, let it run at full speed
-  useFrame((state) => {
-    if (meshRef.current && isSelected) {
-      const pulse = Math.sin(state.clock.elapsedTime * 4) * 0.2 + 1
-      meshRef.current.scale.setScalar(pulse)
-    }
-  })
 
   const handleClick = (event: any) => {
     event.stopPropagation()

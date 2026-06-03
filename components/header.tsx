@@ -56,6 +56,44 @@ export function Header(props: HeaderProps = {}) {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
+  // Sol üstten sağ alta yayılan tema geçiş efekti
+  const handleThemeToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const nextTheme = theme === "dark" ? "light" : "dark"
+    
+    // View Transitions API kontrolü
+    if (!document.startViewTransition) {
+      setTheme(nextTheme)
+      return
+    }
+
+    const x = e.clientX
+    const y = e.clientY
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    )
+
+    // @ts-ignore - View Transitions API
+    const transition = document.startViewTransition(() => {
+      setTheme(nextTheme)
+    })
+
+    transition.ready.then(() => {
+      const clipPath = [
+        `circle(0px at ${x}px ${y}px)`,
+        `circle(${endRadius}px at ${x}px ${y}px)`
+      ]
+      document.documentElement.animate(
+        { clipPath },
+        {
+          duration: 800,
+          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+          pseudoElement: "::view-transition-new(root)"
+        }
+      )
+    })
+  }
+
   useEffect(() => {
     setMounted(true)
 
@@ -328,7 +366,7 @@ export function Header(props: HeaderProps = {}) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onClick={(e) => handleThemeToggle(e)}
             className="h-8 w-8 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-900 text-gray-700 dark:text-zinc-300 relative overflow-hidden"
             title={!mounted ? "Switch Theme" : (theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode")}
           >

@@ -214,17 +214,19 @@ export function ColorPickerModal({ isOpen, onClose, currentColor, onColorChange 
 
             {/* Hue Slider */}
             <div
-              className="w-full h-4 rounded-lg cursor-pointer border border-gray-200 dark:border-zinc-800"
+              className="w-full h-4 rounded-lg cursor-pointer border border-gray-200 dark:border-zinc-800 relative"
               style={{
                 background: 'linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)'
               }}
               onClick={handleHueClick}
             >
+              {/* Indicator: yuvarlak, beyaz border + gölge — patlama yok */}
               <div
-                className="w-1 h-full bg-white dark:bg-zinc-900 border border-gray-400 dark:border-zinc-700 rounded-sm shadow-sm"
+                className="absolute top-1/2 w-4 h-4 rounded-full border-2 border-white shadow pointer-events-none"
                 style={{
-                  marginLeft: `${(hue / 360) * 100}%`,
-                  transform: 'translateX(-50%)'
+                  left: `${(hue / 360) * 100}%`,
+                  transform: 'translate(-50%, -50%)',
+                  backgroundColor: `hsl(${hue}, 100%, 50%)`
                 }}
               />
             </div>

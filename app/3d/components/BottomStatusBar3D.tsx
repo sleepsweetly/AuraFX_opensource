@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { Layers, Plus, Minus, Box, Eye, EyeOff, Undo2, Redo2 } from "lucide-react"
+import { Layers, Plus, Minus, Box, Eye, EyeOff, Undo2, Redo2, Code2 } from "lucide-react"
 import { motion, Variants } from "framer-motion"
 import { use3DStore } from "../store/use3DStore"
 
@@ -8,6 +8,8 @@ interface BottomStatusBar3DProps {
   onLayersClick?: () => void
   onZoomIn?: () => void
   onZoomOut?: () => void
+  onCodeClick?: () => void
+  isCodeOpen?: boolean
   zoomLevel?: number
   objectCount?: number
 }
@@ -50,6 +52,8 @@ export function BottomStatusBar3D({
   onLayersClick, 
   onZoomIn, 
   onZoomOut, 
+  onCodeClick,
+  isCodeOpen = false,
   zoomLevel = 100,
   objectCount = 0 
 }: BottomStatusBar3DProps) {
@@ -160,6 +164,34 @@ export function BottomStatusBar3D({
               ) : (
                 <EyeOff className="h-4 w-4" />
               )}
+            </motion.div>
+          </Button>
+        </motion.div>
+
+        {/* Code Panel Button */}
+        <motion.div
+          whileHover="hover"
+          whileTap="tap"
+          variants={buttonVariants}
+        >
+          <Button
+            size="icon"
+            variant="ghost"
+            className={`h-8 w-8 rounded-full transition-all duration-200 ${
+              isCodeOpen
+                ? "bg-white/20 text-white"
+                : "hover:bg-white/10 text-white/60 hover:text-white"
+            }`}
+            onClick={onCodeClick}
+            title="Code Preview"
+          >
+            <motion.div
+              variants={iconVariants}
+              animate="idle"
+              whileHover="hover"
+              whileTap="tap"
+            >
+              <Code2 className="h-4 w-4" />
             </motion.div>
           </Button>
         </motion.div>
