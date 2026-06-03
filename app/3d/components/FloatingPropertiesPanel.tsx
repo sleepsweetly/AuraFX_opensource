@@ -186,7 +186,12 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
   const debouncedBatchColorChange = (color: string) => {
     if (batchColorTimeoutRef.current) window.clearTimeout(batchColorTimeoutRef.current)
     batchColorTimeoutRef.current = window.setTimeout(() => {
-      allSelectedVertices.forEach((vertex) => updateVertex(vertex.id, { color }))
+      // OPTIMIZATION: Use batch update instead of forEach
+      const updates = allSelectedVertices.map((vertex) => ({
+        id: vertex.id,
+        updates: { color }
+      }))
+      use3DStore.getState().updateVerticesBatch(updates)
     }, 100)
   }
 
@@ -446,11 +451,14 @@ export function FloatingPropertiesPanel({ position = { x: 100, y: 100 }, onClose
                         setLocalMultiPosition((previous) => ({ ...previous, [axis]: value }))
                         if (value === "") return
 
-                        allSelectedVertices.forEach((vertex) => {
-                          updateVertex(vertex.id, {
-                            position: { ...vertex.position, [axis]: Number.parseFloat(value) || 0 },
-                          })
-                        })
+                        // OPTIMIZATION: Use batch update instead of forEach
+                        const updates = allSelectedVertices.map((vertex) => ({
+                          id: vertex.id,
+                          updates: {
+                            position: { ...vertex.position, [axis]: Number.parseFloat(value) || 0 }
+                          }
+                        }))
+                        use3DStore.getState().updateVerticesBatch(updates)
                       }}
                     />
                   ))}
