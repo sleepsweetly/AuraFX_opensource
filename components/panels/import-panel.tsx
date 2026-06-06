@@ -4,6 +4,7 @@ import { ImageIcon, FileStack, Settings2, Download, Info, ChevronDown, ChevronUp
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { DBSCAN } from 'density-clustering';
 import * as yaml from 'js-yaml';
 import { parseGIF, decompressFrames } from 'gifuct-js';
@@ -628,51 +629,129 @@ const InfoIcon = ({ desc }: { desc: string }) => (
   </div>
 )
 
-// YENİ VE GÜVENİLİR GIF YÜKLEME FONKSİYONU
+// 🚀 ULTRA-OPTIMIZED GIF LOADING WITH WEB WORKER
+let gifWorker: Worker | null = null;
+let gifProgressCallback: ((progress: number, stage: string, details: string) => void) | null = null;
+
 async function loadGifWithLibrary(file: File, settings: any) {
-  console.log("🎬 Modern GIF import başladı (gifuct-js ile)", {
+  console.log("🚀 Web Worker GIF import başladı", {
     fileName: file.name,
     fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
   });
 
-  // 1. Dosyayı ArrayBuffer olarak oku
-  const buffer = await file.arrayBuffer();
-
-  // 2. Kütüphane ile GIF dosyasını parse et
-  const parsedGif = parseGIF(buffer);
-
-  // 3. Tüm frameleri decompress et (bu işlem pikselleri çıkarır)
-  // not: true parametresi, her frame'in bir önceki üzerine çizilmesini sağlar, bu animasyonlar için önemlidir.
-  const decompressedFrames = decompressFrames(parsedGif, true);
-
-  if (!decompressedFrames || decompressedFrames.length === 0) {
-    alert("Bu GIF dosyası işlenemedi. Lütfen farklı bir dosya deneyin.");
-    console.error("❌ GIF frameleri decompress edilemedi.");
-    return;
+  // Show loading UI
+  if (gifProgressCallback) {
+    gifProgressCallback(0, 'Starting', 'Initializing Web Worker...');
   }
 
-  console.log(`✅ GIF başarıyla çözüldü: ${decompressedFrames.length} frame bulundu.`);
+  try {
+    // 1. Read file as ArrayBuffer
+    const buffer = await file.arrayBuffer();
 
-  // 4. Her bir frame'i ImageData'ya çevir
-  const framesData = decompressedFrames.map((frame, index) => {
-    // Kütüphane bize her pikselin patch'ini verir, bunu canvas'a çizerek tam ImageData elde ederiz.
-    const frameImageData = new ImageData(
-      new Uint8ClampedArray(frame.patch),
-      frame.dims.width,
-      frame.dims.height
-    );
+    // 2. Initialize Web Worker
+    if (!gifWorker) {
+      gifWorker = new Worker(new URL('@/workers/gif-processor.worker.ts', import.meta.url));
+    }
 
-    return {
-      frameIndex: index,
-      imageData: frameImageData,
-      delay: frame.delay, // Her frame'in kendi gecikme süresi
-      timestamp: decompressedFrames.slice(0, index + 1).reduce((acc, f) => acc + f.delay, 0)
-    };
-  });
+    // 3. Setup worker message handlers
+    const allElements: any[] = [];
+    let batchesReceived = 0;
 
-  // 5. Elde ettiğimiz frame verilerini mevcut işleme fonksiyonuna gönder
-  // Artık processGIFFrames fonksiyonu, güvenilir ve tam frame listesiyle çalışacak.
-  processGIFFrames(framesData, settings);
+    return new Promise<void>((resolve, reject) => {
+      if (!gifWorker) {
+        reject(new Error('Worker initialization failed'));
+        return;
+      }
+
+      gifWorker.onmessage = (event) => {
+        const message = event.data;
+
+        switch (message.type) {
+          case 'PROGRESS':
+            console.log(`📊 Progress: ${message.progress}% - ${message.stage}: ${message.details}`);
+            if (gifProgressCallback) {
+              gifProgressCallback(message.progress, message.stage, message.details);
+            }
+            break;
+
+          case 'BATCH_COMPLETE':
+            batchesReceived++;
+            console.log(`✅ Batch ${message.batchIndex + 1} complete: ${message.elements.length} elements`);
+            allElements.push(...message.elements);
+
+            // Optionally: Send batch to UI immediately for progressive loading
+            if (window.addGifElements) {
+              // For now, collect all and send at end
+              // But you could uncomment this for real-time updates:
+              // window.addGifElements(message.elements, message.elements.length);
+            }
+            break;
+
+          case 'COMPLETE':
+            console.log(`🎉 GIF Processing Complete!`, {
+              totalFrames: message.totalFrames,
+              totalElements: message.totalElements,
+              skippedFrames: message.skippedFrames,
+              processingTime: `${message.processingTime}ms`,
+            });
+
+            if (gifProgressCallback) {
+              gifProgressCallback(100, 'Complete', `Processed ${message.totalElements} elements in ${message.processingTime}ms`);
+            }
+
+            // Send all elements to UI
+            if (window.addGifElements) {
+              console.log(`🚀 Sending ${allElements.length} elements to UI...`);
+              window.addGifElements(allElements, message.totalFrames);
+            } else if (window.addPngElements) {
+              console.warn('⚠️ addGifElements not found, using addPngElements fallback');
+              window.addPngElements(allElements);
+            } else {
+              console.error('❌ No callback function found!');
+            }
+
+            resolve();
+            break;
+
+          case 'ERROR':
+            console.error('❌ Worker error:', message.error);
+            alert(`GIF processing failed: ${message.error}`);
+            reject(new Error(message.error));
+            break;
+        }
+      };
+
+      gifWorker.onerror = (error) => {
+        console.error('❌ Worker error:', error);
+        alert('GIF processing failed. Check console for details.');
+        reject(error);
+      };
+
+      // 4. Send GIF data to worker
+      const workerSettings = {
+        maxElements: settings.maxElements || 50000,
+        alphaThreshold: settings.alphaThreshold || 10,
+        particleDensity: settings.particleDensity || 2,
+        colorSimilarityThreshold: settings.colorSimilarityThreshold || 30,
+        gifScaleFactor: settings.gifScaleFactor || 25,
+        imageColorMode: settings.imageColorMode !== false,
+        color: settings.color || '#ff6b35',
+        yOffset: settings.yOffset || 0,
+        gifFrameDelay: settings.gifFrameDelay || 2,
+        adaptiveFrameSkip: settings.adaptiveFrameSkip !== false, // Enable by default
+        frameDiffThreshold: settings.frameDiffThreshold || 5, // 5% difference to keep frame
+      };
+
+      gifWorker.postMessage({
+        type: 'PROCESS_GIF',
+        buffer: buffer,
+        settings: workerSettings,
+      });
+    });
+  } catch (error: any) {
+    console.error('❌ GIF loading error:', error);
+    alert(`Failed to load GIF: ${error.message}`);
+  }
 }
 
 
@@ -693,106 +772,9 @@ async function loadGifWithLibrary(file: File, settings: any) {
 
 
 
-// GIF frame'lerini elementlere dönüştür
-function processGIFFrames(frames: any[], settings: any) {
-  console.log(`🔄 ${frames.length} frame işleniyor...`);
-
-  // Her frame için ayrı layer oluştur
-  const gifLayers: any[] = [];
-
-  // Her frame için maksimum element sayısını hesapla
-  // Toplam element limitini frame sayısına böl, ama minimum 5000 element garantile
-  const totalMaxElements = settings.maxElements || 100000; // Default artırıldı
-  const minElementsPerFrame = 5000; // Minimum artırıldı
-  const maxElementsPerFrame = Math.max(
-    minElementsPerFrame,
-    Math.floor(totalMaxElements / frames.length)
-  );
-
-  console.log(`📊 Her frame için maksimum ${maxElementsPerFrame} element işlenecek (toplam limit: ${totalMaxElements})`);
-
-  frames.forEach((frame, frameIndex) => {
-    console.log(`🎨 Frame ${frameIndex + 1}/${frames.length} işleniyor...`);
-
-    const frameElements = extractElementsFromFrame(frame.imageData, {
-      ...settings,
-      maxElements: maxElementsPerFrame,
-      frameIndex: frameIndex,
-      timestamp: frame.timestamp
-    });
-
-    // Frame bilgisini elementlere ekle
-    frameElements.forEach(element => {
-      element.frameIndex = frameIndex;
-      element.timestamp = frame.timestamp;
-      element.animationGroup = `gif-frame-${frameIndex}`;
-      element.layerId = `gif-frame-${frameIndex}`;
-      element.delay = settings.gifFrameDelay || 2; // Minecraft ticks
-    });
-
-    // Frame için layer oluştur
-    const frameLayer = {
-      id: `gif-frame-${frameIndex}`,
-      name: `GIF Frame ${frameIndex + 1}`,
-      elements: frameElements,
-      particle: settings.particle || 'flame',
-      color: settings.color || '#ff6b35',
-      alpha: settings.alpha || 10,
-      repeat: settings.repeat || 1,
-      repeatInterval: settings.repeatInterval || 1,
-      targeter: settings.targeter || 'origin',
-      effectType: 'particles',
-      yOffset: settings.yOffset || 0,
-      isGifFrame: true,
-      frameIndex: frameIndex,
-      timestamp: frame.timestamp,
-      visible: true,
-      // Frame timing bilgileri
-      delay: frame.timestamp,
-      duration: frame.delay || 100,
-      frameDelay: settings.gifFrameDelay || 2
-    };
-
-    gifLayers.push(frameLayer);
-    console.log(`✅ Frame ${frameIndex + 1}: ${frameElements.length} elements added`);
-  });
-
-  const totalElements = gifLayers.reduce((sum, layer) => sum + layer.elements.length, 0);
-  console.log(`🎉 ${gifLayers.length} GIF layers created, total ${totalElements} elements`);
-
-  // Tüm frame'leri tek bir animasyonlu layer olarak birleştir
-  console.log('🎬 GIF frames being combined into single animated layer...');
-
-  // Tüm elementleri birleştir ve frame bilgilerini koru
-  const allElements: any[] = [];
-
-  gifLayers.forEach((layer, frameIndex) => {
-    layer.elements.forEach((element: any) => {
-      // Her elemente frame bilgisi ekle
-      element.frameIndex = frameIndex;
-      element.totalFrames = gifLayers.length;
-      element.animationGroup = `gif-animation`;
-      allElements.push(element);
-    });
-  });
-
-  console.log(`🎉 ${allElements.length} total elements combined from ${gifLayers.length} frames`);
-
-  // GIF elementlerini özel callback ile gönder
-  if (window.addGifElements) {
-    console.log('🚀 GIF elements being sent via addGifElements...');
-    window.addGifElements(allElements, gifLayers.length);
-  } else if (window.addPngElements) {
-    console.log('⚠️ addGifElements not found, using addPngElements as fallback...');
-    // Fallback: Sadece ilk frame'i ekle
-    const firstFrameElements = gifLayers[0]?.elements || [];
-    window.addPngElements(firstFrameElements);
-  } else {
-    console.error("❌ Neither addGifElements nor addPngElements function found!");
-  }
-
-  console.log(`✅ GIF animation successfully added: ${gifLayers.length} frames, ${allElements.length} elements`);
-}
+// GIF frame'lerini elementlere dönüştür - ARTIK WORKER'DA YAPILIYOR
+// Bu fonksiyon artık kullanılmıyor, Web Worker tarafından replace edildi
+// Backward compatibility için kalıyor ama yeni sistem Worker kullanıyor
 
 // Renk varyasyonu helper fonksiyonu
 function adjustColorForFrame(color: string, frameIndex: number): string {
@@ -852,129 +834,8 @@ function getColorBrightness(color: string): number {
   return (r * 0.299 + g * 0.587 + b * 0.114);
 }
 
-// Frame'den element çıkarma - PARTİKÜL ÇAKIŞMA ÖNLEME İLE
-function extractElementsFromFrame(imageData: ImageData, settings: any): any[] {
-  const width = imageData.width;
-  const height = imageData.height;
-  const maxElements = settings.maxElements || 50000;
-  const alphaThreshold = settings.alphaThreshold || 10;
-  const frameIndex = settings.frameIndex || 0;
-
-  // Partikül yoğunluğu ayarı - çakışmayı önlemek için
-  const particleDensity = settings.particleDensity || 2; // 1-5 arası, 2 = her 2 pikselde bir
-  const colorSimilarityThreshold = settings.colorSimilarityThreshold || 30; // Benzer renkler için threshold
-
-  console.log(`🔍 Frame ${frameIndex} (ÇAKIŞMA ÖNLEME): ${width}x${height}, density: ${particleDensity}, max elements: ${maxElements}`);
-
-  const candidates: any[] = [];
-  const positionMap = new Map<string, string>(); // Pozisyon -> renk mapping
-
-  // Ana pixel tarama döngüsü - PARTİKÜL YOĞUNLUĞUNA GÖRE
-  for (let y = 0; y < height; y += particleDensity) {
-    for (let x = 0; x < width; x += particleDensity) {
-      const index = (y * width + x) * 4;
-      const r = imageData.data[index];
-      const g = imageData.data[index + 1];
-      const b = imageData.data[index + 2];
-      const a = imageData.data[index + 3];
-
-      // Siyah pikseller için özel kontrol
-      const isDarkPixel = (r + g + b) < 100;
-      const effectiveThreshold = isDarkPixel ? Math.min(alphaThreshold, 5) : alphaThreshold;
-      const isVisible = a > effectiveThreshold || (isDarkPixel && a > 0);
-
-      // Görünür pikseller için element oluştur
-      if (isVisible) {
-        // Dünya koordinatlarına çevir
-        const scaleFactor = settings.gifScaleFactor || 25;
-        const worldX = (x - width / 2) / scaleFactor;
-        const worldZ = (y - height / 2) / scaleFactor;
-
-        // Renk modu ayarına göre rengi belirle
-        let color = settings.imageColorMode !== false
-          ? `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`
-          : settings.color || '#ff6b35';
-
-        // Siyah renk kontrolü
-        if (isDarkPixel && settings.imageColorMode !== false) {
-          const brightness = (r + g + b) / 3;
-          if (brightness < 30) {
-            color = '#000000';
-          }
-        }
-
-        // Benzer renkleri birleştir - çakışmayı önle
-        const normalizedColor = normalizeColor(color, colorSimilarityThreshold);
-
-        // Pozisyon anahtarı oluştur
-        const positionKey = `${worldX.toFixed(2)},${worldZ.toFixed(2)}`;
-
-        // Aynı pozisyonda farklı renk varsa, daha parlak olanı seç
-        const existingColor = positionMap.get(positionKey);
-        if (existingColor && existingColor !== normalizedColor) {
-          // Mevcut rengin parlaklığını hesapla
-          const existingBrightness = getColorBrightness(existingColor);
-          const newBrightness = getColorBrightness(normalizedColor);
-
-          // Daha parlak olanı seç
-          if (newBrightness > existingBrightness) {
-            positionMap.set(positionKey, normalizedColor);
-            // Eski elementi kaldır ve yenisini ekle
-            const existingIndex = candidates.findIndex(c =>
-              Math.abs(c.position.x - worldX) < 0.1 &&
-              Math.abs(c.position.z - worldZ) < 0.1
-            );
-            if (existingIndex !== -1) {
-              candidates[existingIndex] = {
-                id: `gif-f${frameIndex}-${x}-${y}`,
-                type: 'gif-particle',
-                position: { x: worldX, z: worldZ },
-                color: normalizedColor,
-                yOffset: settings.yOffset || 0,
-                alpha: Math.max(a / 255, 0.1)
-              };
-            }
-          }
-          continue; // Aynı pozisyonda daha parlak renk yoksa atla
-        }
-
-        // Pozisyon map'ine ekle
-        positionMap.set(positionKey, normalizedColor);
-
-        // Elementi aday listesine ekle
-        candidates.push({
-          id: `gif-f${frameIndex}-${x}-${y}`,
-          type: 'gif-particle',
-          position: { x: worldX, z: worldZ },
-          color: normalizedColor,
-          yOffset: settings.yOffset || 0,
-          alpha: Math.max(a / 255, 0.1)
-        });
-      }
-    }
-  }
-
-  console.log(`📊 Frame ${frameIndex}: ${candidates.length} aday element bulundu (her pikselden).`);
-
-  // Final örnekleme: Eğer aday sayısı hala maxElements limitinden fazlaysa,
-  // limitte kalacak şekilde eşit aralıklarla örnekleme yap.
-  let finalElements: any[] = [];
-  if (candidates.length > maxElements) {
-    console.log(`⚡ Frame ${frameIndex}: ${candidates.length} aday > ${maxElements} limit, örnekleme yapılıyor...`);
-
-    // Deterministik uniform sampling (eşit aralıklı eleme)
-    for (let i = 0; i < maxElements; i++) {
-      const idx = Math.floor(i * candidates.length / maxElements);
-      finalElements.push(candidates[idx]);
-    }
-  } else {
-    // Limit aşılmadıysa, tüm adayları kullan.
-    finalElements = candidates;
-  }
-
-  console.log(`✅ Frame ${frameIndex}: ${finalElements.length} final element oluşturuldu.`);
-  return finalElements;
-}
+// Frame'den element çıkarma - ARTIK WORKER'DA YAPILIYOR
+// Bu fonksiyon deprecated, Web Worker içindeki versiyonu kullanılıyor
 
 // Eski loadPngFile fonksiyonunu ekle
 function legacyLoadPngFile(file: File, settings: any) {
@@ -1185,6 +1046,40 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
   const [morphKernelSize, setMorphKernelSize] = useState<number>(settings.morphKernelSize ?? 3);
   const [minPathLength, setMinPathLength] = useState<number>(settings.minPathLength ?? 3);
   const [showPngSettings, setShowPngSettings] = useState(false);
+
+  // 🚀 NEW: GIF Processing Progress State
+  const [gifProgress, setGifProgress] = useState<{
+    isProcessing: boolean;
+    progress: number;
+    stage: string;
+    details: string;
+  }>({
+    isProcessing: false,
+    progress: 0,
+    stage: '',
+    details: '',
+  });
+
+  // Setup progress callback for GIF worker
+  React.useEffect(() => {
+    gifProgressCallback = (progress: number, stage: string, details: string) => {
+      setGifProgress({
+        isProcessing: progress < 100,
+        progress,
+        stage,
+        details,
+      });
+    };
+
+    return () => {
+      gifProgressCallback = null;
+      // Cleanup worker on unmount
+      if (gifWorker) {
+        gifWorker.terminate();
+        gifWorker = null;
+      }
+    };
+  }, []);
 
   // Sliders state (sync with settings) - GIF için optimize edilmiş default'lar
   const pngSize = settings.pngSize ?? 300; // GIF için daha büyük default
@@ -1652,27 +1547,84 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
   }
 
   return (
-    // ARKA PLAN KALDIRILDI: bg-slate-50 sınıfı silindi.
-    <div className="h-full w-full flex flex-col text-sm relative text-zinc-900 dark:text-zinc-100">
-      {/* Header */}
-      <div className="flex-shrink-0 p-6 border-b border-slate-200 dark:border-zinc-800">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-slate-900 dark:bg-zinc-900 rounded-xl shadow-sm border dark:border-zinc-850">
-            <Download className="w-6 h-6 text-white" />
+    <div className="w-full h-full flex flex-col bg-transparent text-foreground overflow-hidden">
+      {/* 🚀 GIF Processing Progress Overlay */}
+      <AnimatePresence>
+        {gifProgress.isProcessing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-card border border-primary/30 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            >
+              {/* Icon and Title */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-foreground/10 rounded-full blur-xl animate-pulse"></div>
+                  <div className="relative p-3 bg-foreground rounded-xl text-background">
+                    <Film className="w-5 h-5" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm tracking-tight text-foreground">Processing GIF</h3>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground">{gifProgress.stage}</p>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground">Progress</span>
+                  <span className="text-[10px] font-mono font-bold text-foreground">{gifProgress.progress}%</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${gifProgress.progress}%` }}
+                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                    className="h-full bg-foreground relative"
+                  />
+                </div>
+              </div>
+
+              {/* Details */}
+              <div className="p-3 bg-muted/30 rounded-xl border border-border/50">
+                <p className="text-[10px] font-mono text-muted-foreground">
+                  {gifProgress.details}
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 1. Header */}
+      <div className="flex items-center justify-between mb-6 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl border bg-muted text-foreground border-border/50">
+            <Download className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 dark:text-zinc-100 text-xl">Import Files</h3>
-            <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Convert files to elements</p>
+            <h3 className="font-bold text-base tracking-tight">Import Files</h3>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              Convert files to elements
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Import Types List */}
-      <div className="flex-1 overflow-y-auto p-4 scrollbar-hidden">
+      {/* 2. Import Types List */}
+      <div className="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar">
         <ImportTypeSection
           id="png"
           title="PNG Import"
-          icon={ImageIcon} // ImageIcon'ı import ettiğinizden emin olun
+          icon={ImageIcon}
           description="Convert PNG images to vector elements"
           onImport={() => handleFileUpload("png")}
           settings={settings}
@@ -1682,7 +1634,7 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
         <ImportTypeSection
           id="obj"
           title="OBJ Import"
-          icon={FileStack} // FileStack'ı import ettiğinizden emin olun
+          icon={FileStack}
           description="Convert 3D OBJ files to vector elements"
           onImport={() => handleFileUpload("obj")}
           settings={settings}
@@ -1692,8 +1644,8 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
         <ImportTypeSection
           id="gif"
           title="GIF Import"
-          icon={Film} // Film'i import ettiğinizden emin olun
-          description="Convert animated GIFs to frame layers"
+          icon={Film}
+          description="Convert animated GIFs to frames"
           onImport={() => handleFileUpload("gif")}
           settings={settings}
           onSettingsChange={onSettingsChange}
@@ -1702,8 +1654,8 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
         <ImportTypeSection
           id="yaml"
           title="YAML Import"
-          icon={FileText} // FileText'i import ettiğinizden emin olun
-          description="Convert MythicMobs YAML files to elements"
+          icon={FileText}
+          description="Convert MythicMobs YAML to elements"
           onImport={() => handleFileUpload("yaml")}
           settings={settings}
           onSettingsChange={onSettingsChange}
@@ -1717,51 +1669,42 @@ export function ImportPanel({ settings, onSettingsChange }: { settings: any, onS
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-sm border-2 border-dashed border-slate-400 dark:border-zinc-800 rounded-xl flex items-center justify-center z-50"
+            className="absolute inset-0 bg-background/95 backdrop-blur-sm border-2 border-dashed border-foreground/30 rounded-2xl flex items-center justify-center z-50 m-2"
           >
-            <div className="text-center p-8">
-              <div className="p-4 bg-slate-900 dark:bg-zinc-900 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 border dark:border-zinc-800">
-                <Download className="w-10 h-10 text-white" />
+            <div className="text-center p-8 bg-card border border-border/50 shadow-xl rounded-2xl w-full max-w-sm">
+              <div className="p-3 bg-muted rounded-xl w-14 h-14 flex items-center justify-center mx-auto mb-4 border border-border/50">
+                <Download className="w-6 h-6 text-foreground" />
               </div>
-              <p className="text-slate-800 dark:text-zinc-300 font-semibold text-lg mb-2">Drop file here to import</p>
-              <p className="text-slate-500 dark:text-zinc-400">PNG, OBJ, GIF, YAML supported</p>
+              <p className="text-foreground font-bold text-sm tracking-tight mb-1">Drop file here to import</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">PNG, OBJ, GIF, YAML</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <style jsx>{`
-        .scrollbar-hidden::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hidden {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .slider::-webkit-slider-thumb {
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 10px; }
+        
+        input[type="range"].slider::-webkit-slider-thumb {
           appearance: none;
-          height: 16px;
-          width: 16px;
+          height: 12px;
+          width: 12px;
           border-radius: 50%;
-          background: #3b82f6;
+          background: hsl(var(--foreground));
           cursor: pointer;
-          border: 2px solid #ffffff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          border: 2px solid hsl(var(--background));
+          box-shadow: 0 0 0 1px hsl(var(--border));
         }
-        :global(.dark) .slider::-webkit-slider-thumb {
-          border-color: #18181b;
-        }
-        .slider::-moz-range-thumb {
-          height: 16px;
-          width: 16px;
+        input[type="range"].slider::-moz-range-thumb {
+          height: 12px;
+          width: 12px;
           border-radius: 50%;
-          background: #3b82f6;
+          background: hsl(var(--foreground));
           cursor: pointer;
-          border: 2px solid #ffffff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        :global(.dark) .slider::-moz-range-thumb {
-          border-color: #18181b;
+          border: 2px solid hsl(var(--background));
+          box-shadow: 0 0 0 1px hsl(var(--border));
         }
       `}</style>
     </div>
@@ -1790,50 +1733,41 @@ function ImportTypeSection({
   const hasSettings = id !== 'yaml';
 
   return (
-    <div className="mb-3">
+    <div className="mb-2">
       <motion.div
         layout
-        className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-300 relative border ${isExpanded
-          ? "bg-slate-900 dark:bg-zinc-900 text-white dark:text-zinc-100 shadow-lg border-slate-800 dark:border-zinc-800"
-          : "text-slate-700 dark:text-zinc-300 hover:border-slate-300 dark:hover:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-900/50 shadow-sm border-transparent"
-          }`}
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
+        className="w-full p-2.5 bg-card border border-border/50 rounded-xl flex flex-col gap-3 hover:border-foreground/30 transition-all group cursor-pointer"
+        onClick={() => hasSettings ? setIsExpanded(!isExpanded) : onImport()}
       >
-        {isExpanded && (
-          <motion.div
-            layoutId="activeImportBar"
-            className="absolute left-0 top-0 bottom-0 w-1 bg-slate-700 dark:bg-zinc-500 rounded-r-xl"
-          />
-        )}
-        <div className={`p-2 rounded-lg ${isExpanded ? "bg-slate-800 dark:bg-zinc-800" : "bg-slate-100 dark:bg-zinc-800/40"}`}>
-          <Icon className={`w-5 h-5 ${isExpanded ? "text-white" : "text-slate-705 dark:text-zinc-300"}`} />
-        </div>
-        <div className="flex-1">
-          <span className="font-semibold text-base">{title}</span>
-          <p className={`text-xs mt-1 ${isExpanded ? "text-slate-300 dark:text-zinc-400" : "text-slate-500 dark:text-zinc-400"}`}>{description}</p>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+            <Icon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold truncate">{title}</span>
+              {hasSettings && (
+                <div className="text-muted-foreground mr-1">
+                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[9px] text-muted-foreground uppercase tracking-wider truncate">{description}</span>
+            </div>
+          </div>
         </div>
 
-        {hasSettings && (
+        {/* Buttons / Actions */}
+        <div className="flex gap-2">
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className={`p-2 rounded-lg transition-colors ${isExpanded ? "hover:bg-slate-800 dark:hover:bg-zinc-800" : "hover:bg-slate-200 dark:hover:bg-zinc-900"}`}
+            onClick={(e) => { e.stopPropagation(); onImport(); }}
+            className="w-full py-2.5 text-[10px] font-bold text-background bg-foreground hover:bg-foreground/90 flex items-center justify-center gap-2 transition-colors uppercase tracking-widest rounded-lg"
           >
-            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            <Download className="w-3 h-3" />
+            Import {id.toUpperCase()}
           </button>
-        )}
-
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onImport}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isExpanded
-            ? "bg-white dark:bg-zinc-100 text-slate-900 hover:bg-slate-100 shadow-sm"
-            : "bg-slate-900 dark:bg-zinc-900 text-white hover:bg-slate-800 dark:hover:bg-zinc-800/80 border dark:border-zinc-800"
-            }`}
-        >
-          Import
-        </motion.button>
+        </div>
       </motion.div>
 
       <AnimatePresence>
@@ -1843,12 +1777,11 @@ function ImportTypeSection({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 pl-8">
-              {/* ARKA PLAN KALDIRILDI: bg-white sınıfı silindi. */}
-              <div className="rounded-xl p-5 shadow-sm border border-slate-100 dark:border-zinc-800/80 bg-gray-50/30 dark:bg-zinc-900/10">
+            <div className="pt-2 px-1 pb-1">
+              <div className="p-3 bg-card border border-border/50 rounded-xl">
                 {id === 'png' && <PngSettings settings={settings} onSettingsChange={onSettingsChange} />}
                 {id === 'obj' && <ObjSettings settings={settings} onSettingsChange={onSettingsChange} />}
                 {id === 'gif' && <GifSettings settings={settings} onSettingsChange={onSettingsChange} />}
@@ -1867,11 +1800,12 @@ function PngSettings({ settings, onSettingsChange }: { settings: any; onSettings
   const maxElements = settings.maxElements ?? 50000;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      {/* PNG Size */}
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-707 dark:text-zinc-300">PNG Size</span>
-          <span className="text-sm bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 px-3 py-1 rounded-lg font-mono border dark:border-zinc-800">{pngSize}px</span>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-[10px] uppercase font-bold text-foreground">PNG Size</span>
+          <span className="text-[9px] font-mono text-muted-foreground">{pngSize}px</span>
         </div>
         <input
           type="range"
@@ -1879,16 +1813,16 @@ function PngSettings({ settings, onSettingsChange }: { settings: any; onSettings
           max={1024}
           step={8}
           value={pngSize}
-          // SORUN ÇÖZÜLDÜ: e.stopPropagation() eklendi.
           onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, pngSize: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
+          className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider"
         />
       </div>
 
+      {/* Max Elements */}
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Max Elements</span>
-          <span className="text-sm bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 px-3 py-1 rounded-lg font-mono border dark:border-zinc-800">{maxElements.toLocaleString()}</span>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-[10px] uppercase font-bold text-foreground">Max Elements</span>
+          <span className="text-[9px] font-mono text-muted-foreground">{maxElements.toLocaleString()}</span>
         </div>
         <input
           type="range"
@@ -1897,29 +1831,28 @@ function PngSettings({ settings, onSettingsChange }: { settings: any; onSettings
           step={100}
           value={maxElements}
           onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, maxElements: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
+          className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider"
         />
       </div>
 
-      <div className="flex items-center justify-between py-2">
-        <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">Preserve Colors</span>
-        <button
-          onClick={() => onSettingsChange({ ...settings, imageColorMode: !settings.imageColorMode })}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.imageColorMode ? 'bg-blue-600 dark:bg-blue-600' : 'bg-slate-300 dark:bg-zinc-800'
-            }`}
-        >
-          <motion.span
-            layout
-            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${settings.imageColorMode ? 'translate-x-5' : 'translate-x-0.5'
-              }`}
-          />
-        </button>
+      {/* Preserve Colors */}
+      <div className="flex items-center justify-between p-2.5 bg-muted/20 border border-border/50 rounded-xl">
+        <div className="min-w-0">
+          <Label className="text-[10px] font-bold uppercase block truncate">Color Mode</Label>
+          <p className="text-[9px] text-muted-foreground mt-0.5 truncate">Preserve original image colors</p>
+        </div>
+        <Switch
+          checked={!!settings.imageColorMode}
+          onCheckedChange={(checked: boolean) => onSettingsChange({ ...settings, imageColorMode: checked })}
+          className="scale-75 origin-right"
+        />
       </div>
 
-      <div className="space-y-2">
-        <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Sampling Method</span>
+      {/* Sampling Method */}
+      <div>
+        <span className="text-[10px] uppercase font-bold text-foreground mb-1.5 block">Sampling Method</span>
         <select
-          className="w-full px-4 py-2.5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-slate-700 dark:text-zinc-300 focus:border-slate-900 dark:focus:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-zinc-700"
+          className="w-full h-8 px-2 bg-muted/40 border-none rounded-xl text-[11px] font-medium text-foreground focus-visible:ring-1 focus-visible:ring-primary appearance-none cursor-pointer"
           value={settings.samplingMethod || 'legacy'}
           onChange={e => onSettingsChange({ ...settings, samplingMethod: e.target.value })}
         >
@@ -1932,10 +1865,11 @@ function PngSettings({ settings, onSettingsChange }: { settings: any; onSettings
         </select>
       </div>
 
+      {/* Alpha Threshold */}
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Alpha Threshold</span>
-          <span className="text-sm bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 px-3 py-1 rounded-lg font-mono border dark:border-zinc-800">{settings.alphaThreshold ?? 10}</span>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-[10px] uppercase font-bold text-foreground">Alpha Threshold</span>
+          <span className="text-[9px] font-mono text-muted-foreground">{settings.alphaThreshold ?? 10}</span>
         </div>
         <input
           type="range"
@@ -1944,7 +1878,7 @@ function PngSettings({ settings, onSettingsChange }: { settings: any; onSettings
           step={5}
           value={settings.alphaThreshold ?? 10}
           onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, alphaThreshold: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
+          className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider"
         />
       </div>
     </div>
@@ -1956,11 +1890,11 @@ function ObjSettings({ settings, onSettingsChange }: { settings: any; onSettings
   const objScale = settings.objScale ?? 1;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-707 dark:text-zinc-300">Scale</span>
-          <span className="text-sm bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 px-3 py-1 rounded-lg font-mono border dark:border-zinc-800">{objScale}x</span>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-[10px] uppercase font-bold text-foreground">Format Scale</span>
+          <span className="text-[9px] font-mono text-muted-foreground">{objScale}x</span>
         </div>
         <input
           type="range"
@@ -1969,39 +1903,80 @@ function ObjSettings({ settings, onSettingsChange }: { settings: any; onSettings
           step={0.01}
           value={objScale}
           onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, objScale: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
+          className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider"
         />
       </div>
 
-      <div className="flex items-center justify-between py-2">
-        <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">Optimize Performance</span>
-        <button
-          onClick={() => onSettingsChange({ ...settings, objPerformance: !settings.objPerformance })}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.objPerformance ? 'bg-blue-600 dark:bg-blue-600' : 'bg-slate-300 dark:bg-zinc-800'
-            }`}
-        >
-          <motion.span
-            layout
-            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${settings.objPerformance ? 'translate-x-5' : 'translate-x-0.5'
-              }`}
-          />
-        </button>
+      <div className="flex items-center justify-between p-2.5 bg-muted/20 border border-border/50 rounded-xl">
+        <div className="min-w-0">
+          <Label className="text-[10px] font-bold uppercase block truncate">Optimization</Label>
+          <p className="text-[9px] text-muted-foreground mt-0.5 truncate">Speed up rendering</p>
+        </div>
+        <Switch
+          checked={!!settings.objPerformance}
+          onCheckedChange={(checked: boolean) => onSettingsChange({ ...settings, objPerformance: checked })}
+          className="scale-75 origin-right"
+        />
       </div>
     </div>
   );
 }
 
-// --- GifSettings Component (Slider Sorunu Düzeltildi) ---
+// --- GifSettings Component - ULTRA OPTIMIZED VERSION ---
 function GifSettings({ settings, onSettingsChange }: { settings: any; onSettingsChange: (s: any) => void }) {
   const maxElements = settings.maxElements ?? 50000;
   const gifFrameDelay = settings.gifFrameDelay ?? 2;
+  const particleDensity = settings.particleDensity ?? 2;
+  const frameDiffThreshold = settings.frameDiffThreshold ?? 5;
+  const adaptiveFrameSkip = settings.adaptiveFrameSkip !== false;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      {/* 🚀 Smart Frame Skip */}
+      <div className="flex items-center justify-between p-2.5 bg-muted/20 border border-border/50 rounded-xl">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Label className="text-[10px] font-bold uppercase block truncate text-foreground">Smart Frame Skip</Label>
+          </div>
+          <p className="text-[9px] text-muted-foreground mt-0.5 truncate">Skips similar frames for 70% speed up</p>
+        </div>
+        <Switch
+          checked={adaptiveFrameSkip}
+          onCheckedChange={(checked: boolean) => onSettingsChange({ ...settings, adaptiveFrameSkip: checked })}
+          className="scale-75 origin-right"
+        />
+      </div>
+
+      {/* Frame Similarity */}
+      {adaptiveFrameSkip && (
+        <motion.div
+           initial={{ opacity: 0, height: 0 }}
+           animate={{ opacity: 1, height: 'auto' }}
+           exit={{ opacity: 0, height: 0 }}
+        >
+          <div className="flex justify-between items-center mb-1.5 mt-2">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] uppercase font-bold text-foreground">Frame Similarity</span>
+            </div>
+            <span className="text-[9px] font-mono text-muted-foreground">{frameDiffThreshold}%</span>
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={20}
+            step={1}
+            value={frameDiffThreshold}
+            onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, frameDiffThreshold: Number(e.target.value) }); }}
+            className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider"
+          />
+        </motion.div>
+      )}
+
+      {/* Frame Delay */}
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Frame Delay</span>
-          <span className="text-sm bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 px-3 py-1 rounded-lg font-mono border dark:border-zinc-800">{gifFrameDelay} ticks</span>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-[10px] uppercase font-bold text-foreground">Frame Delay</span>
+          <span className="text-[9px] font-mono text-muted-foreground">{gifFrameDelay}t</span>
         </div>
         <input
           type="range"
@@ -2010,14 +1985,15 @@ function GifSettings({ settings, onSettingsChange }: { settings: any; onSettings
           step={1}
           value={gifFrameDelay}
           onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, gifFrameDelay: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
+          className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider"
         />
       </div>
 
+      {/* Max Elements */}
       <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Max Elements</span>
-          <span className="text-sm bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 px-3 py-1 rounded-lg font-mono border dark:border-zinc-800">{maxElements.toLocaleString()}</span>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-[10px] uppercase font-bold text-foreground">Max Elements</span>
+          <span className="text-[9px] font-mono text-muted-foreground">{maxElements.toLocaleString()}</span>
         </div>
         <input
           type="range"
@@ -2026,87 +2002,55 @@ function GifSettings({ settings, onSettingsChange }: { settings: any; onSettings
           step={5000}
           value={maxElements}
           onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, maxElements: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
+          className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider"
         />
       </div>
 
-      <div className="flex items-center justify-between py-2">
-        <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">Preserve Colors</span>
-        <button
-          onClick={() => onSettingsChange({ ...settings, imageColorMode: !settings.imageColorMode })}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.imageColorMode ? 'bg-blue-600 dark:bg-blue-600' : 'bg-slate-300 dark:bg-zinc-800'
-            }`}
-        >
-          <motion.span
-            layout
-            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${settings.imageColorMode ? 'translate-x-5' : 'translate-x-0.5'
-              }`}
+      {/* Preserve Colors */}
+      <div className="flex items-center justify-between p-2.5 bg-muted/20 border border-border/50 rounded-xl">
+        <div className="min-w-0">
+          <Label className="text-[10px] font-bold uppercase block truncate">Color Mode</Label>
+          <p className="text-[9px] text-muted-foreground mt-0.5 truncate">Preserve original image colors</p>
+        </div>
+        <Switch
+          checked={!!settings.imageColorMode}
+          onCheckedChange={(checked: boolean) => onSettingsChange({ ...settings, imageColorMode: checked })}
+          className="scale-75 origin-right"
+        />
+      </div>
+
+      {/* Frame Spacing */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-[10px] uppercase font-bold text-foreground truncate">Density Factor</span>
+            <span className="text-[9px] font-mono text-muted-foreground">{settings.gifScaleFactor ?? 25}</span>
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={100}
+            step={1}
+            value={settings.gifScaleFactor ?? 25}
+            onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, gifScaleFactor: Number(e.target.value) }); }}
+            className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider"
           />
-        </button>
-      </div>
-
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Particle Density</span>
-          <span className="text-sm bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 px-3 py-1 rounded-lg font-mono border dark:border-zinc-800">{settings.gifScaleFactor ?? 25}</span>
         </div>
-        <input
-          type="range"
-          min={1}
-          max={100}
-          step={1}
-          value={settings.gifScaleFactor ?? 25}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, gifScaleFactor: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
-        />
-      </div>
-
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Particle Spacing</span>
-          <span className="text-sm bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 px-3 py-1 rounded-lg font-mono border dark:border-zinc-800">{settings.particleDensity ?? 2}</span>
+        <div>
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-[10px] uppercase font-bold text-foreground truncate">Spacing Detail</span>
+            <span className="text-[9px] font-mono text-muted-foreground">{particleDensity}</span>
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={5}
+            step={1}
+            value={particleDensity}
+            onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, particleDensity: Number(e.target.value) }); }}
+            className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider"
+          />
         </div>
-        <input
-          type="range"
-          min={1}
-          max={5}
-          step={1}
-          value={settings.particleDensity ?? 2}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, particleDensity: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
-        />
-      </div>
-
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Color Similarity</span>
-          <span className="text-sm bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 px-3 py-1 rounded-lg font-mono border dark:border-zinc-800">{settings.colorSimilarityThreshold ?? 30}</span>
-        </div>
-        <input
-          type="range"
-          min={10}
-          max={100}
-          step={10}
-          value={settings.colorSimilarityThreshold ?? 30}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, colorSimilarityThreshold: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
-        />
-      </div>
-
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Alpha Threshold</span>
-          <span className="text-sm bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 px-3 py-1 rounded-lg font-mono border dark:border-zinc-800">{settings.alphaThreshold ?? 10}</span>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={255}
-          step={5}
-          value={settings.alphaThreshold ?? 10}
-          onChange={(e) => { e.stopPropagation(); onSettingsChange({ ...settings, alphaThreshold: Number(e.target.value) }); }}
-          className="w-full h-2 bg-slate-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer slider"
-        />
       </div>
     </div>
   );

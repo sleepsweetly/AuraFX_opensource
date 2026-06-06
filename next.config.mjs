@@ -6,11 +6,18 @@ const nextConfig = {
   },
   reactStrictMode: true,
   trailingSlash: true,
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.module.rules.push({
       test: /\.(glb|gltf)$/,
       type: 'asset/resource',
     });
+    
+    // 🚀 Web Worker Support - Native Next.js approach
+    // Workers are automatically supported with new URL('...', import.meta.url)
+    // No additional config needed, just ensuring optimization is correct
+    if (!isServer) {
+      config.output.globalObject = 'self';
+    }
     
     // MythicScribe extension dosyalarını build'den hariç tut
     config.module.rules.push({

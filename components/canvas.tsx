@@ -381,6 +381,15 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(function Canvas(
     return () => clearTimeout(timer)
   }, [currentLayerId, layers])
 
+  // Elementler hızlıca eklendiğinde DOM darboğazı yaratmamak için sadece canvas'ı tetikleyen event
+  useEffect(() => {
+    const handleForceUpdate = () => {
+      setForceUpdate(prev => prev + 1);
+    };
+    window.addEventListener("canvasForceUpdate", handleForceUpdate);
+    return () => window.removeEventListener("canvasForceUpdate", handleForceUpdate);
+  }, []);
+
   // Canvas boyutu değiştiğinde hızlı tepki için useLayoutEffect
   useLayoutEffect(() => {
     const canvas = canvasRef.current

@@ -111,7 +111,7 @@ export function ActionRecordingPanel() {
       {/* 1. Header */}
       <div className="flex items-center justify-between mb-6 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-xl border ${isRecording ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"}`}>
+          <div className={`p-2 rounded-xl border ${isRecording ? "bg-foreground/10 text-foreground border-foreground/20 animate-pulse" : "bg-muted text-foreground border-border/50"}`}>
             <Activity className="w-5 h-5" />
           </div>
           <div>
@@ -125,36 +125,32 @@ export function ActionRecordingPanel() {
 
       {/* 2. Main Actions */}
       <div className="space-y-3 flex-shrink-0">
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
+        <button
           onClick={handleToggleRecording}
           className={`w-full py-3.5 px-6 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all ${
             isRecording 
-              ? "bg-red-600 hover:bg-red-700 text-white" 
-              : "bg-primary hover:bg-primary/90 text-primary-foreground"
+              ? "bg-foreground/20 hover:bg-foreground/30 text-foreground animate-pulse" 
+              : "bg-foreground hover:bg-foreground/90 text-background"
           }`}
         >
           {isRecording ? <Square className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
           {isRecording ? "STOP RECORDING" : "START RECORDING"}
-        </motion.button>
+        </button>
 
         {records.length > 0 && (
-          <motion.button
-            whileHover={{ scale: 1.01, backgroundColor: "hsl(var(--accent))" }}
-            whileTap={{ scale: 0.99 }}
+          <button
             onClick={() => setShow3DPreview(true)}
-            className="w-full py-3 px-6 rounded-2xl font-bold border border-border bg-card text-foreground flex items-center justify-center gap-3 transition-all"
+            className="w-full py-3 px-6 rounded-2xl font-bold border border-border bg-card hover:bg-muted text-foreground flex items-center justify-center gap-3 transition-all"
           >
-            <Eye className="w-4 h-4 text-primary" />
+            <Eye className="w-4 h-4 text-foreground" />
             WATCH 3D PREVIEW
-          </motion.button>
+          </button>
         )}
 
         {records.length > 0 && (
           <button 
             onClick={clearRecords}
-            className="w-full py-2 text-[10px] font-bold text-muted-foreground hover:text-red-500 flex items-center justify-center gap-2 transition-colors uppercase tracking-widest"
+            className="w-full py-2 text-[10px] font-bold text-muted-foreground hover:text-foreground flex items-center justify-center gap-2 transition-colors uppercase tracking-widest"
           >
             <Trash2 className="w-3 h-3" />
             Wipe Timeline
@@ -217,7 +213,7 @@ export function ActionRecordingPanel() {
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 h-8 bg-muted/40 border-none rounded-xl text-[11px] focus-visible:ring-1 focus-visible:ring-primary"
+                className="pl-8 h-8 bg-muted/40 border-none rounded-xl text-[11px] focus-visible:ring-1 focus-visible:ring-foreground"
               />
             </div>
             <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
@@ -228,7 +224,7 @@ export function ActionRecordingPanel() {
               {filteredRecords.length > displayLimit && (
                 <button
                   onClick={() => setDisplayLimit(prev => prev + 100)}
-                  className="w-full py-4 text-[10px] font-bold text-muted-foreground hover:text-primary transition-all uppercase tracking-widest bg-muted/20 hover:bg-muted/40 rounded-2xl mt-4 border border-border/50"
+                  className="w-full py-4 text-[10px] font-bold text-muted-foreground hover:text-foreground transition-all uppercase tracking-widest bg-muted/20 hover:bg-muted/40 rounded-2xl mt-4 border border-border/50"
                 >
                   Load More (+100 Actions)
                 </button>
@@ -278,10 +274,10 @@ const ActionItem = memo(({ record, index }: { record: ActionRecord; index: numbe
     <motion.div
       initial={{ opacity: 0, x: -5 }}
       animate={{ opacity: 1, x: 0 }}
-      className="p-2.5 bg-card border border-border/50 rounded-xl flex items-center gap-3 hover:border-primary/40 transition-all group"
+      className="p-2.5 bg-card border border-border/50 rounded-xl flex items-center gap-3 hover:border-foreground/30 transition-all group"
     >
       <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center">
-        <Icon className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors" />
+        <Icon className="w-3 h-3 text-muted-foreground group-hover:text-foreground transition-colors" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">

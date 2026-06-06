@@ -1478,6 +1478,11 @@ export const generateEffectCode = async (
 
   // Son branding
   codeLines.push(`# ═══════════════════════════════════════════════════════════════`);
+  codeLines.push(`#    _                _____  __`);
+  codeLines.push(`#   /_\\ _  _ _ _ __ _| __\\ \\/ /`);
+  codeLines.push(`#  / _ \\ || | '_/ _\` | _| >  < `);
+  codeLines.push(`# /_/ \\_\\_,_|_| \\__,_|_| /_/\\_\\`);
+  codeLines.push(`#`);
   codeLines.push(`# 🎉 Effect complete! Share your creation with friends!`);
   codeLines.push(`# 🔗 Create more effects: https://aurafx.online`);
   codeLines.push(`# ⭐ Join our community: ${await getDiscordInviteUrl()}`);

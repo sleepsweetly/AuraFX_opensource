@@ -1,8 +1,6 @@
-// components/panels/announcement-panel.tsx
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
 import {
   X,
   CheckCircle,
@@ -20,15 +18,15 @@ import {
 } from "lucide-react"
 
 const ANNOUNCEMENT_TYPES = {
-  info: { icon: Info, color: "#3B82F6", label: "Information" },
-  success: { icon: CheckCircle, color: "#10B981", label: "Success" },
-  warning: { icon: AlertTriangle, color: "#F59E0B", label: "Warning" },
-  error: { icon: AlertCircle, color: "#EF4444", label: "Error" },
-  maintenance: { icon: Wrench, color: "#8B5CF6", label: "Maintenance" },
-  update: { icon: Bell, color: "#06B6D4", label: "Update" },
-  security: { icon: Shield, color: "#DC2626", label: "Security" },
-  feature: { icon: Sparkles, color: "#F97316", label: "New Feature" },
-  loading: { icon: Clock, color: "#6B7280", label: "Loading" },
+  info: { icon: Info, label: "Information" },
+  success: { icon: CheckCircle, label: "Success" },
+  warning: { icon: AlertTriangle, label: "Warning" },
+  error: { icon: AlertCircle, label: "Error" },
+  maintenance: { icon: Wrench, label: "Maintenance" },
+  update: { icon: Bell, label: "Update" },
+  security: { icon: Shield, label: "Security" },
+  feature: { icon: Sparkles, label: "New Feature" },
+  loading: { icon: Clock, label: "Loading" },
 }
 
 interface Announcement {
@@ -94,151 +92,126 @@ export function AnnouncementPanel({ onClose }: AnnouncementPanelProps) {
     })
   }
 
-  const filteredAnnouncements = announcements
-
   if (loading) {
     return (
-      <div className="h-full w-full bg-white dark:bg-zinc-950 flex flex-col text-sm text-zinc-900 dark:text-zinc-100">
-        <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-zinc-800">
+      <div className="w-full h-full flex flex-col bg-transparent text-foreground overflow-hidden">
+        <div className="flex items-center justify-between mb-6 flex-shrink-0 px-2 lg:px-0 mt-2">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-50 dark:bg-zinc-900 rounded-lg">
-              <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <div className="p-2 rounded-xl border bg-muted text-foreground border-border/50">
+              <Bell className="w-5 h-5 text-foreground" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-zinc-100 text-lg">Announcements</h3>
-              <p className="text-sm text-slate-500 dark:text-zinc-400">Loading announcements...</p>
+              <h3 className="font-bold text-base tracking-tight text-foreground">Announcements</h3>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Loading data</p>
             </div>
           </div>
         </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-2">
-            <Clock className="w-8 h-8 text-gray-400 dark:text-zinc-500 mx-auto animate-spin" />
-            <p className="text-sm text-slate-500 dark:text-zinc-400">Loading...</p>
-          </div>
+        <div className="flex-1 flex justify-center items-center">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-full w-full bg-white dark:bg-zinc-950 flex flex-col text-sm text-zinc-900 dark:text-zinc-100">
+    <div className="w-full h-full flex flex-col bg-transparent text-foreground overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-zinc-800">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-50 dark:bg-zinc-900 rounded-lg">
-              <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-zinc-100 text-lg">Announcements</h3>
-              <p className="text-sm text-slate-500 dark:text-zinc-400">{filteredAnnouncements.length} announcement{filteredAnnouncements.length !== 1 ? 's' : ''}</p>
-            </div>
+      <div className="flex items-center justify-between mb-6 flex-shrink-0 px-2 lg:px-0 mt-2">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl border bg-muted text-foreground border-border/50">
+            <Bell className="w-5 h-5 text-foreground" />
           </div>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-900 rounded-lg transition-colors"
-            >
-              <X className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
-            </button>
-          )}
+          <div>
+            <h3 className="font-bold text-base tracking-tight text-foreground">Announcements</h3>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              {announcements.length} Notification{announcements.length !== 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl border border-transparent hover:border-border/50 hover:bg-muted text-muted-foreground transition-all"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-
       {/* Announcements List */}
-      <div className="flex-1 overflow-y-auto p-4 scrollbar-hidden">
-        {filteredAnnouncements.length === 0 ? (
-          <div className="text-center py-8">
-            <Bell className="w-12 h-12 text-gray-300 dark:text-zinc-700 mx-auto mb-3" />
-            <p className="text-sm text-slate-500 dark:text-zinc-400">No announcements found</p>
+      <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+        {announcements.length === 0 ? (
+          <div className="h-40 flex items-center justify-center border border-dashed border-border/50 rounded-xl bg-muted/5">
+            <div className="text-center space-y-1">
+              <Bell className="w-5 h-5 text-muted-foreground mx-auto" />
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">No announcements</p>
+            </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {filteredAnnouncements.map((announcement) => {
-              const typeConfig = ANNOUNCEMENT_TYPES[announcement.type]
-              const Icon = typeConfig.icon
-              const isExpanded = expandedAnnouncements.has(announcement.id)
+          announcements.map((announcement) => {
+            const typeConfig = ANNOUNCEMENT_TYPES[announcement.type]
+            const Icon = typeConfig.icon
+            const isExpanded = expandedAnnouncements.has(announcement.id)
 
-              return (
-                <motion.div
-                  key={announcement.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4 hover:shadow-md transition-all duration-205 hover:border-gray-300 dark:hover:border-zinc-700"
+            return (
+              <div key={announcement.id} className="bg-card border border-border/50 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => toggleExpanded(announcement.id)}
+                  className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center border border-transparent dark:border-zinc-800"
-                        style={{ backgroundColor: typeConfig.color + '15', color: typeConfig.color }}
-                      >
-                        <Icon className="w-5 h-5" />
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <div className="flex flex-col items-start gap-1 text-left">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-foreground leading-tight">
+                        {announcement.title}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono bg-muted/30 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5" />
+                        {new Date(announcement.timestamp).toLocaleDateString()}
+                      </span>
                     </div>
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+                </button>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-base font-semibold text-gray-900 dark:text-zinc-100 leading-tight">
-                          {announcement.title}
-                        </h3>
-                        <span className="text-xs text-slate-500 dark:text-zinc-500 font-mono ml-2 flex-shrink-0">
-                          {new Date(announcement.timestamp).toLocaleDateString()}
-                        </span>
-                      </div>
-
-                      <div className="text-sm text-gray-700 dark:text-zinc-300 leading-relaxed">
-                        {isExpanded ? announcement.message : announcement.message.substring(0, 150) + '...'}
-                      </div>
-
-                      {announcement.message.length > 150 && (
-                        <button
-                          onClick={() => toggleExpanded(announcement.id)}
-                          className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mt-3 font-medium"
-                        >
-                          {isExpanded ? (
-                            <>
-                              <ChevronUp className="w-4 h-4" />
-                              Show Less
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="w-4 h-4" />
-                              Read More
-                            </>
-                          )}
-                        </button>
-                      )}
+                {isExpanded && (
+                  <div className="overflow-hidden bg-muted/10 border-t border-border/50">
+                    <div className="p-3 text-[10px] text-foreground font-medium leading-relaxed">
+                      {announcement.message}
 
                       {announcement.link && (
                         <a
                           href={announcement.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mt-3 font-medium"
+                          className="mt-3 flex items-center gap-1.5 w-fit border border-foreground/30 px-2 py-1 rounded hover:bg-foreground hover:text-background transition-colors text-foreground uppercase tracking-widest font-bold"
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          <ExternalLink className="w-3 h-3" />
                           View Details
                         </a>
                       )}
                     </div>
                   </div>
-                </motion.div>
-              )
-            })}
-          </div>
+                )}
+              </div>
+            )
+          })
         )}
       </div>
 
-      <style jsx>{`
-        .scrollbar-hidden::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hidden {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 10px; }
       `}</style>
     </div>
+  )
+}
+
+function Loader2(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
   )
 }

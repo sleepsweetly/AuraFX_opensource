@@ -1,25 +1,23 @@
-// components/panels/performance-panel.tsx
 "use client"
 
 import React, { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
 import { 
-  Gauge, 
-  AlertTriangle, 
-  Settings,
   BarChart3,
-  TrendingUp,
-  Shield,
-  Cpu,
-  Lightbulb,
+  Settings,
+  Target,
   ChevronDown,
+  ChevronUp,
   CheckCircle,
   ThumbsUp,
   AlertCircle,
   Siren,
   Zap,
-  Target
+  Cpu,
+  Shield,
+  Lightbulb,
+  Gauge
 } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 
 interface PerformancePanelProps {
   currentLineCount?: number
@@ -58,39 +56,23 @@ export function PerformancePanel({
 
   const getPerformanceLevel = (lines: number) => {
     if (lines <= 10) return { 
-      level: "excellent", 
-      color: "text-green-600 dark:text-green-400", 
-      bgColor: "bg-green-50 dark:bg-zinc-900",
-      borderColor: "border-green-200 dark:border-green-800",
       text: "Excellent",
-      icon: <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />,
+      icon: <CheckCircle className="w-5 h-5 text-foreground" />,
       description: "Perfect performance"
     }
     if (lines <= 25) return { 
-      level: "good", 
-      color: "text-blue-600 dark:text-blue-400", 
-      bgColor: "bg-blue-50 dark:bg-zinc-900",
-      borderColor: "border-blue-200 dark:border-blue-800",
       text: "Good",
-      icon: <ThumbsUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />,
+      icon: <ThumbsUp className="w-5 h-5 text-foreground" />,
       description: "Good performance"
     }
     if (lines <= 50) return { 
-      level: "warning", 
-      color: "text-yellow-600 dark:text-yellow-400", 
-      bgColor: "bg-yellow-50 dark:bg-zinc-900",
-      borderColor: "border-yellow-200 dark:border-yellow-800",
       text: "Warning",
-      icon: <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />,
+      icon: <AlertCircle className="w-5 h-5 text-foreground" />,
       description: "Performance warning"
     }
     return { 
-      level: "danger", 
-      color: "text-red-600 dark:text-red-400", 
-      bgColor: "bg-red-50 dark:bg-zinc-900",
-      borderColor: "border-red-200 dark:border-red-800",
       text: "Danger",
-      icon: <Siren className="h-5 w-5 text-red-600 dark:text-red-400" />,
+      icon: <Siren className="w-5 h-5 text-foreground" />,
       description: "Critical performance"
     }
   }
@@ -102,353 +84,269 @@ export function PerformancePanel({
   }
 
   const compressionLevels = [
-    { id: "low", name: "Low", description: "Minimal optimization" },
-    { id: "medium", name: "Medium", description: "Balanced optimization" },
-    { id: "high", name: "High", description: "Maximum optimization" }
+    { id: "low", name: "Low" },
+    { id: "medium", name: "Medium" },
+    { id: "high", name: "High" }
   ]
 
   const samplingMethods = [
-    { id: "grid", name: "Grid", description: "Grid-based sampling" },
-    { id: "step", name: "Step", description: "Step-based sampling" },
-    { id: "random", name: "Random", description: "Random sampling" },
-    { id: "center", name: "Center", description: "Center-focused sampling" }
+    { id: "grid", name: "Grid" },
+    { id: "step", name: "Step" },
+    { id: "random", name: "Random" },
+    { id: "center", name: "Center" }
   ]
 
   return (
-    <div className="w-full max-w-md mx-auto h-full flex flex-col bg-white dark:bg-zinc-950 p-4 overflow-y-auto scrollbar-hidden panel-container text-zinc-900 dark:text-zinc-100">
+    <div className="w-full h-full flex flex-col bg-transparent text-foreground overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 mb-6">
+      <div className="flex items-center justify-between mb-6 flex-shrink-0 px-2 lg:px-0 mt-2">
         <div className="flex items-center gap-3">
-          <Gauge className="w-5 h-5 text-gray-700 dark:text-zinc-400" />
+          <div className="p-2 rounded-xl border bg-muted text-foreground border-border/50">
+            <Gauge className="w-5 h-5 text-foreground" />
+          </div>
           <div>
-            <h3 className="font-semibold text-gray-900 dark:text-zinc-100 text-base">Performance</h3>
-            <p className="text-sm text-slate-500 dark:text-zinc-400">Optimize your effects for better performance</p>
+            <h3 className="font-bold text-base tracking-tight text-foreground">Performance</h3>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Fine-tune memory</p>
           </div>
         </div>
       </div>
 
-      {/* Performance Status Section */}
-      <div className="flex-shrink-0 mb-6">
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          onClick={() => setStatusExpanded(!statusExpanded)}
-          className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors mb-3 text-zinc-900 dark:text-zinc-100"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center">
-              <BarChart3 className="w-4 h-4 text-gray-600 dark:text-zinc-400" />
-            </div>
-            <div className="text-left">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-zinc-200">Performance Status</h4>
-              <p className="text-xs text-gray-500 dark:text-zinc-400 font-medium">Current effect performance</p>
-            </div>
-          </div>
-          <motion.div
-            animate={{ rotate: statusExpanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
+      <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+
+        {/* SECTION: PERFORMANCE STATUS */}
+        <div className="bg-card border border-border/50 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setStatusExpanded(!statusExpanded)}
+            className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
           >
-            <ChevronDown className="h-4 w-4 text-gray-400 dark:text-zinc-500" />
-          </motion.div>
-        </motion.button>
-        
-        <AnimatePresence>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-muted-foreground" />
+              <span className="text-[11px] font-bold uppercase tracking-wider flex-1 text-left text-foreground">Status</span>
+            </div>
+            {statusExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+          </button>
+
           {statusExpanded && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="overflow-hidden"
-            >
-              <div className="space-y-4 p-4 bg-gray-50 dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800">
-                {/* Performance Indicator */}
-                <div className={`p-4 rounded-lg border ${performance.borderColor} ${performance.bgColor}`}>
-                  <div className="flex items-center justify-between mb-3">
+            <div className="overflow-hidden bg-muted/10 border-t border-border/50">
+              <div className="p-3 space-y-3">
+                <div className="p-3 rounded-xl border border-border/50 bg-card">
+                  <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
                       {performance.icon}
                       <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-zinc-100">Current Lines</div>
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white">{currentLineCount.toLocaleString()}</div>
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Current Lines</div>
+                        <div className="text-xl font-bold text-foreground font-mono">{currentLineCount.toLocaleString()}</div>
                       </div>
                     </div>
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${performance.bgColor} ${performance.color}`}>
+                    <div className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest bg-foreground text-background">
                       {performance.text}
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-zinc-300">{performance.description}</p>
+                  <p className="text-[10px] font-medium text-muted-foreground leading-relaxed">{performance.description}</p>
                 </div>
-
-                {/* Performance Warning */}
-                {currentLineCount > 25 && (
-                  <div className="p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-                      <p className="text-sm text-yellow-800 dark:text-yellow-400">
-                        This effect may impact server performance. Consider optimization.
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
-      </div>
+        </div>
 
-      {/* Optimization Settings Section */}
-      <div className="flex-shrink-0 mb-6">
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          onClick={() => setOptimizationExpanded(!optimizationExpanded)}
-          className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors mb-3 text-zinc-900 dark:text-zinc-100"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center">
-              <Settings className="w-4 h-4 text-gray-600 dark:text-zinc-400" />
-            </div>
-            <div className="text-left">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-zinc-200">Optimization Settings</h4>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">Fine-tune performance options</p>
-            </div>
-          </div>
-          <motion.div
-            animate={{ rotate: optimizationExpanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
+        {/* SECTION: OPTIMIZATION SETTINGS */}
+        <div className="bg-card border border-border/50 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setOptimizationExpanded(!optimizationExpanded)}
+            className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
           >
-            <ChevronDown className="h-4 w-4 text-gray-400 dark:text-zinc-500" />
-          </motion.div>
-        </motion.button>
-        
-        <AnimatePresence>
+            <div className="flex items-center gap-2">
+              <Settings className="w-4 h-4 text-muted-foreground" />
+              <span className="text-[11px] font-bold uppercase tracking-wider flex-1 text-left text-foreground">Optimization</span>
+            </div>
+            {optimizationExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+          </button>
+
           {optimizationExpanded && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="overflow-hidden"
-            >
-              <div className="space-y-4 p-4 bg-gray-50 dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800">
+            <div className="overflow-hidden bg-muted/10 border-t border-border/50">
+              <div className="p-3 space-y-4">
+                
                 {/* Max Lines */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">Max Lines</span>
-                    <span className="text-xs text-slate-500 dark:text-zinc-400 font-medium">{settings.maxLines.toLocaleString()}</span>
+                    <label className="text-[10px] font-bold uppercase block text-foreground">Max Lines</label>
+                    <span className="text-[10px] bg-muted text-foreground px-2 py-1 rounded font-mono">
+                      {settings.maxLines.toLocaleString()}
+                    </span>
                   </div>
                   <input
                     type="range"
-                    min={50}
-                    max={10000}
-                    step={50}
+                    min={50} max={10000} step={50}
                     value={settings.maxLines}
-                    onChange={(e) => setSettings(prev => ({ ...prev, maxLines: Number(e.target.value) }))}
-                    className="w-full h-2 bg-gray-200 dark:bg-zinc-800 rounded-full appearance-none cursor-pointer slider-modern"
+                    onChange={(e) => setSettings(p => ({ ...p, maxLines: Number(e.target.value) }))}
+                    className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider"
                   />
+                  <div className="flex justify-between text-[8px] text-muted-foreground uppercase tracking-widest">
+                    <span>50</span>
+                    <span>10k</span>
+                  </div>
                 </div>
 
                 {/* Compression Level */}
-                <div className="space-y-3">
-                  <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">Compression Level</span>
-                  <div className="grid grid-cols-3 gap-2">
-                    {compressionLevels.map((level) => (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase block text-foreground">Compression</label>
+                  <div className="flex gap-1 bg-muted/30 rounded-xl p-1 border border-border/50">
+                    {compressionLevels.map((lvl) => (
                       <button
-                        key={level.id}
-                        onClick={() => setSettings(prev => ({ ...prev, compressionLevel: level.id as any }))}
-                        className={`p-2 rounded-lg border transition-all text-xs font-medium ${
-                          settings.compressionLevel === level.id
-                            ? "border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
-                            : "border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800"
+                        key={lvl.id}
+                        onClick={() => setSettings(p => ({ ...p, compressionLevel: lvl.id as any }))}
+                        className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${
+                          settings.compressionLevel === lvl.id
+                            ? "bg-foreground text-background shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        {level.name}
+                        {lvl.name}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* Sampling Method */}
-                <div className="space-y-3">
-                  <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">Sampling Method</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    {samplingMethods.map((method) => (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase block text-foreground">Sampling</label>
+                  <div className="grid grid-cols-2 gap-1 bg-muted/30 rounded-xl p-1 border border-border/50">
+                    {samplingMethods.map((m) => (
                       <button
-                        key={method.id}
-                        onClick={() => setSettings(prev => ({ ...prev, samplingMethod: method.id as any }))}
-                        className={`p-2 rounded-lg border transition-all text-xs font-medium ${
-                          settings.samplingMethod === method.id
-                            ? "border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
-                            : "border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800"
+                        key={m.id}
+                        onClick={() => setSettings(p => ({ ...p, samplingMethod: m.id as any }))}
+                        className={`py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${
+                          settings.samplingMethod === m.id
+                            ? "bg-foreground text-background shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        {method.name}
+                        {m.name}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Toggle Options */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">Merge Similar Effects</span>
-                    <div
-                      onClick={() => setSettings(prev => ({ ...prev, mergeSimilarEffects: !prev.mergeSimilarEffects }))}
-                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${
-                        settings.mergeSimilarEffects ? 'bg-slate-900 dark:bg-zinc-100' : 'bg-gray-200 dark:bg-zinc-800'
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-0.5 w-5 h-5 bg-white dark:bg-zinc-900 rounded-full transition-all duration-300 shadow-sm ${
-                          settings.mergeSimilarEffects ? 'left-5' : 'left-0.5'
-                        }`}
-                      />
-                    </div>
+                {/* Switches */}
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-between p-2.5 bg-card border border-border/50 rounded-xl">
+                    <span className="text-[10px] font-bold uppercase text-foreground">Merge Similar</span>
+                    <Switch
+                      checked={settings.mergeSimilarEffects}
+                      onCheckedChange={(v: boolean) => setSettings(p => ({ ...p, mergeSimilarEffects: v }))}
+                      className="scale-[0.8] origin-right"
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">Increase Interval</span>
-                    <div
-                      onClick={() => setSettings(prev => ({ ...prev, increaseInterval: !prev.increaseInterval }))}
-                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${
-                        settings.increaseInterval ? 'bg-slate-900 dark:bg-zinc-100' : 'bg-gray-200 dark:bg-zinc-800'
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-0.5 w-5 h-5 bg-white dark:bg-zinc-900 rounded-full transition-all duration-300 shadow-sm ${
-                          settings.increaseInterval ? 'left-5' : 'left-0.5'
-                        }`}
-                      />
-                    </div>
+                  <div className="flex items-center justify-between p-2.5 bg-card border border-border/50 rounded-xl">
+                    <span className="text-[10px] font-bold uppercase text-foreground">Inc. Interval</span>
+                    <Switch
+                      checked={settings.increaseInterval}
+                      onCheckedChange={(v: boolean) => setSettings(p => ({ ...p, increaseInterval: v }))}
+                      className="scale-[0.8] origin-right"
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700 dark:text-zinc-300">Auto Optimize</span>
-                    <div
-                      onClick={() => setSettings(prev => ({ ...prev, autoOptimize: !prev.autoOptimize }))}
-                      className={`relative w-11 h-6 rounded-full cursor-pointer transition-all duration-300 ${
-                        settings.autoOptimize ? 'bg-slate-900 dark:bg-zinc-100' : 'bg-gray-200 dark:bg-zinc-800'
-                      }`}
-                    >
-                      <div
-                        className={`absolute top-0.5 w-5 h-5 bg-white dark:bg-zinc-900 rounded-full transition-all duration-300 shadow-sm ${
-                          settings.autoOptimize ? 'left-5' : 'left-0.5'
-                        }`}
-                      />
-                    </div>
+                  <div className="flex items-center justify-between p-2.5 bg-card border border-border/50 rounded-xl">
+                    <span className="text-[10px] font-bold uppercase text-foreground">Auto Optimize</span>
+                    <Switch
+                      checked={settings.autoOptimize}
+                      onCheckedChange={(v: boolean) => setSettings(p => ({ ...p, autoOptimize: v }))}
+                      className="scale-[0.8] origin-right"
+                    />
                   </div>
                 </div>
 
-                {/* Optimize Button */}
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <button
                   onClick={handleOptimize}
-                  className="w-full py-2.5 px-4 bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium rounded-lg hover:bg-slate-800 dark:hover:bg-zinc-200 transition-all duration-200 flex items-center justify-center gap-2 text-sm"
+                  className="w-full mt-2 py-2 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 border bg-foreground text-background border-foreground hover:opacity-90"
                 >
-                  <Zap className="w-4 h-4" />
+                  <Zap className="w-3 h-3" />
                   Apply Optimization
-                </motion.button>
+                </button>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
-      </div>
+        </div>
 
-      {/* Performance Templates Section */}
-      <div className="flex-shrink-0 mb-6">
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          onClick={() => setTemplatesExpanded(!templatesExpanded)}
-          className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors mb-3 text-zinc-900 dark:text-zinc-100"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center">
-              <Target className="w-4 h-4 text-gray-600 dark:text-zinc-400" />
-            </div>
-            <div className="text-left">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-zinc-200">Performance Templates</h4>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">Quick optimization presets</p>
-            </div>
-          </div>
-          <motion.div
-            animate={{ rotate: templatesExpanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
+        {/* SECTION: TEMPLATES */}
+        <div className="bg-card border border-border/50 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setTemplatesExpanded(!templatesExpanded)}
+            className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
           >
-            <ChevronDown className="h-4 w-4 text-gray-400 dark:text-zinc-500" />
-          </motion.div>
-        </motion.button>
-        
-        <AnimatePresence>
+            <div className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-muted-foreground" />
+              <span className="text-[11px] font-bold uppercase tracking-wider flex-1 text-left text-foreground">Templates</span>
+            </div>
+            {templatesExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+          </button>
+
           {templatesExpanded && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="overflow-hidden"
-            >
-              <div className="space-y-3 p-4 bg-gray-50 dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+            <div className="overflow-hidden bg-muted/10 border-t border-border/50">
+              <div className="p-3 space-y-2">
+                <button
                   onClick={() => onApplyTemplate("high-performance")}
-                  className="w-full p-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-left"
+                  className="w-full p-2.5 bg-card border border-border/50 rounded-xl hover:border-foreground/30 transition-colors text-left flex items-start gap-3"
                 >
-                  <div className="flex items-center gap-3">
-                    <Cpu className="w-4 h-4 text-green-600 dark:text-green-400" />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-zinc-100">High Performance</div>
-                      <div className="text-xs text-slate-500 dark:text-zinc-400 font-medium">Maximum optimization for servers</div>
-                    </div>
+                  <Cpu className="w-4 h-4 text-foreground mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-foreground">High Performance</div>
+                    <div className="text-[10px] font-medium text-muted-foreground leading-tight mt-0.5">Max optimization</div>
                   </div>
-                </motion.button>
+                </button>
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <button
                   onClick={() => onApplyTemplate("balanced")}
-                  className="w-full p-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-left"
+                  className="w-full p-2.5 bg-card border border-border/50 rounded-xl hover:border-foreground/30 transition-colors text-left flex items-start gap-3"
                 >
-                  <div className="flex items-center gap-3">
-                    <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-zinc-100">Balanced</div>
-                      <div className="text-xs text-slate-500 dark:text-zinc-400 font-medium">Good balance of quality and performance</div>
-                    </div>
+                  <Shield className="w-4 h-4 text-foreground mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-foreground">Balanced</div>
+                    <div className="text-[10px] font-medium text-muted-foreground leading-tight mt-0.5">Good balance</div>
                   </div>
-                </motion.button>
+                </button>
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <button
                   onClick={() => onApplyTemplate("quality-focused")}
-                  className="w-full p-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-left"
+                  className="w-full p-2.5 bg-card border border-border/50 rounded-xl hover:border-foreground/30 transition-colors text-left flex items-start gap-3"
                 >
-                  <div className="flex items-center gap-3">
-                    <Lightbulb className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-zinc-100">Quality Focused</div>
-                      <div className="text-xs text-slate-500 dark:text-zinc-400 font-medium">Prioritize visual quality over performance</div>
-                    </div>
+                  <Lightbulb className="w-4 h-4 text-foreground mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-foreground">Quality Focused</div>
+                    <div className="text-[10px] font-medium text-muted-foreground leading-tight mt-0.5">Prioritize visuals</div>
                   </div>
-                </motion.button>
+                </button>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </div>
+
       </div>
 
-      <style jsx>{`
-        .scrollbar-hidden {
-          scrollbar-width: none; /* Firefox */
-          -ms-overflow-style: none; /* IE and Edge */
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 10px; }
+        
+        input[type="range"].slider::-webkit-slider-thumb {
+          appearance: none;
+          height: 12px;
+          width: 12px;
+          border-radius: 50%;
+          background: hsl(var(--foreground));
+          cursor: pointer;
+          border: 2px solid hsl(var(--background));
+          box-shadow: 0 0 0 1px hsl(var(--border));
         }
-        .scrollbar-hidden::-webkit-scrollbar {
-          display: none; /* Chrome, Safari, Opera */
-          width: 0;
-          height: 0;
+        input[type="range"].slider::-moz-range-thumb {
+          height: 12px;
+          width: 12px;
+          border-radius: 50%;
+          background: hsl(var(--foreground));
+          cursor: pointer;
+          border: 2px solid hsl(var(--background));
+          box-shadow: 0 0 0 1px hsl(var(--border));
         }
       `}</style>
     </div>

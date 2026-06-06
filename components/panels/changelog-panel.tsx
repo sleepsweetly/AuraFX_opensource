@@ -1,8 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { ChevronLeft, ChevronRight, Calendar, Sparkles, ChevronDown, ChevronUp } from "lucide-react"
+import { Calendar, Sparkles, ChevronDown, ChevronUp, History } from "lucide-react"
 
 interface ChangelogEntry {
   version: string
@@ -19,13 +18,13 @@ const CHANGELOG_DATA: ChangelogEntry[] = [
     date: "December 18, 2025",
     title: "3D Editor Redesign & Easter Egg Surprise",
     changes: [
-      "🎨 3D Editor completely redesigned with modern interface",
-      "🔧 Fixed multiple UI component z-index conflicts",
-      "🎮 Added super secret easter egg game (try to find it!)",
-      "✨ Easter egg game now properly hides UI components when active",
-      "🐛 Fixed Header component not appearing on main page",
-      "⚡ Improved component rendering performance",
-      "🎯 Better component layering and visibility management"
+      "3D Editor completely redesigned with modern interface",
+      "Fixed multiple UI component z-index conflicts",
+      "Added super secret easter egg game (try to find it!)",
+      "Easter egg game now properly hides UI components when active",
+      "Fixed Header component not appearing on main page",
+      "Improved component rendering performance",
+      "Better component layering and visibility management"
     ]
   },
   {
@@ -33,14 +32,14 @@ const CHANGELOG_DATA: ChangelogEntry[] = [
     date: "December 15, 2025",
     title: "Complete UI Redesign - Built from Scratch",
     changes: [
-      "🎨 Complete UI redesign with modern white theme",
-      "🔧 All panels redesigned with consistent styling",
-      "📱 New compact header with floating design",
-      "⚡ Left toolbar with quick generate code button",
-      "🎯 Right sidebar with organized tabs",
-      "✨ New footer with social links",
-      "🎪 All modals redesigned with white theme",
-      "🚀 Smooth animations and transitions throughout"
+      "Complete UI redesign with modern monochrome theme",
+      "All panels redesigned with consistent styling",
+      "New compact header with floating design",
+      "Left toolbar with quick generate code button",
+      "Right sidebar with organized tabs",
+      "New footer with social links",
+      "All modals redesigned",
+      "Smooth layout transitions throughout"
     ]
   },
   {
@@ -49,7 +48,7 @@ const CHANGELOG_DATA: ChangelogEntry[] = [
     title: "Action Recording Particle Optimization Fix",
     changes: [
       "Fixed 'Optimize circle frames' switch in Action Recording panel",
-      "When disabled, circles now generate individual particle lines instead of particlering",
+      "When disabled, circles now generate individual particle lines",
       "Action Recording settings are now properly passed to code generation",
       "Changelog modal completely redesigned"
     ]
@@ -146,8 +145,7 @@ const CHANGELOG_DATA: ChangelogEntry[] = [
 ]
 
 export function ChangelogPanel({}: ChangelogPanelProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [expandedVersions, setExpandedVersions] = useState<Set<number>>(new Set([0])) // First version expanded by default
+  const [expandedVersions, setExpandedVersions] = useState<Set<number>>(new Set([0]))
 
   const toggleVersion = (index: number) => {
     const newExpanded = new Set(expandedVersions)
@@ -160,92 +158,61 @@ export function ChangelogPanel({}: ChangelogPanelProps) {
   }
 
   return (
-    <div className="h-full w-full bg-white dark:bg-zinc-950 flex flex-col text-sm text-zinc-900 dark:text-zinc-100">
+    <div className="w-full h-full flex flex-col bg-transparent text-foreground overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-zinc-800">
+      <div className="flex items-center justify-between mb-6 flex-shrink-0 px-2 lg:px-0 mt-2">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
-            <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          <div className="p-2 rounded-xl border bg-muted text-foreground border-border/50">
+            <History className="w-5 h-5 text-foreground" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900 dark:text-zinc-100 text-lg">What's New</h3>
-            <p className="text-sm text-gray-505 dark:text-zinc-400">Latest updates and changes</p>
+            <h3 className="font-bold text-base tracking-tight text-foreground">What's New</h3>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Latest updates</p>
           </div>
         </div>
       </div>
 
       {/* Changelog List */}
-      <div className="flex-1 overflow-y-auto p-1 scrollbar-hidden panel-container">
-        {CHANGELOG_DATA.map((entry, index) => (
-          <div key={entry.version} className="mb-1">
-            <motion.button
-              onClick={() => toggleVersion(index)}
-              className="w-full flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 relative hover:bg-gray-105 dark:hover:bg-zinc-900/60"
-              whileHover={{ x: 2 }}
-            >
-              <div className="flex-1 text-left">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-bold text-gray-900 dark:text-zinc-100">{entry.version}</span>
-                  <span className="text-gray-400 dark:text-zinc-600">•</span>
-                  <div className="flex items-center gap-1 text-gray-600 dark:text-zinc-400">
-                    <Calendar className="w-3 h-3" />
-                    <span className="text-xs">{entry.date}</span>
+      <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+        {CHANGELOG_DATA.map((entry, index) => {
+          const isExpanded = expandedVersions.has(index)
+          return (
+            <div key={entry.version} className="bg-card border border-border/50 rounded-xl overflow-hidden">
+              <button
+                onClick={() => toggleVersion(index)}
+                className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex flex-col items-start gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">{entry.version}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono bg-muted/30 px-1.5 py-0.5 rounded">{entry.date}</span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-muted-foreground text-left leading-tight">{entry.title}</span>
+                </div>
+                {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+              </button>
+
+              {isExpanded && (
+                <div className="overflow-hidden bg-muted/10 border-t border-border/50">
+                  <div className="p-3 space-y-2">
+                    {entry.changes.map((change, changeIndex) => (
+                      <div key={changeIndex} className="flex items-start gap-2">
+                        <div className="w-1 h-1 bg-foreground rounded-full flex-shrink-0 mt-1.5" />
+                        <span className="text-[10px] text-foreground font-medium leading-relaxed">{change}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium">{entry.title}</p>
-              </div>
-              
-              <div className="flex-shrink-0">
-                {expandedVersions.has(index) ? (
-                  <ChevronUp className="w-4 h-4 text-gray-505 dark:text-zinc-500" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-gray-550 dark:text-zinc-500" />
-                )}
-              </div>
-            </motion.button>
-
-            <AnimatePresence>
-              {expandedVersions.has(index) && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="overflow-hidden"
-                >
-                  <div className="px-3 pb-3 pl-7">
-                    <div className="bg-gray-50 dark:bg-zinc-900/20 rounded-md p-3 space-y-2 border border-gray-100 dark:border-zinc-800/80">
-                      {entry.changes.map((change, changeIndex) => (
-                        <motion.div
-                          key={changeIndex}
-                          initial={{ x: -10, opacity: 0 }}
-                          animate={{ x: 0, opacity: 1 }}
-                          transition={{ delay: changeIndex * 0.05 }}
-                          className="flex items-start gap-2"
-                        >
-                          <div className="w-1.5 h-1.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mt-2 flex-shrink-0" />
-                          <span className="text-xs text-gray-700 dark:text-zinc-350 leading-relaxed">{change}</span>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
               )}
-            </AnimatePresence>
-          </div>
-        ))}
+            </div>
+          )
+        })}
       </div>
 
-      <style jsx>{`
-        .scrollbar-hidden {
-          scrollbar-width: none; /* Firefox */
-          -ms-overflow-style: none; /* IE and Edge */
-        }
-        .scrollbar-hidden::-webkit-scrollbar {
-          display: none; /* Chrome, Safari, Opera */
-          width: 0;
-          height: 0;
-        }
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 10px; }
       `}</style>
     </div>
   )

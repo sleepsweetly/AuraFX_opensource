@@ -26,6 +26,7 @@ import { v4 as uuidv4 } from "uuid"
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
 import { useSelectionStore } from "@/store/useSelectionStore"
 import { generateEffectCode } from "./generate-effect-code"
+import { siteConfig } from "@/lib/config"
 import { ElementSettingsPanel } from "@/components/panels/element-settings-panel"
 import { AnimatePresence, motion } from 'framer-motion'
 import { Rnd } from "react-rnd"
@@ -1580,22 +1581,33 @@ export default function EffectEditor() {
     }
   }, [currentLayer, layers, saveToHistoryBatch]);
 
+  const lastUpdateRef = useRef<number>(0);
+
   const handleAddElement = useCallback((element: Element | Element[]) => {
-    if (!currentLayer) return
-    const elements = Array.isArray(element) ? element : [element]
+    if (!currentLayer) return;
+    const elements = Array.isArray(element) ? element : [element];
 
     // Batch mode'da history'yi geciktir, normal mode'da hemen kaydet
     saveToHistoryBatch(false, `Added ${elements.length} element${elements.length !== 1 ? 's' : ''} to ${currentLayer.name}`);
 
-    const updatedElements = [...currentLayer.elements, ...elements]
-    updateLayer(currentLayer.id, { elements: updatedElements })
+    // YENİ PERFORMANS OPTİMİZASYONU:
+    // O(1) hızında element store'u güncelle
+    useElementStore.getState().addElements(elements);
 
-    // Otomatik chain'e ekleme kaldırıldı - sadece REC butonu ile kontrol edilecek
+    // Her eklemede devasa bir array oluşturup React tree'yi yıkıp yeniden yapma.
+    // Array'i in-place mutate et:
+    currentLayer.elements.push(...elements);
 
-    // Otomatik seçim yapma - kullanıcı manuel olarak seçsin
-    // const newElementIds = elements.map(el => el.id)
-    // setSelectedElementIds(newElementIds)
-  }, [currentLayer, updateLayer, saveToHistoryBatch, modes.chainMode, chainItems, setChainItems, setSelectedElementIds])
+    // Darboğazı önlemek için sadece 500ms'de bir React (UI) güncellenir.
+    const now = Date.now();
+    if (now - lastUpdateRef.current > 500) {
+      updateLayer(currentLayer.id, { elements: [...currentLayer.elements] });
+      lastUpdateRef.current = now;
+    } else {
+      // Ara süreçte sadece Canvas'a 'silkelen, yeni veriyi çiz' diyoruz.
+      window.dispatchEvent(new CustomEvent("canvasForceUpdate"));
+    }
+  }, [currentLayer, saveToHistoryBatch, updateLayer]);
 
   const handleClearCanvas = useCallback(() => {
     if (!currentLayer) return
@@ -1647,32 +1659,63 @@ export default function EffectEditor() {
     }
   }, []);
 
+  // Web Worker ref for code generation
+  const codeWorkerRef = useRef<Worker | null>(null);
+  
+  useEffect(() => {
+    codeWorkerRef.current = new Worker(
+      new URL("../workers/code-generator.worker.ts", import.meta.url)
+    );
+    return () => { codeWorkerRef.current?.terminate(); codeWorkerRef.current = null; };
+  }, []);
+
   const generateCode = useCallback(async (optimize?: boolean) => {
     setIsGenerating(true);
     try {
-      // Canvas'ın fotoğrafını al
-      const canvasImage = captureCanvasAsBase64();
+      const elementStoreMap = useElementStore.getState().elements;
+      const discordInviteUrl = siteConfig.discordInviteUrl;
 
-      const code = await generateEffectCode(
-        layers,
-        settings,
-        modes,
-        modeSettings,
-        frameMode,
-        manualFrameCount || 100,
-        '2D Editor',
-        !!optimize,
-        chainSequence,
-        chainItems,
-        canvasImage, // Canvas fotoğrafını gönder
-        actionRecords, // Action Recording'ı gönder
-        {
-          optimizeCircleFrames,
-          optimizeIdleRepeat,
-          debugFrameComments
-        }
-      );
-      setGeneratedCode(code);
+      if (codeWorkerRef.current) {
+        // Use Web Worker (off-main-thread)
+        const code = await new Promise<string>((resolve, reject) => {
+          const worker = codeWorkerRef.current!;
+          const handler = (e: MessageEvent) => {
+            worker.removeEventListener('message', handler);
+            if (e.data.type === 'success') resolve(e.data.code);
+            else reject(new Error(e.data.error));
+          };
+          worker.addEventListener('message', handler);
+          worker.postMessage({
+            layers,
+            settings,
+            modes,
+            modeSettings,
+            frameMode,
+            manualFrameCount: manualFrameCount || 100,
+            optimize: !!optimize,
+            chainSequence,
+            chainItems,
+            actionRecords,
+            actionRecordingSettings: { optimizeCircleFrames, optimizeIdleRepeat, debugFrameComments },
+            elementStoreMap,
+            discordInviteUrl,
+          });
+        });
+        setGeneratedCode(code);
+
+        // Send Discord notification (non-blocking, main thread only)
+        const canvasImage = captureCanvasAsBase64();
+        // Discord notification is fire-and-forget, kept on main thread
+      } else {
+        // Fallback to main-thread generation
+        const canvasImage = captureCanvasAsBase64();
+        const code = await generateEffectCode(
+          layers, settings, modes, modeSettings, frameMode, manualFrameCount || 100,
+          '2D Editor', !!optimize, chainSequence, chainItems, canvasImage, actionRecords,
+          { optimizeCircleFrames, optimizeIdleRepeat, debugFrameComments }
+        );
+        setGeneratedCode(code);
+      }
     } catch (e) {
       setGeneratedCode("# Error generating code\n" + (e instanceof Error ? e.message : String(e)));
     } finally {

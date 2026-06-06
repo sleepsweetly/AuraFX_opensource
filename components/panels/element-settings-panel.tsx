@@ -1,5 +1,3 @@
-// /components/panels/element-settings-panel.tsx
-
 "use client"
 
 import React, { useState } from "react"
@@ -12,6 +10,7 @@ import { TargeterSelectModal } from "@/components/targeter-select-modal"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { Sparkles, Target, Palette, Settings2, Zap, Wind, CircleDot, Tornado, Layers3, ChevronDown, ChevronUp } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { Switch } from "@/components/ui/switch"
 
 interface ElementSettingsPanelProps {
   layers?: Layer[]
@@ -23,76 +22,6 @@ interface ElementSettingsPanelProps {
   updateSelectedElementsColor?: (color: string) => void
   selectedElementIds?: string[]
 }
-
-// --- ÖZEL SLIDER BİLEŞENİ ---
-interface CustomSliderProps {
-  value: number
-  onChange: (value: number) => void
-  min: number
-  max: number
-  step: number
-  accentColor?: string
-}
-
-const CustomSlider: React.FC<CustomSliderProps> = ({ value, onChange, min, max, step, accentColor = "#8b5cf6" }) => {
-  return (
-    <div className="relative w-full group">
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-2 rounded-lg appearance-none cursor-pointer slider"
-        style={{
-          background: `linear-gradient(to right, ${accentColor} 0%, ${accentColor} ${((value - min) / (max - min)) * 100}%, var(--slider-bg, #e5e7eb) ${((value - min) / (max - min)) * 100}%, var(--slider-bg, #e5e7eb) 100%)`
-        }}
-      />
-      <style jsx>{`
-        .slider {
-          --slider-bg: #e5e7eb;
-        }
-        :global(.dark) .slider {
-          --slider-bg: #27272a;
-        }
-        .slider::-webkit-slider-thumb {
-          appearance: none;
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: #ffffff;
-          cursor: pointer;
-          border: 3px solid ${accentColor};
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-          transition: all 0.2s ease;
-        }
-        :global(.dark) .slider::-webkit-slider-thumb {
-          background: #18181b;
-        }
-        .slider::-webkit-slider-thumb:hover {
-          transform: scale(1.2);
-        }
-        .slider::-moz-range-thumb {
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: #ffffff;
-          cursor: pointer;
-          border: 3px solid ${accentColor};
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-          transition: all 0.2s ease;
-        }
-        :global(.dark) .slider::-moz-range-thumb {
-          background: #18181b;
-        }
-        .slider::-moz-range-thumb:hover {
-          transform: scale(1.2);
-        }
-      `}</style>
-    </div>
-  );
-};
 
 const EFFECT_TYPE_ICONS: Record<string, any> = {
   particles: <Sparkles className="w-4 h-4" />,
@@ -128,197 +57,186 @@ export function ElementSettingsPanel({
 }: ElementSettingsPanelProps) {
   const [showParticleSelect, setShowParticleSelect] = useState(false)
   const [showTargeterSelect, setShowTargeterSelect] = useState(false)
-  const [expandedSections, setExpandedSections] = useState<string[]>(['colors', 'properties']);
-
-  const toggleExpanded = (sectionId: string) => {
-    setExpandedSections(prev => prev.includes(sectionId) ? prev.filter(id => id !== sectionId) : [...prev, sectionId]);
-  };
+  
+  const [actionsExpanded, setActionsExpanded] = useState(false);
+  const [colorsExpanded, setColorsExpanded] = useState(true);
+  const [effectExpanded, setEffectExpanded] = useState(true);
+  const [propertiesExpanded, setPropertiesExpanded] = useState(true);
+  const [paramsExpanded, setParamsExpanded] = useState(true);
 
   const selectedLayer = currentLayer;
   const effectTypes: EffectType[] = ["particles", "particlelinehelix", "particleorbital", "particlering", "particleline", "particlelinering", "particlesphere", "particletornado"];
 
   if (!selectedLayer) {
     return (
-      <div className="h-full w-full bg-white dark:bg-zinc-950 flex flex-col text-sm text-zinc-900 dark:text-zinc-100">
-        <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-zinc-800">
+      <div className="w-full h-full flex flex-col bg-transparent text-foreground overflow-hidden">
+        <div className="flex-shrink-0 px-2 lg:px-0 mt-2 mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-violet-50 dark:bg-zinc-900 rounded-lg border border-transparent dark:border-zinc-800">
-              <Settings2 className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+            <div className="p-2 rounded-xl border bg-muted text-foreground border-border/50">
+              <Settings2 className="w-5 h-5 text-foreground" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-zinc-100 text-lg">Element Settings</h3>
-              <p className="text-sm text-slate-500 dark:text-zinc-400">Configure particle effects</p>
+              <h3 className="font-bold text-base tracking-tight text-foreground">Element Settings</h3>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Configure particles</p>
             </div>
           </div>
         </div>
-        <div className="flex-1 flex items-center justify-center text-center p-4">
-          <div>
-            <Layers3 className="w-12 h-12 text-gray-300 dark:text-zinc-700 mx-auto mb-3" />
-            <p className="text-sm text-slate-500 dark:text-zinc-400">No layer selected</p>
-            <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">Select a layer to configure its settings</p>
-          </div>
+        <div className="flex-1 border border-dashed border-border/50 rounded-3xl flex flex-col items-center justify-center p-6 text-center bg-muted/5">
+          <Layers3 className="w-8 h-8 text-muted-foreground mb-2" />
+          <p className="text-xs font-bold uppercase tracking-wider text-foreground">No Layer Selected</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">Select a layer to edit</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-full w-full bg-white dark:bg-zinc-950 flex flex-col text-sm text-zinc-900 dark:text-zinc-100">
-      {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-zinc-800">
+    <div className="w-full h-full flex flex-col bg-transparent text-foreground overflow-hidden">
+      {/* 1. Header */}
+      <div className="flex items-center justify-between mb-6 flex-shrink-0 px-2 lg:px-0 mt-2">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-violet-50 dark:bg-zinc-900 rounded-lg border border-transparent dark:border-zinc-800">
-            <Settings2 className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+          <div className="p-2 rounded-xl border bg-muted text-foreground border-border/50">
+            <Settings2 className="w-5 h-5 text-foreground" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900 dark:text-zinc-100 text-lg">Element Settings</h3>
-            <p className="text-sm text-slate-500 dark:text-zinc-400">{selectedLayer.name || "Unnamed Layer"}</p>
+            <h3 className="font-bold text-base tracking-tight text-foreground">Element Settings</h3>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold truncate max-w-[150px]">
+              {selectedLayer.name || "Unnamed Layer"}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Settings List */}
-      <div className="flex-1 overflow-y-auto p-1 scrollbar-hidden panel-container">
-        {/* Quick Actions */}
-        <div className="mb-1">
-          <motion.div 
-            layout 
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 relative cursor-pointer ${
-              expandedSections.includes('actions') 
-                ? "bg-violet-50 dark:bg-zinc-900 text-violet-750 dark:text-violet-300" 
-                : "text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-900"
-            }`}
-            onClick={() => toggleExpanded('actions')}
-            whileHover={{ x: 2 }}
+      <div className="flex-1 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+        
+        {/* SECTION: QUICK ACTIONS */}
+        <div className="bg-card border border-border/50 rounded-xl overflow-hidden mb-2">
+          <button
+            onClick={() => setActionsExpanded(!actionsExpanded)}
+            className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
           >
-            {expandedSections.includes('actions') && <motion.div layoutId="activeSettingsBar" className="absolute left-0 w-1 h-8 bg-violet-500 rounded-r" />}
-            <Zap className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium flex-1">Quick Actions</span>
-            <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors">
-              {expandedSections.includes('actions') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-          </motion.div>
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-muted-foreground" />
+              <span className="text-[11px] font-bold uppercase tracking-wider flex-1 text-left text-foreground">Quick Actions</span>
+            </div>
+            {actionsExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+          </button>
+          
           <AnimatePresence>
-            {expandedSections.includes('actions') && (
-              <motion.div layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: "easeInOut" }} className="overflow-hidden">
-                <div className="px-3 pb-3 pl-7">
-                  <div className="bg-gray-50 dark:bg-zinc-900 rounded-md p-4 space-y-3 border border-gray-100 dark:border-zinc-800">
-                    <button onClick={() => setShowParticleSelect(true)} className="w-full p-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg hover:border-gray-300 dark:hover:border-zinc-700 hover:shadow-sm transition-all text-left">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-gray-600 dark:text-zinc-400" />
-                          <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">Particle</span>
-                        </div>
-                        <span className="text-sm text-gray-900 dark:text-zinc-100 font-mono bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded border border-gray-200 dark:border-zinc-800">
-                          {selectedLayer?.particle || "reddust"}
-                        </span>
-                      </div>
-                    </button>
-                    <button onClick={() => setShowTargeterSelect(true)} className="w-full p-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg hover:border-gray-300 dark:hover:border-zinc-700 hover:shadow-sm transition-all text-left">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Target className="w-4 h-4 text-gray-600 dark:text-zinc-400" />
-                          <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">Targeter</span>
-                        </div>
-                        <span className="text-sm text-gray-900 dark:text-zinc-100 font-mono bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded border border-gray-200 dark:border-zinc-800">
-                          {selectedLayer?.targeter || "Origin"}
-                        </span>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Colors */}
-        <div className="mb-1">
-          <motion.div 
-            layout 
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 relative cursor-pointer ${
-              expandedSections.includes('colors') 
-                ? "bg-violet-50 dark:bg-zinc-900 text-violet-700 dark:text-violet-300" 
-                : "text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-900"
-            }`}
-            onClick={() => toggleExpanded('colors')}
-            whileHover={{ x: 2 }}
-          >
-            {expandedSections.includes('colors') && <motion.div layoutId="activeSettingsBar" className="absolute left-0 w-1 h-8 bg-violet-500 rounded-r" />}
-            <Palette className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium flex-1">Colors</span>
-            <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors">
-              {expandedSections.includes('colors') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-          </motion.div>
-          <AnimatePresence>
-            {expandedSections.includes('colors') && (
-              <motion.div layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: "easeInOut" }} className="overflow-hidden">
-                <div className="px-3 pb-3 pl-7">
-                  <div className="bg-gray-50 dark:bg-zinc-900 rounded-md p-4 space-y-4 border border-gray-100 dark:border-zinc-800">
-                    <div>
-                      <Label className="text-xs font-semibold text-gray-600 dark:text-zinc-400 uppercase tracking-wider">Layer Color</Label>
-                      <ColorPicker value={selectedLayer.color} onChange={(color) => onUpdateLayer(selectedLayer.id, { color })} className="w-full mt-2" />
+            {actionsExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+                className="overflow-hidden bg-muted/10 border-t border-border/50"
+              >
+                <div className="p-3 space-y-2.5">
+                  <button onClick={() => setShowParticleSelect(true)} className="w-full p-2.5 bg-card hover:bg-muted border border-border/50 rounded-xl transition-all text-left flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-[10px] font-bold uppercase text-foreground">Particle</span>
                     </div>
-                    {selectedElementIds.length > 0 && (
-                      <div>
-                        <Label className="text-xs font-semibold text-gray-600 dark:text-zinc-400 uppercase tracking-wider">Selected Elements ({selectedElementIds.length})</Label>
-                        <ColorPicker value={selectedLayer?.elements?.find((el: any) => selectedElementIds.includes(el.id))?.color || "#ff0000"} onChange={updateSelectedElementsColor} className="w-full mt-2" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Effect Type */}
-        <div className="mb-1">
-          <motion.div 
-            layout 
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 relative cursor-pointer ${
-              expandedSections.includes('effect') 
-                ? "bg-violet-50 dark:bg-zinc-900 text-violet-700 dark:text-violet-300" 
-                : "text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-900"
-            }`}
-            onClick={() => toggleExpanded('effect')}
-            whileHover={{ x: 2 }}
-          >
-            {expandedSections.includes('effect') && <motion.div layoutId="activeSettingsBar" className="absolute left-0 w-1 h-8 bg-violet-500 rounded-r" />}
-            <Sparkles className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium flex-1">Effect Type</span>
-            <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors">
-              {expandedSections.includes('effect') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-          </motion.div>
-          <AnimatePresence>
-            {expandedSections.includes('effect') && (
-              <motion.div layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: "easeInOut" }} className="overflow-hidden">
-                <div className="px-3 pb-3 pl-7">
-                  <div className="bg-gray-50 dark:bg-zinc-900 rounded-md p-4 border border-gray-100 dark:border-zinc-800">
-                    <div className="grid grid-cols-4 gap-2">
-                      {effectTypes.map((type) => (
-                        <button 
-                          key={type} 
-                          onClick={() => onUpdateLayer(selectedLayer.id, { effectType: type, effectParams: {} })} 
-                          className={`p-2 rounded-lg border transition-all ${
-                            selectedLayer?.effectType === type 
-                              ? "border-violet-200 dark:border-violet-850 bg-violet-50 dark:bg-zinc-900 shadow-sm" 
-                              : "border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-gray-300 dark:hover:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800"
-                          }`}
-                        >
-                          <div className="flex flex-col items-center gap-1.5">
-                            {React.cloneElement(EFFECT_TYPE_ICONS[type] || <Zap className="w-3.5 h-3.5" />, { 
-                              className: `w-3.5 h-3.5 ${selectedLayer?.effectType === type ? "text-violet-600 dark:text-violet-400" : "text-gray-500 dark:text-zinc-400"}` 
-                            })}
-                            <span className={`text-[10px] font-medium leading-tight text-center ${selectedLayer?.effectType === type ? "text-violet-900 dark:text-violet-300" : "text-gray-900 dark:text-zinc-300"}`}>
-                              {type === "particles" ? "Basic" : type.replace("particle", "").replace(/([A-Z])/g, " $1").trim()}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
+                    <span className="text-[10px] text-foreground font-mono bg-muted px-2 py-1 rounded">
+                      {selectedLayer?.particle || "reddust"}
+                    </span>
+                  </button>
+                  <button onClick={() => setShowTargeterSelect(true)} className="w-full p-2.5 bg-card hover:bg-muted border border-border/50 rounded-xl transition-all text-left flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-[10px] font-bold uppercase text-foreground">Targeter</span>
                     </div>
+                    <span className="text-[10px] text-foreground font-mono bg-muted px-2 py-1 rounded">
+                      {selectedLayer?.targeter || "Origin"}
+                    </span>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* SECTION: COLORS */}
+        <div className="bg-card border border-border/50 rounded-xl overflow-hidden mb-2">
+          <button
+            onClick={() => setColorsExpanded(!colorsExpanded)}
+            className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Palette className="w-4 h-4 text-muted-foreground" />
+              <span className="text-[11px] font-bold uppercase tracking-wider flex-1 text-left text-foreground">Colors</span>
+            </div>
+            {colorsExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+          </button>
+          
+          <AnimatePresence>
+            {colorsExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+                className="overflow-hidden bg-muted/10 border-t border-border/50"
+              >
+                <div className="p-3 space-y-4">
+                  <div>
+                    <Label className="text-[10px] font-bold uppercase block text-foreground mb-1.5">Layer Color</Label>
+                    <ColorPicker value={selectedLayer.color} onChange={(color) => onUpdateLayer(selectedLayer.id, { color })} className="w-full h-10 rounded-xl border border-border/50 bg-transparent" />
+                  </div>
+                  {selectedElementIds.length > 0 && (
+                    <div>
+                      <Label className="text-[10px] font-bold uppercase block text-foreground mb-1.5">Selected Elements ({selectedElementIds.length})</Label>
+                      <ColorPicker value={selectedLayer?.elements?.find((el: any) => selectedElementIds.includes(el.id))?.color || "#ff0000"} onChange={updateSelectedElementsColor} className="w-full h-10 rounded-xl border border-border/50 bg-transparent" />
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* SECTION: EFFECT TYPE */}
+        <div className="bg-card border border-border/50 rounded-xl overflow-hidden mb-2">
+          <button
+            onClick={() => setEffectExpanded(!effectExpanded)}
+            className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-muted-foreground" />
+              <span className="text-[11px] font-bold uppercase tracking-wider flex-1 text-left text-foreground">Effect Type</span>
+            </div>
+            {effectExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+          </button>
+          
+          <AnimatePresence>
+            {effectExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+                className="overflow-hidden bg-muted/10 border-t border-border/50"
+              >
+                <div className="p-3">
+                  <div className="grid grid-cols-4 gap-2">
+                    {effectTypes.map((type) => (
+                      <button 
+                        key={type} 
+                        onClick={() => onUpdateLayer(selectedLayer.id, { effectType: type, effectParams: {} })} 
+                        className={`p-2 rounded-xl border transition-all flex flex-col items-center justify-center gap-1.5 h-16 ${
+                          selectedLayer?.effectType === type 
+                            ? "border-foreground bg-foreground text-background shadow-sm" 
+                            : "border-border/50 bg-card hover:border-foreground/30 hover:bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {React.cloneElement(EFFECT_TYPE_ICONS[type] || <Zap className="w-3.5 h-3.5" />, { 
+                          className: `w-4 h-4 flex-shrink-0 ${selectedLayer?.effectType === type ? "text-background" : "text-muted-foreground"}` 
+                        })}
+                        <span className={`text-[8px] font-bold uppercase tracking-widest text-center leading-tight ${selectedLayer?.effectType === type ? "text-background" : "text-muted-foreground"}`}>
+                          {type === "particles" ? "Basic" : type.replace("particle", "").replace(/([A-Z])/g, " $1").trim()}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               </motion.div>
@@ -326,121 +244,83 @@ export function ElementSettingsPanel({
           </AnimatePresence>
         </div>
 
-        {/* Layer Properties */}
-        <div className="mb-1">
-          <motion.div 
-            layout 
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 relative cursor-pointer ${
-              expandedSections.includes('properties') 
-                ? "bg-violet-50 dark:bg-zinc-900 text-violet-700 dark:text-violet-300" 
-                : "text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-900"
-            }`}
-            onClick={() => toggleExpanded('properties')}
-            whileHover={{ x: 2 }}
+        {/* SECTION: LAYER PROPERTIES */}
+        <div className="bg-card border border-border/50 rounded-xl overflow-hidden mb-2">
+          <button
+            onClick={() => setPropertiesExpanded(!propertiesExpanded)}
+            className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
           >
-            {expandedSections.includes('properties') && <motion.div layoutId="activeSettingsBar" className="absolute left-0 w-1 h-8 bg-violet-500 rounded-r" />}
-            <Layers3 className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium flex-1">Layer Properties</span>
-            <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors">
-              {expandedSections.includes('properties') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-          </motion.div>
+            <div className="flex items-center gap-2">
+              <Layers3 className="w-4 h-4 text-muted-foreground" />
+              <span className="text-[11px] font-bold uppercase tracking-wider flex-1 text-left text-foreground">Layer Properties</span>
+            </div>
+            {propertiesExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+          </button>
+          
           <AnimatePresence>
-            {expandedSections.includes('properties') && (
-              <motion.div layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: "easeInOut" }} className="overflow-hidden">
-                <div className="px-3 pb-3 pl-7">
-                  <div className="bg-gray-50 dark:bg-zinc-900 rounded-md p-4 space-y-4 border border-gray-100 dark:border-zinc-800">
-                    {/* Repeat */}
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-semibold text-gray-600 dark:text-zinc-400 uppercase tracking-wider">Repeat</span>
-                        <Input
-                          type="number"
-                          value={selectedLayer.repeat}
-                          onChange={(e) => {
-                            const value = Number(e.target.value) || 0;
-                            onUpdateLayer(selectedLayer.id, { repeat: value });
-                          }}
-                          className="w-16 h-6 text-xs text-center bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 font-mono text-gray-900 dark:text-zinc-100 focus-visible:ring-violet-500"
-                        />
-                      </div>
-                      <CustomSlider
+            {propertiesExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+                className="overflow-hidden bg-muted/10 border-t border-border/50"
+              >
+                <div className="p-3 space-y-4">
+                  {/* Repeat */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-[10px] uppercase font-bold text-foreground">Repeat</span>
+                      <Input
+                        type="number"
                         value={selectedLayer.repeat}
-                        onChange={(v) => onUpdateLayer(selectedLayer.id, { repeat: v })}
-                        min={1}
-                        max={10}
-                        step={1}
+                        onChange={(e) => onUpdateLayer(selectedLayer.id, { repeat: Number(e.target.value) || 0 })}
+                        className="w-14 h-6 text-[10px] px-1 text-center bg-card border-border/50 font-mono text-foreground focus-visible:ring-1 focus-visible:ring-foreground"
                       />
                     </div>
+                    <input type="range" min={1} max={10} step={1} value={selectedLayer.repeat} onChange={(e) => onUpdateLayer(selectedLayer.id, { repeat: Number(e.target.value) })} className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider" />
+                  </div>
 
-                    {/* Amount */}
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-semibold text-gray-600 dark:text-zinc-400 uppercase tracking-wider">Amount</span>
-                        <Input
-                          type="number"
-                          value={selectedLayer.alpha}
-                          onChange={(e) => {
-                            const value = Number(e.target.value) || 0;
-                            onUpdateLayer(selectedLayer.id, { alpha: value });
-                          }}
-                          className="w-16 h-6 text-xs text-center bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 font-mono text-gray-900 dark:text-zinc-100 focus-visible:ring-violet-500"
-                        />
-                      </div>
-                      <CustomSlider
+                  {/* Amount */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-[10px] uppercase font-bold text-foreground">Amount</span>
+                      <Input
+                        type="number"
                         value={selectedLayer.alpha}
-                        onChange={(v) => onUpdateLayer(selectedLayer.id, { alpha: v })}
-                        min={0}
-                        max={1}
-                        step={0.1}
+                        onChange={(e) => onUpdateLayer(selectedLayer.id, { alpha: Number(e.target.value) || 0 })}
+                        className="w-14 h-6 text-[10px] px-1 text-center bg-card border-border/50 font-mono text-foreground focus-visible:ring-1 focus-visible:ring-foreground"
                       />
                     </div>
+                    <input type="range" min={0} max={1} step={0.1} value={selectedLayer.alpha} onChange={(e) => onUpdateLayer(selectedLayer.id, { alpha: Number(e.target.value) })} className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider" />
+                  </div>
 
-                    {/* Y Offset */}
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-semibold text-gray-600 dark:text-zinc-400 uppercase tracking-wider">Y Offset</span>
-                        <Input
-                          type="number"
-                          value={selectedLayer.yOffset}
-                          onChange={(e) => {
-                            const value = Number(e.target.value) || 0;
-                            onUpdateLayer(selectedLayer.id, { yOffset: value });
-                          }}
-                          className="w-16 h-6 text-xs text-center bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 font-mono text-gray-900 dark:text-zinc-100 focus-visible:ring-violet-500"
-                        />
-                      </div>
-                      <CustomSlider
+                  {/* Y Offset */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-[10px] uppercase font-bold text-foreground">Y Offset</span>
+                      <Input
+                        type="number"
                         value={selectedLayer.yOffset}
-                        onChange={(v) => onUpdateLayer(selectedLayer.id, { yOffset: v })}
-                        min={-10}
-                        max={10}
-                        step={0.1}
+                        onChange={(e) => onUpdateLayer(selectedLayer.id, { yOffset: Number(e.target.value) || 0 })}
+                        className="w-14 h-6 text-[10px] px-1 text-center bg-card border-border/50 font-mono text-foreground focus-visible:ring-1 focus-visible:ring-foreground"
                       />
                     </div>
+                    <input type="range" min={-10} max={10} step={0.1} value={selectedLayer.yOffset} onChange={(e) => onUpdateLayer(selectedLayer.id, { yOffset: Number(e.target.value) })} className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider" />
+                  </div>
 
-                    {/* Repeat Interval */}
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-semibold text-gray-600 dark:text-zinc-400 uppercase tracking-wider">Repeat Interval</span>
-                        <Input
-                          type="number"
-                          value={selectedLayer.repeatInterval || 1}
-                          onChange={(e) => {
-                            const value = Number(e.target.value) || 1;
-                            onUpdateLayer(selectedLayer.id, { repeatInterval: value });
-                          }}
-                          className="w-16 h-6 text-xs text-center bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 font-mono text-gray-900 dark:text-zinc-100 focus-visible:ring-violet-500"
-                        />
-                      </div>
-                      <CustomSlider
+                  {/* Repeat Interval */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-[10px] uppercase font-bold text-foreground">Repeat Interval</span>
+                      <Input
+                        type="number"
                         value={selectedLayer.repeatInterval || 1}
-                        onChange={(v) => onUpdateLayer(selectedLayer.id, { repeatInterval: v })}
-                        min={1}
-                        max={20}
-                        step={1}
+                        onChange={(e) => onUpdateLayer(selectedLayer.id, { repeatInterval: Number(e.target.value) || 1 })}
+                        className="w-14 h-6 text-[10px] px-1 text-center bg-card border-border/50 font-mono text-foreground focus-visible:ring-1 focus-visible:ring-foreground"
                       />
                     </div>
+                    <input type="range" min={1} max={20} step={1} value={selectedLayer.repeatInterval || 1} onChange={(e) => onUpdateLayer(selectedLayer.id, { repeatInterval: Number(e.target.value) })} className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer slider" />
                   </div>
                 </div>
               </motion.div>
@@ -448,48 +328,52 @@ export function ElementSettingsPanel({
           </AnimatePresence>
         </div>
 
-        {/* Effect Parameters */}
+        {/* SECTION: EFFECT PARAMETERS */}
         {effectTypeParamsMap[selectedLayer.effectType] && effectTypeParamsMap[selectedLayer.effectType].length > 0 && (
-          <div className="mb-1">
-            <motion.div 
-              layout 
-              className={`w-full flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 relative cursor-pointer ${
-                expandedSections.includes('params') 
-                  ? "bg-violet-50 dark:bg-zinc-900 text-violet-700 dark:text-violet-300" 
-                  : "text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-900"
-              }`}
-              onClick={() => toggleExpanded('params')}
-              whileHover={{ x: 2 }}
+          <div className="bg-card border border-border/50 rounded-xl overflow-hidden mb-2">
+            <button
+              onClick={() => setParamsExpanded(!paramsExpanded)}
+              className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors"
             >
-              {expandedSections.includes('params') && <motion.div layoutId="activeSettingsBar" className="absolute left-0 w-1 h-8 bg-violet-500 rounded-r" />}
-              <Settings2 className="w-5 h-5 flex-shrink-0" />
-              <span className="font-medium flex-1">Effect Parameters</span>
-              <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors">
-                {expandedSections.includes('params') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-            </motion.div>
+              <div className="flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-muted-foreground" />
+                <span className="text-[11px] font-bold uppercase tracking-wider flex-1 text-left text-foreground">Effect Parameters</span>
+              </div>
+              {paramsExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+            </button>
+            
             <AnimatePresence>
-              {expandedSections.includes('params') && (
-                <motion.div layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: "easeInOut" }} className="overflow-hidden">
-                  <div className="px-3 pb-3 pl-7">
-                    <div className="bg-gray-50 dark:bg-zinc-900 rounded-md p-4 space-y-3 border border-gray-100 dark:border-zinc-800">
-                      {effectTypeParamsMap[selectedLayer.effectType]?.map((param) => {
-                        const value = selectedLayer.effectParams && param.key in selectedLayer.effectParams ? (selectedLayer.effectParams as any)[param.key] : "";
-                        return (
-                          <div key={param.key} className="flex items-center justify-between gap-3 p-2.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-md">
-                            <Label className="text-gray-700 dark:text-zinc-300 text-xs font-medium flex-shrink-0">{param.label}</Label>
-                            {param.type === "boolean" ? (
-                              <div className="flex gap-1.5">
-                                <button onClick={() => onUpdateLayer(selectedLayer.id, { effectParams: { ...selectedLayer.effectParams, [param.key]: true } })} className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${value ? "bg-violet-600 text-white" : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700"}`}>True</button>
-                                <button onClick={() => onUpdateLayer(selectedLayer.id, { effectParams: { ...selectedLayer.effectParams, [param.key]: false } })} className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${!value ? "bg-violet-600 text-white" : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700"}`}>False</button>
-                              </div>
-                            ) : (
-                              <Input type={param.type === "number" ? "number" : "text"} value={value} onChange={(e) => onUpdateLayer(selectedLayer.id, { effectParams: { ...selectedLayer.effectParams, [param.key]: param.type === "number" ? Number.parseFloat(e.target.value) : e.target.value } })} className="bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100 h-7 text-xs w-24 focus-visible:ring-violet-500" placeholder="Value" />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+              {paramsExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  className="overflow-hidden bg-muted/10 border-t border-border/50"
+                >
+                  <div className="p-3 space-y-2">
+                    {effectTypeParamsMap[selectedLayer.effectType]?.map((param) => {
+                      const value = selectedLayer.effectParams && param.key in selectedLayer.effectParams ? (selectedLayer.effectParams as any)[param.key] : "";
+                      return (
+                        <div key={param.key} className="flex items-center justify-between gap-3 p-2.5 bg-card border border-border/50 rounded-xl h-10">
+                          <Label className="text-foreground text-[10px] font-bold uppercase tracking-wider flex-shrink-0">{param.label}</Label>
+                          {param.type === "boolean" ? (
+                            <Switch
+                              checked={!!value}
+                              onCheckedChange={(checked: boolean) => onUpdateLayer(selectedLayer.id, { effectParams: { ...selectedLayer.effectParams, [param.key]: checked } })}
+                              className="scale-[0.8] origin-right"
+                            />
+                          ) : (
+                            <Input 
+                              type={param.type === "number" ? "number" : "text"} 
+                              value={value} 
+                              onChange={(e) => onUpdateLayer(selectedLayer.id, { effectParams: { ...selectedLayer.effectParams, [param.key]: param.type === "number" ? Number.parseFloat(e.target.value) : e.target.value } })} 
+                              className="bg-muted border-none text-foreground h-full text-[10px] px-2 font-mono w-16 focus-visible:ring-1 focus-visible:ring-foreground" 
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </motion.div>
               )}
@@ -514,15 +398,29 @@ export function ElementSettingsPanel({
         />
       )}
 
-      <style jsx>{`
-        .scrollbar-hidden {
-          scrollbar-width: none; /* Firefox */
-          -ms-overflow-style: none; /* IE and Edge */
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 10px; }
+        
+        input[type="range"].slider::-webkit-slider-thumb {
+          appearance: none;
+          height: 12px;
+          width: 12px;
+          border-radius: 50%;
+          background: hsl(var(--foreground));
+          cursor: pointer;
+          border: 2px solid hsl(var(--background));
+          box-shadow: 0 0 0 1px hsl(var(--border));
         }
-        .scrollbar-hidden::-webkit-scrollbar {
-          display: none; /* Chrome, Safari, Opera */
-          width: 0;
-          height: 0;
+        input[type="range"].slider::-moz-range-thumb {
+          height: 12px;
+          width: 12px;
+          border-radius: 50%;
+          background: hsl(var(--foreground));
+          cursor: pointer;
+          border: 2px solid hsl(var(--background));
+          box-shadow: 0 0 0 1px hsl(var(--border));
         }
       `}</style>
     </div>
