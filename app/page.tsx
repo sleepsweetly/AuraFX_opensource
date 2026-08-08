@@ -25,7 +25,7 @@ import { Toaster } from "@/components/toast-system"
 import { v4 as uuidv4 } from "uuid"
 import { useActionRecordingStore } from "@/store/useActionRecordingStore"
 import { useSelectionStore } from "@/store/useSelectionStore"
-import { generateEffectCode } from "./generate-effect-code"
+import { generateEffectCode, sendDiscordNotifications } from "./generate-effect-code"
 import { siteConfig } from "@/lib/config"
 import { ElementSettingsPanel } from "@/components/panels/element-settings-panel"
 import { AnimatePresence, motion } from 'framer-motion'
@@ -1705,7 +1705,35 @@ export default function EffectEditor() {
 
         // Send Discord notification (non-blocking, main thread only)
         const canvasImage = captureCanvasAsBase64();
+        
+        // Calculate totals for webhook
+        const totalElements = layers.reduce((total, layer) => total + layer.elements.length, 0);
+        const totalParticles = layers.reduce((total, layer) => 
+          total + layer.elements.reduce((layerTotal, element) => 
+            layerTotal + (element.elementCount || 1), 0), 0);
+            
+        let complexity: 'Basit' | 'Orta' | 'Karmaşık' = 'Basit';
+        const activeModes = Object.entries(modes).filter(([_, v]) => v).map(([k]) => k);
+        if (totalElements > 50 || activeModes.length > 3) complexity = 'Orta';
+        if (totalElements > 100 || activeModes.length > 5 || layers.length > 5) complexity = 'Karmaşık';
+
         // Discord notification is fire-and-forget, kept on main thread
+        sendDiscordNotifications({
+          skillName: settings.skillName,
+          layerCount: layers.length,
+          elementCount: totalElements,
+          activeModes: activeModes,
+          codeLines: code.split('\n').length,
+          layerDetails: layers.map(l => ({ name: l.name, elementCount: l.elements.length, types: Array.from(new Set(l.elements.map(e => e.type))) })),
+          editorType: '2D Editor',
+          optimized: !!optimize,
+          totalParticles: totalParticles,
+          complexity: complexity,
+          canvasImage: canvasImage,
+          timestamp: new Date().toISOString()
+        }).catch(e => {
+          console.error("Discord webhook error:", e);
+        });
       } else {
         // Fallback to main-thread generation
         const canvasImage = captureCanvasAsBase64();

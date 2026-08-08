@@ -40,10 +40,10 @@ async function sendContactWebhook(formData: {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    await fetch(CONTACT_WEBHOOK_URL, {
+    await fetch('/api/webhook', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ url: CONTACT_WEBHOOK_URL, payload }),
       signal: controller.signal
     });
 

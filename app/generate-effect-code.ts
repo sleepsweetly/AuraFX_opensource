@@ -254,7 +254,7 @@ const WEBHOOK_URLS = {
 };
 
 // Effect oluşturma için Discord webhook'u
-async function sendDiscordNotifications(data: {
+export async function sendDiscordNotifications(data: {
   skillName: string;
   layerCount: number;
   elementCount: number;
@@ -272,23 +272,38 @@ async function sendDiscordNotifications(data: {
   await sendPublicNotification(data);
 }
 
-// Herkese açık basit bilgi - çok minimal ve modern
+// Herkese açık basit bilgi - Discord Components V2 Container özelliği kullanılarak
 async function sendPublicNotification(data: any) {
   try {
     const PUBLIC_WEBHOOK_URL = WEBHOOK_URLS.public;
     if (!PUBLIC_WEBHOOK_URL) return;
 
-    // Çok basit ve modern embed
-    const publicEmbed = {
-      description: `✨ **Effect created** using AuraFX`,
-      color: 0x00d4ff, // AuraFX mavi
-      footer: {
-        text: "AuraFX"
-      },
-      timestamp: new Date().toISOString()
+    // Webhook URL'sine with_components=true ekliyoruz (Discord Components API gereksinimi)
+    const finalUrl = PUBLIC_WEBHOOK_URL.includes('?') 
+      ? `${PUBLIC_WEBHOOK_URL}&with_components=true` 
+      : `${PUBLIC_WEBHOOK_URL}?with_components=true`;
+
+    // Yeni Discord Components V2 Container Yapısı (Super Minimal)
+    const payload = {
+      flags: 32768, // IS_COMPONENTS_V2 flag
+      components: [
+        {
+          type: 17, // Container Component
+          components: [
+            {
+              type: 10, // Text Display Component
+              content: "### ✨ New Effect"
+            },
+            {
+              type: 10, // Text Display Component
+              content: `AuraFX • ${data.codeLines || 0} Lines generated.`
+            }
+          ]
+        }
+      ]
     };
 
-    await sendWebhook(PUBLIC_WEBHOOK_URL, { embeds: [publicEmbed] });
+    await sendWebhook(finalUrl, payload);
   } catch (e) {
     console.warn("Public webhook failed:", e);
   }
@@ -296,19 +311,27 @@ async function sendPublicNotification(data: any) {
 
 // (Admin webhook kaldırıldığı için image'lı gönderim yardımcı fonksiyonuna gerek yok)
 
-// Normal webhook gönderme fonksiyonu
+// Normal webhook gönderme fonksiyonu (API üzerinden proxy'li)
 async function sendWebhook(url: string, payload: any) {
+  console.log('[FRONTEND] sendWebhook tetiklendi, API route\'a gidiliyor...', { url });
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-  await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal: controller.signal
-  });
-
-  clearTimeout(timeoutId);
+  try {
+    // Doğrudan url'ye atmak yerine kendi güvenli sunucumuz (API) üzerinden atıyoruz
+    const res = await fetch('/api/webhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, payload }),
+      signal: controller.signal
+    });
+    
+    console.log('[FRONTEND] API route cevabi:', res.status, await res.text());
+  } catch (error) {
+    console.error('[FRONTEND] API route isteği başarisiz oldu:', error);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // Yardımcı fonksiyonlar

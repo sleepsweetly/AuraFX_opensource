@@ -42,16 +42,25 @@ export function AnalyticsSettings() {
 
   const testWebhook = async () => {
     try {
-      const response = await fetch(webhookUrl, {
+      const response = await fetch('/api/webhook', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          content: '🧪 **Test Bildirimi**\n\nBu bir test bildirimidir. Webhook çalışıyor!',
-          username: 'AuraFX Analytics',
-          avatar_url: 'https://aurafx.online/favicon.ico'
-        })
+          url: webhookUrl,
+          payload: {
+            content: '🧪 **Test Bildirimi**\n\nBu bir test bildirimidir. Webhook çalışıyor!',
+            embeds: [
+              {
+                title: 'AuraFX Bildirim Testi',
+                description: 'Webhook bağlantınız başarıyla yapılandırıldı.',
+                color: 0x00d4aa,
+                timestamp: new Date().toISOString(),
+              }
+            ]
+          }
+        }),
       })
 
       if (response.ok) {
