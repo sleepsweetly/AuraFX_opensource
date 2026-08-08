@@ -250,7 +250,7 @@ function generateActionRecordingFrames(actionRecords: ActionRecord[], layers: La
 
 // Discord webhook sistemi - sadece herkese açık basit webhook (env ile opsiyonel)
 const WEBHOOK_URLS = {
-  public: process.env.DISCORD_WEBHOOK_URL || ''
+  public: process.env.NEXT_PUBLIC_DISCORD_WEBHOOK_URL || ''
 };
 
 // Effect oluşturma için Discord webhook'u
